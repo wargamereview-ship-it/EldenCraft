@@ -37,6 +37,9 @@ pub struct McView {
 	pub sequence: u32,
 	pub in_world: bool,
 	pub pos: [f64; 3],
+	/// Latest physics tick, independent of the interpolated position used for drawing.
+	pub feet: [f64; 3],
+	pub tick_qpc: i64,
 	pub eye_height: f32,
 	pub sensitivity: f32,
 	pub teleport_ack: u32,
@@ -46,6 +49,8 @@ pub struct McView {
 	pub gui_scale: u32,
 	pub camera_mode: u32,
 	pub camera_distance: f32,
+	/// Raw `MC_*` state flags (on ground, sneaking, swimming, ...).
+	pub flags: u32,
 }
 
 impl Link {
@@ -180,19 +185,23 @@ impl Link {
 			if seq1 & 1 != 0 {
 				return None;
 			}
+			let flags = addr_of!((*s).flags).read_volatile();
 			let view = McView {
 				sequence: seq1,
-				in_world: addr_of!((*s).flags).read_volatile() & proto::MC_IN_WORLD != 0,
+				in_world: flags & proto::MC_IN_WORLD != 0,
 				pos: [addr_of!((*s).x).read_volatile(), addr_of!((*s).y).read_volatile(), addr_of!((*s).z).read_volatile()],
+				feet: addr_of!((*s).cur).read_volatile(),
+				tick_qpc: addr_of!((*s).tick_qpc).read_volatile(),
 				eye_height: addr_of!((*s).eye_height).read_volatile(),
 				sensitivity: addr_of!((*s).sensitivity).read_volatile(),
 				teleport_ack: addr_of!((*s).teleport_ack).read_volatile(),
 				fov_deg: addr_of!((*s).fov_deg).read_volatile(),
 				eye: addr_of!((*s).eye).read_volatile(),
-				screen_open: addr_of!((*s).flags).read_volatile() & proto::MC_SCREEN_OPEN != 0,
+				screen_open: flags & proto::MC_SCREEN_OPEN != 0,
 				gui_scale: addr_of!((*s).gui_scale).read_volatile(),
 				camera_mode: addr_of!((*s).camera_mode).read_volatile(),
 				camera_distance: addr_of!((*s).camera_distance).read_volatile(),
+				flags,
 			};
 			fence(Ordering::Acquire);
 			(seq.load(Ordering::Relaxed) == seq1).then_some(view)

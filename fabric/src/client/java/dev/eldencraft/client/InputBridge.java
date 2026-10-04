@@ -21,6 +21,8 @@ public final class InputBridge {
 	private static int modifiers;
 	private static int clickLogs;
 	private static net.minecraft.world.phys.Vec3 hurtOrigin;
+	private static net.minecraft.world.phys.Vec3 lootPos;
+	private static int[] lootId;
 
 	private InputBridge() {
 	}
@@ -69,6 +71,16 @@ public final class InputBridge {
 				hurt(minecraft, code, a / 100.0F, b, c, hurtOrigin);
 				hurtOrigin = null;
 			}
+			case Proto.IN_LOOT_POS -> lootPos = new net.minecraft.world.phys.Vec3(Float.intBitsToFloat(a), Float.intBitsToFloat(b), Float.intBitsToFloat(c));
+			case Proto.IN_LOOT_ID -> lootId = new int[] { a, b, c };
+			case Proto.IN_ENEMY_DIED -> {
+				if (lootPos != null && lootId != null) {
+					enemyDied(minecraft, new dev.eldencraft.combat.SkyLoot.Death(lootPos, lootId[0], lootId[1], lootId[2], a, b,
+						(code & Proto.ENEMY_BOSS) != 0));
+				}
+				lootPos = null;
+				lootId = null;
+			}
 			case Proto.IN_HIT_FEEDBACK -> CombatHud.hit(b, a, c, code);
 			case Proto.IN_PLAYER_HEALTH -> CombatHud.playerHealth(a, b);
 			case Proto.IN_OPEN_MENU -> {
@@ -80,6 +92,21 @@ public final class InputBridge {
 			default -> {
 			}
 		}
+	}
+
+	/** An enemy this player killed in ER: the host's integrated server rolls and drops its loot. */
+	private static void enemyDied(Minecraft minecraft, dev.eldencraft.combat.SkyLoot.Death death) {
+		var server = minecraft.getSingleplayerServer();
+		if (server == null || minecraft.player == null) {
+			return; // A guest's kills would need the host's server; not part of the local loop yet.
+		}
+		var uuid = minecraft.player.getUUID();
+		server.execute(() -> {
+			ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+			if (player != null) {
+				dev.eldencraft.combat.SkyLoot.enemyDied(player, death);
+			}
+		});
 	}
 
 	/** Skyrim hit the player: apply it as Minecraft damage on the integrated server (or the host's). */

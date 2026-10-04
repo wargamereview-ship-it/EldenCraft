@@ -108,8 +108,9 @@ impl Sample {
 
 /// A proposed wall between adjacent vertical rays. Its volume parity is untrusted.
 struct WallProbe { mid: (f64, f64), along_x: bool, lo: f64, hi: f64 }
-/// A run of bands with actual native wall hits at approximately the same position.
-struct WallFace { mid: (f64, f64), along_x: bool, lo: f64, hi: f64 }
+/// A run of bands whose two endpoints were both hit by native rays. Endpoints follow the
+/// actual wall angle instead of extruding a grid-aligned strip into an open passage.
+struct WallFace { p0: (f64, f64), p1: (f64, f64), lo: f64, hi: f64 }
 
 /// A column being scanned, one sample / wall band at a time.
 struct Job {
@@ -123,7 +124,7 @@ struct Job {
 	walls: Option<Vec<WallProbe>>,
 	next_wall: usize,
 	next_band: usize,
-	wall_run: Option<WallFace>,
+	wall_run: Vec<WallFace>,
 	wall_tris: Vec<ColTri>,
 	confirmed_bands: u64,
 	rejected_bands: u64,
@@ -181,6 +182,15 @@ impl Scanner {
 		self.epoch
 	}
 
+	/// A grace respawn can keep the map ID while replacing its loaded physics. Start a new
+	/// collision epoch on the next step so old/empty columns cannot authorize the handoff.
+	pub fn reset_after_load(&mut self) {
+		self.world_id = u32::MAX;
+		self.filter = None;
+		self.floor_filters.clear();
+		self.next_probe = Instant::now();
+	}
+
 	/// Refresh collision around a recovered player, keeping the existing surfaces until their
 	/// replacements arrive. A missing or stale column must not keep causing the same fall.
 	pub fn refresh_near(&mut self, feet: V3) {
@@ -198,7 +208,7 @@ impl Scanner {
 			walls: None,
 			next_wall: 0,
 			next_band: 0,
-			wall_run: None,
+			wall_run: Vec::new(),
 			wall_tris: Vec::new(),
 			confirmed_bands: 0,
 			rejected_bands: 0,
@@ -393,7 +403,7 @@ impl Scanner {
 							walls: None,
 							next_wall: 0,
 							next_band: 0,
-							wall_run: None,
+							wall_run: Vec::new(),
 							wall_tris: Vec::new(),
 							confirmed_bands: 0,
 							rejected_bands: 0,
@@ -423,7 +433,7 @@ impl Scanner {
 		if now >= self.next_report && self.rays > 0 {
 			self.next_report = now + Duration::from_secs(10);
 			log::line(&format!(
-				"collision: {} columns sent, {} rays at {:.1} us each; wall bands {} native hits / {} rejected guesses",
+				"collision: {} columns sent, {} rays at {:.1} us each; fitted wall bands {} native hits / {} rejected guesses",
 				self.done.len(),
 				self.rays,
 				self.ray_time.as_secs_f64() * 1e6 / self.rays as f64,
@@ -632,17 +642,16 @@ fn run_job(job: &mut Job, rays: &mut Rays, started: Instant) -> bool {
 		let wall = &job.walls.as_ref().unwrap()[job.next_wall];
 		let lo = wall.lo + job.next_band as f64 * WALL_BAND;
 		let hi = (lo + WALL_BAND).min(wall.hi);
-		let along_x = wall.along_x;
-		let hit = wall_hit(rays, wall.mid, along_x, (lo + hi) / 2.0);
-		if let Some(mid) = hit {
+		let faces = wall_faces(rays, wall, lo, hi);
+		if !faces.is_empty() {
 			job.confirmed_bands += 1;
-			let joins = job.wall_run.as_ref().is_some_and(|last|
-				last.along_x == along_x && (last.hi - lo).abs() < 0.001
-				&& (last.mid.0 - mid.0).hypot(last.mid.1 - mid.1) <= WALL_JOIN);
-			if joins { job.wall_run.as_mut().unwrap().hi = hi; }
+			let joins = job.wall_run.len() == faces.len() && job.wall_run.iter().zip(&faces).all(|(last, face)|
+				(last.hi - lo).abs() < 0.001 && edge_distance(last.p0, face.p0) <= WALL_JOIN
+				&& edge_distance(last.p1, face.p1) <= WALL_JOIN);
+			if joins { for face in &mut job.wall_run { face.hi = hi; } }
 			else {
 				flush_wall(job);
-				job.wall_run = Some(WallFace { mid, along_x, lo, hi });
+				job.wall_run = faces;
 			}
 		} else {
 			job.rejected_bands += 1;
@@ -680,13 +689,42 @@ fn wall_hit(rays: &mut Rays, mid: (f64, f64), along_x: bool, y: f64) -> Option<(
 }
 
 fn flush_wall(job: &mut Job) {
-	let Some(face) = job.wall_run.take() else { return; };
-	let h = STEP / 2.0;
-	let (p0, p1) = if face.along_x { ((face.mid.0 - h, face.mid.1), (face.mid.0 + h, face.mid.1)) }
-		else { ((face.mid.0, face.mid.1 - h), (face.mid.0, face.mid.1 + h)) };
 	let v = |xz: (f64, f64), y: f64| [xz.0 as f32, y as f32, xz.1 as f32];
-	job.wall_tris.push(tri(v(p0, face.lo), v(p1, face.lo), v(p1, face.hi)));
-	job.wall_tris.push(tri(v(p0, face.lo), v(p1, face.hi), v(p0, face.hi)));
+	for face in job.wall_run.drain(..) {
+		job.wall_tris.push(tri(v(face.p0, face.lo), v(face.p1, face.lo), v(face.p1, face.hi)));
+		job.wall_tris.push(tri(v(face.p0, face.lo), v(face.p1, face.hi), v(face.p0, face.hi)));
+	}
+}
+
+fn edge_distance(a: (f64, f64), b: (f64, f64)) -> f64 { (a.0 - b.0).hypot(a.1 - b.1) }
+
+/// Fit the wall within this sampling cell. Near door-frame ends, shorten a half segment until
+/// an endpoint is actually confirmed; never extend the centre hit into untested empty space.
+/// Curved corners keep the centre as a vertex instead of bridging across the bend.
+fn wall_faces(rays: &mut Rays, wall: &WallProbe, lo: f64, hi: f64) -> Vec<WallFace> {
+	let y = (lo + hi) / 2.0;
+	let Some(centre) = wall_hit(rays, wall.mid, wall.along_x, y) else { return Vec::new(); };
+	let mut endpoint = |sign: f64| {
+		for scale in [1.0, 0.5, 0.25] {
+			let mut mid = wall.mid;
+			if wall.along_x { mid.0 += sign * STEP / 2.0 * scale; }
+			else { mid.1 += sign * STEP / 2.0 * scale; }
+			if let Some(hit) = wall_hit(rays, mid, wall.along_x, y) { return Some(hit); }
+		}
+		None
+	};
+	let left = endpoint(-1.0);
+	let right = endpoint(1.0);
+	if let (Some(p0), Some(p1)) = (left, right) {
+		let (dx, dz) = (p1.0 - p0.0, p1.1 - p0.1);
+		let length = dx.hypot(dz);
+		let bend = ((centre.0 - p0.0) * dz - (centre.1 - p0.1) * dx).abs() / length.max(1e-6);
+		if bend <= 0.02 { return vec![WallFace { p0, p1, lo, hi }]; }
+	}
+	let mut faces = Vec::new();
+	if let Some(p0) = left { faces.push(WallFace { p0, p1: centre, lo, hi }); }
+	if let Some(p1) = right { faces.push(WallFace { p0: centre, p1, lo, hi }); }
+	faces
 }
 
 /// Gives every sample skipped for being inside the player's body the spans of the nearest one

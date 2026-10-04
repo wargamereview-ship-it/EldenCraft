@@ -187,6 +187,10 @@ namespace eldencraft::proto
 		kInHitFeedback = 9,  // ER confirmed hit: code = HitFlags (bit15 rejected), a = ER HP removed, b = actor ID, c = HP left
 		kInPlayerHealth = 10,// legacy native-health display, no longer the player's life source
 		kInHurtOrigin = 11,  // precedes kInHurt in one batch: a/b/c f32 position bits, code 1 when known
+		// An enemy the player last hit died; one batch of kInLootPos, kInLootId, kInEnemyDied.
+		kInLootPos = 12,     // a/b/c f32 bits of the corpse position (MC coords)
+		kInLootId = 13,      // a = map event entity ID (0: none), b = world ID, c = NpcParam ID
+		kInEnemyDied = 14,   // code = EnemyDiedFlags, a = native max HP, b = character (model) ID, c = actor ID
 	};
 
 	enum HurtKind : std::uint16_t

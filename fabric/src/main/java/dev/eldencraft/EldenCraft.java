@@ -48,6 +48,7 @@ public final class EldenCraft implements ModInitializer {
 		rules.set(GameRules.SHOW_ADVANCEMENT_MESSAGES, false, server);
 		server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), "time set noon");
 		LOG.info("EldenCraft: mirror world configured");
+		dev.eldencraft.combat.SkyLoot.verify(server);
 	}
 
 	/**

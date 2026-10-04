@@ -270,7 +270,7 @@ public final class TriCollider {
 
 	/** Highest surface at or below {@code maxAbove} over the feet at (x, y, z), or NaN. */
 	public static double groundAt(List<SkyTri> tris, double x, double y, double z, double maxAbove) {
-		double f = floor(tris, x, y, z, false, maxAbove);
+		double f = floor(tris, x, y, z, true, maxAbove);
 		return f == Double.NEGATIVE_INFINITY ? Double.NaN : f;
 	}
 }

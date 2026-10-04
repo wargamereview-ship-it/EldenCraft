@@ -84,7 +84,9 @@ pub fn apply() {
 		[h.0, h.1 + 1.5, h.2]
 	});
 	let mut conv = CONVENTIONS.lock().unwrap_or_else(|e| e.into_inner());
-	if let Some(target) = player {
+	// Only the game's own camera can teach these signs. A Minecraft view (especially
+	// during a jump or F5 orbit) may point away from ER's body and invert the calibration.
+	if let Some(target) = player.filter(|_| view.is_none()) {
 		let to = [target[0] - m.3.0, target[1] - m.3.1, target[2] - m.3.2];
 		if dot(to, to) > 1.0 {
 			conv.forward = if dot(row(&m.2), to) < 0.0 { -1.0 } else { 1.0 };

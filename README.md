@@ -21,14 +21,54 @@ Minecraft talk through shared memory (`Local\EldenCraft_v1`).
 
 ER movement is the default. **F8** gives movement and attacks to Minecraft; **F10** switches
 input ownership, **F9** toggles the first-person camera, **F5** cycles Minecraft camera modes.
+While Minecraft has the controls, **R** taps ER's Event Action (E): open doors, pull levers, pick
+up items, rest at graces and confirm item/message popups. The ER body turns with Minecraft's look,
+and an interaction animation owns the body until it ends while Minecraft follows it.
+
+Enemies the player killed (ER's last attacker is the player, with MC or ER weapons) drop Minecraft
+loot and XP at the corpse; ER's own drops and runes are unchanged. Native max HP picks a tier:
+`eldencraft:enemy/tier_1`..`tier_5` below 600 / 1500 / 4000 / 10000 HP and above, and team-Boss
+enemies use `eldencraft:boss/tier_1`..`tier_5` (below 3500 / 7000 / 12000 / 20000 HP) once per
+placed boss, recorded in the world's `eldencraft_boss_rewards.txt`. An optional
+`eldencraft:enemy/model/cNNNN` table adds model-specific drops. All are data-pack loot tables in
+`fabric/src/main/resources/data/eldencraft/loot_table/` (Minecraft 26.3 `modifier` format).
 Terrain recovery has recently changed and still needs gameplay confirmation at grace respawns.
+Native movement now uses Minecraft's actual tick feet; the camera keeps its interpolated render
+position. Camera direction is calibrated only while ER owns the view. Loads and grace respawns
+start a fresh collision epoch, including when the native player object and map are reused.
+Teleport acknowledgements wait for collision across the player's footprint/body and for the local
+Minecraft server's teleport to settle. Spawn lifting only uses walkable surfaces within step
+height. A delayed handoff refreshes its destination scan after two seconds and returns ER controls
+after eight seconds instead of leaving the Minecraft view frozen. New logs distinguish missing
+terrain, missing support and server teleport readiness.
 The player also receives a fresh local floor patch from native raycasts. Its samples expire after
 150 ms and match the current map/collision epoch. Small slope corrections preserve Minecraft's
 camera and input ownership while waiting for the teleport acknowledgement; repeated deep falls
 still return control to ER.
 
+Map-local coordinates now use the matching `PlayerIns.current_block_id`, rather than the
+character's resource/LOD block. Map overrides also apply when filtering combat targets.
+A steady world-offset discontinuity parks Minecraft and refreshes collision/teleport state;
+a pure Havok origin shift keeps the existing world collision. Every two seconds, `maps:` logs
+record position/body/origin map IDs, play regions, local/physics coordinates, model/physics lag,
+update omission mode, pending native warps and geometry-container counts for streamed interiors.
+Container presence does not prove that all geometry has loaded. The cave session showed native
+physics/model positions following Minecraft while play-region tracking stayed behind; handing
+back to ER immediately advanced it and loaded Groveside geometry. Installed-code analysis found
+that `no_gravity` skips native ground-contact processing. MC mode now permits native contact
+only when a fresh five-ray floor patch is within 0.45 m of acknowledged feet and the body is
+within 0.5 m. It keeps suspension above Minecraft blocks, in air, and during teleport waits.
+Native physics remains responsible for ground flags, map ownership and last-safe save positions.
+Settled native-region changes refresh nearby collision immediately and again after two seconds,
+keeping previous surfaces until replacements arrive. `maps:` logs now include native ground
+flags and suspension state. Cave entry, deeper rendering and MC-block support need gameplay
+confirmation with this build.
+
 Walls proposed from stacked downward crossings are confirmed with short sideways native rays
-in half-block height bands. Roofs above open passages cannot create tall guessed walls through
+in half-block height bands. Each wall segment follows confirmed native hits at its centre and
+endpoints, including angled walls; curved corners keep their centre vertex. Door-frame segments
+are shortened to confirmed endpoints instead of extending a flat sampling strip into the passage.
+Roofs above open passages cannot create tall guessed walls through
 empty space. Floor and ceiling surfaces remain based on actual ray hits. Confirmation shares
 the existing scan budget; collision logs count confirmed wall hits and rejected guesses. Buried
 terrain recovery excludes finite guessed volumes between roofs and floors.
@@ -37,6 +77,15 @@ terrain recovery excludes finite guessed volumes between roofs and floors.
 
 - Nearby hostile ER characters become Minecraft weapon targets. Allies, spirit summons and
   friendly/neutral NPCs are excluded. Capsule hitboxes follow the ER physics position each frame.
+  A character which actually damages the native player can also become a target when its
+  team/type/activity metadata would otherwise exclude it. This fallback still checks the current
+  live list, map, health pool and disabled/unloaded flags, and clears across loads. Logs record
+  the excluded attacker's model, team, type and filter reason, newly published target dimensions,
+  and outgoing hits dropped for stale targets or melee reach. The forest capture identified three
+  active `c4311` soldiers on team `48`, previously omitted by the normal enemy filter. That
+  model/team combination now publishes a target before aggro, enabling opening melee and bow
+  attacks without first taking or blocking an enemy hit. Other undocumented team values retain
+  the observed-attacker fallback until their hostility is confirmed.
 - Equip a Minecraft sword or axe, aim at the enemy, and **left-click**. Minecraft computes attack
   cooldown, criticals, enchantments and damage. Existing projectile/fire hit events use the same
   damage bridge; bows and tridents also need gameplay confirmation.
@@ -70,8 +119,11 @@ terrain recovery excludes finite guessed volumes between roofs and floors.
   accepted damage, critical indicators, immunity and confirmed shield blocks.
   The Minecraft HUD also stays visible while ER controls movement. First-person hands and the
   crosshair are gated separately by the native camera mode, so ER controls / F9 / grace respawns
-  do not overlay MC equipment on ER's third-person body. The native render flag is reapplied
-  each frame while the Minecraft camera owns the view.
+  do not overlay MC equipment on ER's third-person body. While the Minecraft camera owns the
+  view, the ER model stays enabled with zero base transparency; MC movement also requests its
+  normal character updates each frame. Handback/loading restores the body's original transparency
+  and render flag. The latest cave fix also permits native terrain contact beside fresh ER
+  floors; suspension remains active on MC blocks and during unacknowledged teleports.
 - Bow arrows (plain, tipped and spectral) retain their real MC entity at accepted proxy impacts.
   They follow the enemy's body position and yaw, expire after 60 seconds, and disappear when the
   enemy unloads/dies. Limits are 32 per enemy and 128 overall. Piercing projectiles retain vanilla
@@ -85,6 +137,20 @@ phase transitions need gameplay confirmation. Enemy labels currently use model I
 implemented for the local integrated world; inherited multiplayer/skill helpers remain scaffolding.
 
 The native DLL and Fabric JAR can be compiled locally. Compilation is not gameplay verification.
+
+### Movement milestone: manual acceptance
+
+After restarting both games with matching DLL/JAR builds:
+
+1. Respawn at a grace, stay still, press F8, and confirm the handoff releases without falling.
+2. Sprint across slopes and stairs, then stop: no repeated floor rescues, snapback or camera spin.
+3. Walk through the church passage and bushes, and walk against an actual stone wall.
+4. Switch F8/F9/F10 and Minecraft's F5 views, then die and repeat the stationary grace handoff.
+5. Place a block, stand on it, switch controls and check that both positions remain consistent.
+6. Approach Groveside Cave in MC mode, wait at any gray barrier, enter and turn around inside;
+   compare ER mode if blocked or geometry is missing, then leave and enter again.
+
+The movement milestone remains open until these scenarios have been observed in game.
 
 ## Building (Linux)
 
