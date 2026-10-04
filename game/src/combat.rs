@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ptr::NonNull;
 
-use eldenring::cs::{CSChrDataModule, ChrIns, ChrType, FieldInsHandle, PlayerIns, WorldChrMan};
+use eldenring::cs::{CSChrDataModule, ChrIns, ChrInsExt, ChrType, FieldInsHandle, PlayerIns, WorldChrMan};
 
 use crate::link::{Link, McView};
 use crate::{log, proto, world};
@@ -45,6 +45,9 @@ fn no_death(player: &mut PlayerIns, enabled: Option<bool>) -> bool {
 
 pub struct Combat {
 	ids: HashMap<Identity, u32>,
+	/// Only identities of attackers matched against this frame's live list. No saved pointer
+	/// is dereferenced. A real damaging attacker can bypass incomplete team/activity metadata.
+	confirmed_attackers: HashSet<Identity>,
 	next_id: u32,
 	was_active: bool,
 	last_count: usize,
@@ -56,6 +59,10 @@ pub struct Combat {
 	death_saw_loading: bool,
 	health_fraction: f32,
 	incoming: VecDeque<IncomingHit>,
+	/// Published enemies alive last frame: a transition to dead is a death, once per life.
+	alive: HashSet<Identity>,
+	/// Deaths awaiting room in the input ring (position, identity, death).
+	deaths: VecDeque<[proto::InputEvent; 3]>,
 }
 
 /// Copy this frame's live entries before borrowing the main player. Pointers are used only in
@@ -68,9 +75,9 @@ pub fn nearby(world: &WorldChrMan) -> Vec<NonNull<ChrIns>> {
 
 impl Combat {
 	pub fn new() -> Self {
-		Self { ids: HashMap::new(), next_id: 1, was_active: false, last_count: 0,
+		Self { ids: HashMap::new(), confirmed_attackers: HashSet::new(), next_id: 1, was_active: false, last_count: 0,
 			health_owner: None, restore_pending: false, life_epoch: 1, was_loading: true, death_pending: false,
-			death_saw_loading: false, health_fraction: 1.0, incoming: VecDeque::new() }
+			death_saw_loading: false, health_fraction: 1.0, incoming: VecDeque::new(), alive: HashSet::new(), deaths: VecDeque::new() }
 	}
 
 	pub fn owns_health(&self) -> bool { self.health_owner.is_some() }
@@ -103,6 +110,9 @@ impl Combat {
 		if self.death_pending { self.death_saw_loading = true; }
 		link.publish_life(self.life_epoch, 0, 0);
 		self.ids.clear(); // Keep next_id: late hits cannot address a new actor after respawning.
+		self.confirmed_attackers.clear();
+		self.alive.clear();
+		self.deaths.clear();
 		self.was_active = false;
 		self.last_count = 0;
 
@@ -170,7 +180,14 @@ impl Combat {
 				&& p.as_ptr() != &player.chr_ins as *const ChrIns as *mut ChrIns).map(|p| unsafe { p.as_ref() });
 			let (actor, origin) = attacker.map_or((0, None), |c| {
 				let h = c.modules.physics.position;
-				let id = self.ids.get(&(c.field_ins_handle, c as *const ChrIns as usize, c.npc_param_id)).copied().unwrap_or(0);
+				let identity = (c.field_ins_handle, c as *const ChrIns as usize, c.npc_param_id);
+				let id = self.ids.get(&identity).copied().unwrap_or(0);
+				if self.confirmed_attackers.insert(identity) && id == 0 {
+					log::line(&format!("combat: unexported native attacker c{} npc {} team {} type {:?} active {} debug {:#x} block {:?}; normal filter {}; observed-attacker filter {}",
+						c.character_id, c.npc_param_id, c.team_type, c.chr_type, c.chr_flags1c8.is_active(), c.debug_flags.0, c.block_id,
+						exclusion(c, space, false).unwrap_or("accepted; awaiting actor publication"),
+						exclusion(c, space, true).unwrap_or("accepted; publishing a target this frame")));
+				}
 				(id, Some(space.havok_to_mc([h.0, h.1, h.2])))
 			});
 			let damage = if hp <= 1 && captured.len() == 1 { 20.0 } else { hit.lost as f32 * 20.0 / max_hp as f32 };
@@ -207,25 +224,49 @@ impl Combat {
 		near: &[NonNull<ChrIns>], mc: Option<&McView>, active: bool) {
 		let mut seen = HashSet::new();
 		let mut live = Vec::new();
+		let mut alive_now = HashSet::new();
+		let present: HashSet<Identity> = near.iter().map(|p| {
+			let c = unsafe { p.as_ref() };
+			(c.field_ins_handle, p.as_ptr() as usize, c.npc_param_id)
+		}).collect();
+		self.confirmed_attackers.retain(|id| present.contains(id));
 		let player_ptr = &player.chr_ins as *const ChrIns;
 		let player_pos = player.chr_ins.modules.physics.position;
 		for &ptr in near {
 			if std::ptr::eq(ptr.as_ptr(), player_ptr) { continue; }
 			// The game's live list is authoritative, and no character update task is running here.
 			let chr = unsafe { ptr.as_ref() };
-			if !eligible(chr, space) { continue; }
+			let identity = (chr.field_ins_handle, ptr.as_ptr() as usize, chr.npc_param_id);
+			// Checked before the hostility filter: a dying body can lose its active flag.
+			if (chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag()) && self.alive.remove(&identity) {
+				self.enemy_died(chr, &player.chr_ins, space);
+			}
+			let observed_attacker = self.confirmed_attackers.contains(&identity);
+			if exclusion(chr, space, observed_attacker).is_some() { continue; }
 			let h = chr.modules.physics.position;
 			let distance = (h.0 - player_pos.0).hypot(h.2 - player_pos.2);
 			if !distance.is_finite() || distance > RANGE || !h.1.is_finite() { continue; }
-			let identity = (chr.field_ins_handle, ptr.as_ptr() as usize, chr.npc_param_id);
 			if !seen.insert(identity) { continue; }
+			let newly_published = !self.ids.contains_key(&identity);
 			let id = *self.ids.entry(identity).or_insert_with(|| {
 				let id = self.next_id;
 				self.next_id = self.next_id.checked_add(1).expect("combat actor IDs exhausted");
 				id
 			});
-			live.push((ptr, record(chr, space, id)));
+			let actor = record(chr, space, id);
+			if newly_published {
+				log::line(&format!("combat: target {id} c{} npc {} team {} type {:?} active {} size {:.2}x{:.2} at {:?}; observed attacker {observed_attacker}",
+					chr.character_id, chr.npc_param_id, chr.team_type, chr.chr_type, chr.chr_flags1c8.is_active(), actor.width, actor.height, actor.pos));
+			}
+			if actor.flags & proto::ACTOR_DEAD == 0 { alive_now.insert(identity); }
+			live.push((ptr, actor));
 			if live.len() == proto::MAX_ACTORS { break; }
+		}
+		// An enemy out of range or unloaded this frame is not a death; it starts a new life.
+		self.alive = alive_now;
+		while let Some(batch) = self.deaths.front() {
+			if !link.send_inputs(batch) { break; }
+			self.deaths.pop_front();
 		}
 		self.ids.retain(|id, _| seen.contains(id));
 		let events = link.read_events();
@@ -236,9 +277,17 @@ impl Combat {
 				let eye = [mc.pos[0], mc.pos[1] + mc.eye_height as f64, mc.pos[2]];
 				for event in events {
 					if event.kind != proto::EV_HIT_ACTOR || !event.a.is_finite() || event.a <= 0.0 { continue; }
-					let Some((ptr, actor)) = live.iter_mut().find(|(_, a)| a.id == event.id) else { continue; };
+					let Some((ptr, actor)) = live.iter_mut().find(|(_, a)| a.id == event.id) else {
+						log::line(&format!("combat: dropped MC hit for unpublished/stale actor {}", event.id));
+						continue;
+					};
 					let ranged = event.flags & (proto::HIT_PROJECTILE | proto::HIT_FIRE) != 0;
-					if !ranged && distance_to_box(eye, actor) > MELEE_REACH { continue; }
+					let reach = distance_to_box(eye, actor);
+					if !ranged && reach > MELEE_REACH {
+						log::line(&format!("combat: dropped melee actor {} c{}; reach {reach:.2} m exceeds {MELEE_REACH:.2} m", actor.id,
+							unsafe { ptr.as_ref() }.character_id));
+						continue;
+					}
 					let chr = unsafe { ptr.as_mut() };
 					if chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag() { continue; }
 					let flags = (event.flags as u16) & 0xff;
@@ -273,23 +322,59 @@ impl Combat {
 	}
 }
 
-fn eligible(chr: &ChrIns, space: &Space) -> bool {
-	if !matches!(chr.chr_type, ChrType::Npc | ChrType::BloodyFingerNpc | ChrType::RecusantNpc)
-		|| !hostile_team(chr.team_type) || !chr.chr_flags1c8.is_active()
-		|| chr.debug_flags.character_disabled() || chr.debug_flags.disabled_updates() || chr.debug_flags.force_unloaded()
-		|| chr.modules.data.max_hp <= 0 { return false; }
-	let block = chr.block_id;
-	if i32::from(block) == -1 { return false; }
-	let world_id = if block.is_overworld() {
-		i32::from(eldenring::cs::BlockId::from_parts(block.area(), 0, 0, 0)) as u32
-	} else { i32::from(block) as u32 };
-	world_id == space.world_id
+impl Combat {
+	/// ER's own last-attacker attribution decides MC loot, so ER weapons and MC weapons both
+	/// count, while deaths to falls, other enemies or scripts do not. ER drops and runes stay.
+	fn enemy_died(&mut self, chr: &ChrIns, player: &ChrIns, space: &Space) {
+		let boss = chr.team_type == 7;
+		let h = chr.modules.physics.position;
+		let pos = space.havok_to_mc([h.0, h.1, h.2]);
+		let killer = chr.last_hit_by == player.field_ins_handle;
+		log::line(&format!("loot: c{} npc {} entity {} max HP {} team {}{} died; {}", chr.character_id, chr.npc_param_id,
+			chr.event_entity_id, chr.modules.data.max_hp, chr.team_type, if boss { " (boss)" } else { "" },
+			if killer { "the player hit it last: Minecraft loot requested" } else { "not killed by the player: no loot" }));
+		if !killer || !pos.iter().all(|v| v.is_finite()) { return; }
+		if self.deaths.len() >= 32 {
+			log::line("loot: death queue full while Minecraft is unresponsive; dropping this reward");
+			return;
+		}
+		let bits = pos.map(|v| (v as f32).to_bits() as i32);
+		self.deaths.push_back([
+			proto::InputEvent { kind: proto::IN_LOOT_POS, code: 0, a: bits[0], b: bits[1], c: bits[2] },
+			proto::InputEvent { kind: proto::IN_LOOT_ID, code: 0, a: chr.event_entity_id as i32, b: space.world_id as i32, c: chr.npc_param_id },
+			proto::InputEvent { kind: proto::IN_ENEMY_DIED, code: if boss { proto::ENEMY_BOSS } else { 0 },
+				a: chr.modules.data.max_hp, b: chr.character_id as i32, c: 0 },
+		]);
+	}
+}
+
+fn exclusion(chr: &ChrIns, space: &Space, observed_attacker: bool) -> Option<&'static str> {
+	// Damage attribution is stronger evidence of an opponent than team/type/activity metadata.
+	// Preserve live-world, HP and disabled/unloaded checks even for a verified attacker.
+	if !observed_attacker {
+		if !matches!(chr.chr_type, ChrType::Npc | ChrType::BloodyFingerNpc | ChrType::RecusantNpc) { return Some("character type"); }
+		if !hostile_team(chr.team_type) { return Some("team"); }
+		if !chr.chr_flags1c8.is_active() { return Some("inactive flag"); }
+	}
+	if chr.debug_flags.character_disabled() { return Some("character disabled"); }
+	if chr.debug_flags.disabled_updates() { return Some("updates disabled"); }
+	if chr.debug_flags.force_unloaded() { return Some("forced unloaded"); }
+	if chr.modules.data.max_hp <= 0 { return Some("no health pool"); }
+	let Some(world_id) = world::collision_world(chr.block_id()) else { return Some("no map block"); };
+	if world_id != space.world_id { return Some("different map"); }
+	None
 }
 
 fn hostile_team(team: u8) -> bool {
-	// NPC_PARAM_ST TeamType. Allies, friendly NPCs, neutral actors and spirit summons excluded.
+	// Named hostile TeamType values:
 	// https://github.com/borgCode/TarnishedTool/blob/master/TarnishedTool/Enums/ParamEnums/NpcParam/TeamType.cs
-	matches!(team, 6 | 7 | 9 | 13 | 16 | 17 | 18 | 21 | 23 | 24 | 25 | 27 | 29 | 32 | 33)
+	// The enum leaves 48 and 50+ unnamed; they are the infighting enemy factions. NpcParam
+	// membership (https://eldenring.fandom.com/wiki/NPC_Teams) lists only ordinary enemies on
+	// them, e.g. 48: Godrick/Leyndell/Radahn soldiers, demi-humans, wolves (c4311, c4070 and
+	// c4071 confirmed in game). 11 holds the overworld dragons. Friendly NPCs (0, 2, 26, 28),
+	// Torrent (10), spirit summons (47), allies (8), animals (5) and objects (30) stay excluded.
+	matches!(team, 6 | 7 | 9 | 11 | 13 | 16 | 17 | 18 | 21 | 23 | 24 | 25 | 27 | 29 | 32 | 33
+		| 48 | 50 | 51 | 52 | 54 | 55 | 56 | 57 | 58 | 59 | 60 | 61 | 63 | 65 | 66)
 }
 
 fn protected(chr: &ChrIns) -> bool {

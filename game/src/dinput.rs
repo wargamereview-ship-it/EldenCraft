@@ -5,10 +5,11 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress, LoadLibraryA};
 use windows_sys::Win32::System::Memory::{PAGE_EXECUTE_READWRITE, VirtualProtect};
+use windows_sys::Win32::System::SystemInformation::GetTickCount64;
 use windows_sys::core::GUID;
 
 use crate::log;
@@ -66,12 +67,23 @@ pub struct Mouse {
 static CAPTURED: Mutex<Captured> = Mutex::new(Captured { dx: 0, dy: 0, wheel: 0, mouse_buffered: false, logged: 0 });
 /// True: Elden Ring gets no keyboard or mouse input (Escape still reaches it).
 static BLOCK: AtomicBool = AtomicBool::new(false);
+/// GetTickCount64 until which Elden Ring sees its Event Action key held, even while blocked.
+static EVENT_ACTION_UNTIL: AtomicU64 = AtomicU64::new(0);
+/// Elden Ring's default keyboard Event Action (examine, open, pick up, confirm a message).
+const DIK_E: usize = 0x12;
+/// Long enough for several of the game's per-frame polls, short of a held-key action.
+const EVENT_ACTION_MS: u64 = 100;
 static ORIGINAL_STATE: Mutex<Vec<(usize, GetDeviceState)>> = Mutex::new(Vec::new());
 static ORIGINAL_DATA: Mutex<Vec<(usize, GetDeviceData)>> = Mutex::new(Vec::new());
 static KINDS: Mutex<Option<HashMap<usize, u32>>> = Mutex::new(None);
 
 pub fn set_block(block: bool) {
 	BLOCK.store(block, Ordering::Relaxed);
+}
+
+/// Tap Elden Ring's Event Action key once, also while Minecraft owns the keyboard.
+pub fn tap_event_action() {
+	EVENT_ACTION_UNTIL.store(unsafe { GetTickCount64() } + EVENT_ACTION_MS, Ordering::Relaxed);
 }
 
 pub fn take() -> Mouse {
@@ -134,11 +146,14 @@ unsafe extern "system" fn get_device_state(device: *mut c_void, size: u32, data:
 		}
 		DI8DEVTYPE_KEYBOARD if size >= 256 => {
 			note("keyboard read with GetDeviceState");
+			let keys = unsafe { std::slice::from_raw_parts_mut(data as *mut u8, size as usize) };
 			if block {
-				let keys = unsafe { std::slice::from_raw_parts_mut(data as *mut u8, size as usize) };
 				let escape = keys[DIK_ESCAPE as usize];
 				keys.fill(0);
 				keys[DIK_ESCAPE as usize] = escape;
+			}
+			if unsafe { GetTickCount64() } < EVENT_ACTION_UNTIL.load(Ordering::Relaxed) {
+				keys[DIK_E] = 0x80;
 			}
 		}
 		_ => {}

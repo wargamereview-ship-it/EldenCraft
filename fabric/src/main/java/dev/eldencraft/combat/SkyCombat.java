@@ -80,7 +80,12 @@ public final class SkyCombat {
 		return PROXIES.get(formId);
 	}
 
+	/** Wall-clock time of the last completed integrated-server tick, for the client's stall watchdog. */
+	public static volatile long lastServerTickMs;
+
 	private static void serverTick(MinecraftServer server) {
+		lastServerTickMs = System.currentTimeMillis();
+		SkyLoot.tick();
 		List<ServerPlayer> players = server.getPlayerList().getPlayers();
 		if (!SkyLink.active() || players.isEmpty()) {
 			removeAll();

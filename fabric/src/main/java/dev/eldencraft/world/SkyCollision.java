@@ -129,6 +129,11 @@ public final class SkyCollision {
 		return KNOWN_REGIONS.contains(regionKey(Math.floorDiv(x, REGION_SIZE), Math.floorDiv(y, REGION_SIZE), Math.floorDiv(z, REGION_SIZE)));
 	}
 
+	/** Old regions cannot authorize movement after a native load or grace respawn. */
+	public static boolean matchesEpoch(int expected) {
+		return epoch == expected;
+	}
+
 	/** True if any Skyrim geometry exists in the 3x3 column below (x, y, z), down to {@code depth} blocks. */
 	public static boolean hasSolidBelow(int x, int y, int z, int depth) {
 		for (int dy = 0; dy <= depth; dy++) {
@@ -267,6 +272,7 @@ public final class SkyCollision {
 	}
 
 	private static void clear(int newEpoch) {
+		epoch = -1; // readers must hold while the old region maps are being cleared
 		SHAPES.clear();
 		FILL.clear();
 		TRIS.clear();

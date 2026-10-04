@@ -5,11 +5,13 @@
 //! game's character controller while Minecraft drives.
 
 mod aggro;
+mod ai_sound;
 mod camera;
 mod combat;
 mod dinput;
 mod hud;
 mod input;
+mod interact;
 mod keys;
 mod launcher;
 mod link;
@@ -27,7 +29,7 @@ mod world;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::time::{Duration, Instant};
 
-use eldenring::cs::{CSCamera, CSCamExt, CSTaskGroupIndex, CSTaskImp, GameDataMan, HudType, PlayerIns, WorldChrMan};
+use eldenring::cs::{CSCamera, CSCamExt, CSTaskGroupIndex, CSTaskImp, FieldArea, GameDataMan, HudType, PlayerIns, WorldChrMan};
 use eldenring::fd4::FD4TaskData;
 use fromsoftware_shared::{FromStatic, SharedTaskImpExt};
 
@@ -50,6 +52,9 @@ const MOVEMENT_LAG_METERS: f64 = 1.0;
 const MOVEMENT_TIMEOUT: Duration = Duration::from_secs(1);
 /// Brief seqlock collisions retain the last camera/input state; a stopped publisher expires.
 const MC_SNAPSHOT_TTL: Duration = Duration::from_millis(250);
+/// Refresh a delayed handoff once, then return control rather than leave a frozen MC view.
+const HANDOFF_REFRESH: Duration = Duration::from_secs(2);
+const HANDOFF_TIMEOUT: Duration = Duration::from_secs(8);
 /// Repeated failure at the same recovery point hands control back instead of teleporting forever.
 const RECOVERY_RETRY_WINDOW: Duration = Duration::from_secs(10);
 const GROUND_CLEARANCE: f64 = 0.1;
@@ -65,8 +70,21 @@ const ANCHOR_AGREE: f64 = 0.25;
 const REANCHOR_METERS: f64 = 20.0;
 /// A re-centre moves the havok position this little or less in world terms.
 const REBASE_WORLD_STILL: f64 = 2.0;
+/// A connected map change (a cave mouth, no loading screen) renames the map under the same
+/// live body while its havok position keeps moving continuously. The held mapping still maps
+/// that body exactly, so the MC view and movement continue on it while the new one settles.
+/// A larger per-frame havok step is a warp or re-centre; a longer wait is a real load.
+const CONNECTED_STEP: f64 = 2.0;
+const CONNECTED_HOLD: Duration = Duration::from_secs(2);
 /// In game this long without Minecraft connecting: Prism is assumed stuck and restarted.
 const MINECRAFT_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
+/// Native contact is allowed only beside a freshly measured ER floor. Minecraft blocks,
+/// air and unacknowledged teleports still need the ER body suspended.
+const NATIVE_CONTACT_GAP: f64 = 0.45;
+const NATIVE_CONTACT_BODY_LAG: f64 = 0.5;
+/// Region boundaries can chatter; refresh once settled, then after geometry has streamed.
+const STREAM_REGION_SETTLE: Duration = Duration::from_millis(200);
+const STREAM_COLLISION_REFRESH: Duration = Duration::from_secs(2);
 /// The camera's aim point is searched this far along its view.
 const AIM_REACH: f64 = 40.0;
 
@@ -116,6 +134,7 @@ fn start(hmodule: usize) {
 
 	native_hits::install();
 	aggro::install();
+	ai_sound::install();
 	let mut frame = Frame::new(link);
 	let handle = cs_task.run_recurring(
 		move |_: &FD4TaskData| {
@@ -134,9 +153,22 @@ fn start(hmodule: usize) {
 	std::mem::forget(handle);
 	std::mem::forget(camera);
 	log::line("frame task registered");
-	log::line("movement: controller destination buffer +0x100 is queued before requesting sync");
+	log::line("movement: actual MC tick feet drive the controller; collision is refreshed after loads; teleport acknowledgement is bounded");
+	log::line("maps: native terrain contact enabled beside fresh floors; region transitions refresh collision; streaming/ground diagnostics enabled");
 	log::line("collision: native rays confirm wall bands; thin surfaces retained; native downward destination sweep enabled");
 	log::line("combat: Minecraft weapon bridge enabled (25 ER HP per MC damage); confirmed hit feedback and native AI notice; physical hit reactions pending");
+}
+
+struct ModelState {
+	body: (usize, usize, usize),
+	alpha: f32,
+	render: bool,
+}
+
+fn player_identity(player: &PlayerIns) -> (usize, usize, usize) {
+	(player as *const PlayerIns as usize,
+		&*player.chr_ins.modules.physics as *const _ as usize,
+		player.chr_ins.chr_ctrl.as_ref() as *const _ as usize)
 }
 
 struct Frame {
@@ -144,13 +176,17 @@ struct Frame {
 	scanner: Scanner,
 	blocks: Blocks,
 	combat: combat::Combat,
+	/// Learned ER player sounds, replayed as native AI footsteps while Minecraft drives.
+	hearing: ai_sound::Hearing,
+	/// ER Event Action (R) and the native animation window it can start.
+	interact: interact::Interact,
 	keys: Keys,
 	input: Input,
 	show_collision: bool,
 	/// The game camera sits in Minecraft's eye (and the Elden Ring body is hidden).
 	first_person: bool,
-	/// We turned the player's model off, so we turn it back on.
-	hid_model: bool,
+	/// Original transparency/render state while our camera hides this body's model.
+	model_state: Option<ModelState>,
 	/// Minecraft's look (yaw, pitch), turned by the mouse while Minecraft has the controls.
 	look: Option<(f32, f32)>,
 	/// F10: the controls stay with Elden Ring.
@@ -170,22 +206,33 @@ struct Frame {
 	/// Actual ER position before queueing movement, to distinguish game travel from a failed write.
 	observed: Option<[f64; 3]>,
 	/// Identity of the player this mapping and movement state belong to.
-	player_id: usize,
+	player_id: (usize, usize, usize),
+	/// ER can respawn into the same player/controller objects in the same map.
+	saw_dead_body: bool,
 	/// A movement request has not brought the body along for this long.
 	movement_lag: Option<Instant>,
 	/// Last complete Minecraft state and when its sequence last changed.
 	mc_cache: Option<(link::McView, Instant)>,
+	/// Time waiting for the current teleport, and whether its local scan was refreshed.
+	handoff_wait: Option<(Instant, bool)>,
+	loading_was: bool,
 	/// The havok-to-world mapping in use (see `anchor`).
 	space: Option<Space>,
 	/// A different mapping seen this many frames in a row.
 	candidate: Option<(Space, u32)>,
 	/// Last frame's freshly learned mapping (to tell a re-centre from lag).
 	prev_fresh: Option<Space>,
+	/// A connected map change is being held on the previous mapping since then.
+	connected_since: Option<Instant>,
 	/// Last terrain recovery, to avoid repeatedly teleporting into a broken collision patch.
 	recovery: Option<([f64; 3], Instant)>,
 	/// Which way the camera matrix's forward row points (+1 or -1), learned in third person.
 	cam_sign: f64,
 	world_id: u32,
+	/// Settled native region and a candidate, paired with the current collision world.
+	stream_region: Option<(u32, u32)>,
+	stream_candidate: Option<((u32, u32), Instant)>,
+	stream_refresh: Option<Instant>,
 	mc_was_connected: bool,
 	/// When the player was first in game with Minecraft not connected (None: connected).
 	waiting_for_mc: Option<Instant>,
@@ -204,11 +251,13 @@ impl Frame {
 			scanner: Scanner::new(),
 			blocks: Blocks::new(),
 			combat: combat::Combat::new(),
+			hearing: ai_sound::Hearing::new(),
+			interact: interact::Interact::new(),
 			keys: Keys::default(),
 			input: Input::default(),
 			show_collision: false,
 			first_person: true,
-			hid_model: false,
+			model_state: None,
 			look: None,
 			er_controls: false,
 			driving_was: false,
@@ -219,15 +268,22 @@ impl Frame {
 			sent: None,
 			written: None,
 			observed: None,
-			player_id: 0,
+			player_id: (0, 0, 0),
+			saw_dead_body: false,
 			movement_lag: None,
 			mc_cache: None,
+			handoff_wait: None,
+			loading_was: true,
 			recovery: None,
 			space: None,
 			candidate: None,
 			prev_fresh: None,
+			connected_since: None,
 			cam_sign: 1.0,
 			world_id: 0,
+			stream_region: None,
+			stream_candidate: None,
+			stream_refresh: None,
 			mc_was_connected: false,
 			waiting_for_mc: None,
 			next_report: Instant::now(),
@@ -236,6 +292,13 @@ impl Frame {
 	}
 
 	fn publish_loading(&mut self, mut player: Option<&mut PlayerIns>) {
+		self.loading_was = true;
+		ai_sound::unwatch();
+		self.stream_region = None;
+		self.stream_candidate = None;
+		self.stream_refresh = None;
+		self.handoff_wait = None;
+		self.mc_cache = None;
 		self.combat.clear(&self.link, player.as_deref_mut());
 		self.link.publish_ground(self.world_id, self.scanner.epoch(), None);
 		// Title screen or a loading screen: Minecraft holds its player still.
@@ -246,9 +309,7 @@ impl Frame {
 			if self.driving_was {
 				player.chr_ins.chr_flags1c4.set_no_gravity(false);
 			}
-			if self.hid_model {
-				player.chr_ins.chr_flags1c5.set_enable_render(true);
-			}
+			self.set_model_hidden(player, false);
 		}
 		if let Some(hud) = self.saved_hud.take() {
 			if let Ok(data) = unsafe { GameDataMan::instance_mut() } {
@@ -258,7 +319,6 @@ impl Frame {
 			}
 		}
 		self.driving_was = false;
-		self.hid_model = false;
 		self.look = None;
 		camera::set(None);
 		scene::with(|s| {
@@ -285,11 +345,70 @@ impl Frame {
 		self.recovery = None;
 	}
 
+	fn set_model_hidden(&mut self, player: &mut PlayerIns, hidden: bool) {
+		let body = player_identity(player);
+		// Keep only identity across a missing-player loading frame. A returning live
+		// body can restore its alpha; a replacement must never inherit the old alpha.
+		if self.model_state.as_ref().is_some_and(|s| s.body != body) {
+			self.model_state = None;
+		}
+		let chr = &mut player.chr_ins;
+		if hidden {
+			// Leave the native model and its update path enabled while hiding its pixels.
+			// Render eligibility is also consulted by character-module checks in this
+			// build; disabling enable_render for the whole MC session can stale those.
+			self.model_state.get_or_insert(ModelState { body, alpha: chr.base_transparency, render: chr.chr_flags1c5.enable_render() });
+			chr.chr_flags1c5.set_enable_render(true);
+			chr.base_transparency = 0.0;
+		} else if let Some(saved) = self.model_state.take() {
+			if chr.base_transparency == 0.0 {
+				chr.base_transparency = saved.alpha;
+			}
+			if chr.chr_flags1c5.enable_render() {
+				chr.chr_flags1c5.set_enable_render(saved.render);
+			}
+		}
+	}
+
+	fn refresh_stream_collision(&mut self, space: &Space, feet: [f64; 3]) {
+		let Some(region) = (unsafe { FieldArea::instance() }).ok()
+			.map(|f| f.current_play_region_id).filter(|r| *r != 0 && *r != u32::MAX) else {
+			self.stream_candidate = None;
+			return;
+		};
+		let observed = (space.world_id, region);
+		let now = Instant::now();
+		match self.stream_region {
+			None => { self.stream_region = Some(observed); }
+			Some(old) if old == observed => { self.stream_candidate = None; }
+			Some(old) => {
+				let since = match self.stream_candidate {
+					Some((candidate, since)) if candidate == observed => since,
+					_ => { self.stream_candidate = Some((observed, now)); now }
+				};
+				if now.duration_since(since) >= STREAM_REGION_SETTLE {
+					self.stream_region = Some(observed);
+					self.stream_candidate = None;
+					self.scanner.refresh_near(feet);
+					self.stream_refresh = Some(now + STREAM_COLLISION_REFRESH);
+					log::line(&format!("maps: native region {} -> {}; refreshing nearby collision now and after streaming", old.1, region));
+				}
+			}
+		}
+		if self.stream_refresh.is_some_and(|at| now >= at) {
+			// Keep existing surfaces until replacements arrive, including the entry floor.
+			self.scanner.refresh_near(feet);
+			self.stream_refresh = None;
+			log::line(&format!("maps: refreshed streamed collision for native region {region}"));
+		}
+	}
+
 	fn teleport_minecraft(&mut self, to: [f64; 3]) {
 		self.teleport_seq = self.teleport_seq.wrapping_add(1);
 		self.sent = Some(to);
 		self.written = None;
 		self.movement_lag = None;
+		self.handoff_wait = None;
 	}
 
 	fn restore_above_floor(&mut self, player: &mut PlayerIns, space: &Space, to: [f64; 3]) {
@@ -325,16 +444,16 @@ impl Frame {
 		self.blocks.read(&self.link);
 
 		let Ok(world) = (unsafe { WorldChrMan::instance_mut() }) else {
-			self.player_id = 0;
+			self.player_id = (0, 0, 0);
 			return self.publish_loading(None);
 		};
 		let nearby = combat::nearby(world);
 		let Some(player) = world.main_player.as_mut() else {
-			self.player_id = 0;
+			self.player_id = (0, 0, 0);
 			return self.publish_loading(None);
 		};
 		let player: &mut PlayerIns = player.as_mut();
-		let player_id = player as *mut PlayerIns as usize;
+		let player_id = player_identity(player);
 		if self.player_id != player_id {
 			self.combat.clear(&self.link, Some(player));
 			// A respawn/load may replace the character in the same map. Learn a fresh mapping
@@ -348,22 +467,46 @@ impl Frame {
 			self.observed = None;
 			self.movement_lag = None;
 			self.recovery = None;
-			self.hid_model = false;
+			self.set_model_hidden(player, false);
+		}
+		if self.saw_dead_body && player.chr_ins.modules.data.hp > 0 && !player.chr_ins.chr_flags1c5.death_flag() {
+			self.saw_dead_body = false;
+			self.space = None;
+			self.candidate = None;
+			self.prev_fresh = None;
+			self.drive = false;
+			log::line("movement: native respawn detected; relearning the mapping even when this body/map was reused");
+			return self.publish_loading(Some(player));
 		}
 		let Some(fresh) = Space::of(player) else {
-			self.player_id = 0;
+			self.player_id = (0, 0, 0);
 			self.publish_loading(Some(player));
 			self.space = None;
 			self.candidate = None;
 			return;
 		};
-		let Some(space) = self.anchor(fresh) else {
+		let previous_space = self.space;
+		let alive = player.chr_ins.modules.data.hp > 0 && !player.chr_ins.chr_flags1c5.death_flag();
+		let Some(space) = self.anchor(fresh, alive) else {
+			// anchor may have just accepted a different offset. Cancel our queued target
+			// with the mapping that encoded it, before publish_loading uses the new one.
+			if let Some(old) = previous_space {
+				movement::cancel(player, &old, self.written);
+			}
 			// Not steady yet (a load, a map change): Minecraft holds still until it is.
 			return self.publish_loading(Some(player));
 		};
+		if self.loading_was {
+			self.loading_was = false;
+			self.scanner.reset_after_load();
+			self.sent = None;
+			self.observed = None;
+			log::line("movement: load settled; refreshing collision and Minecraft handoff for this body");
+		}
 
 		if self.keys.pressed(keys::VK_F8) {
 			self.drive = !self.drive;
+			self.interact.cancel();
 			let handback = if !self.drive && player.chr_ins.modules.data.hp > 0 {
 				let p = player.chr_ins.modules.physics.position;
 				let at = space.havok_to_mc([p.0, p.1, p.2]);
@@ -409,7 +552,8 @@ impl Frame {
 
 		let p = player.chr_ins.modules.physics.position;
 		let er = space.havok_to_mc([p.0, p.1, p.2]);
-		let previous_er = self.observed.replace(er);
+		// A settled connected map change renames the coordinates, not the body's place.
+		let previous_er = self.observed.replace(er).filter(|_| space.world_id == self.world_id);
 		let er_travel = previous_er.map_or(0.0, |old| dist(old, er));
 		let mc = self.minecraft_state();
 		if self.drive && self.mc_cache.as_ref().is_some_and(|(_, seen)| seen.elapsed() >= MOVEMENT_TIMEOUT) {
@@ -418,7 +562,21 @@ impl Frame {
 			self.drive = false;
 			self.teleport_minecraft(er);
 		}
-		self.scanner.step(&self.link, player, &space, er);
+		// An ER interaction animation owns the body until it ends; Minecraft follows meanwhile.
+		let held_was = self.interact.holds_body();
+		if self.drive { self.interact.update(player); } else { self.interact.cancel(); }
+		if self.drive && !held_was && self.interact.holds_body() {
+			movement::cancel(player, &space, self.written);
+			self.written = None;
+			self.movement_lag = None;
+		}
+		if held_was && !self.interact.holds_body() {
+			self.sent = None; // Minecraft resumes from wherever the animation left the body
+		}
+		let moving = self.drive && !self.interact.holds_body();
+		let scan_at = if moving { self.sent.filter(|_| mc.as_ref().is_none_or(|m| m.teleport_ack != self.teleport_seq)).unwrap_or(er) } else { er };
+		self.refresh_stream_collision(&space, scan_at);
+		self.scanner.step(&self.link, player, &space, scan_at);
 
 		if space.world_id != self.world_id {
 			self.combat.clear(&self.link, Some(player));
@@ -427,21 +585,26 @@ impl Frame {
 			self.teleport_minecraft(er);
 		}
 		self.combat.player_frame(&self.link, player, &space, &nearby, mc.as_ref().is_some_and(|m| m.in_world));
-		let mc_ready = mc.as_ref().is_some_and(|m| m.in_world && m.teleport_ack == self.teleport_seq);
-		let patch = mc.as_ref().filter(|m| m.in_world)
-			.and_then(|m| self.scanner.ground_patch(player, &space,
-				if mc_ready { m.pos } else { self.sent.unwrap_or(er) }));
-		self.link.publish_ground(space.world_id, self.scanner.epoch(), patch);
-		let body_lag = mc.as_ref().filter(|_| mc_ready && self.drive).map_or(0.0, |m| dist(m.pos, er));
-		if self.drive && player.chr_ins.modules.data.hp <= 0 {
+		// Read after the health bridge: a temporary zero from an observed hit is repaired
+		// there, while an actual MC-authorized death remains zero through native respawn.
+		if player.chr_ins.modules.data.hp <= 0 || player.chr_ins.chr_flags1c5.death_flag() {
+			self.saw_dead_body = true;
+		}
+		let mc_ready = mc.as_ref().is_some_and(|m| m.in_world && m.teleport_ack == self.teleport_seq
+			&& m.tick_qpc > 0 && m.feet.iter().all(|v| v.is_finite()) && m.pos.iter().all(|v| v.is_finite()));
+		let body_lag = mc.as_ref().filter(|_| mc_ready && moving).map_or(0.0, |m| dist(m.feet, er));
+		if self.drive && (player.chr_ins.modules.data.hp <= 0 || player.chr_ins.chr_flags1c5.death_flag()) {
 			// Return the camera and input as well as movement. Keeping Minecraft's frozen view
 			// while ER handles death/respawn hides what the game is doing.
 			log::line("movement: Elden Ring's player died; returning camera and controls to the game");
 			movement::cancel(player, &space, self.written);
 			self.drive = false;
+			self.interact.cancel();
 			self.teleport_minecraft(er);
-		} else if self.drive {
-			let m = mc.as_ref().filter(|_| mc_ready).map(|m| m.pos);
+		} else if moving {
+			// Rendering interpolates between ticks and may legitimately sit below a newly
+			// climbed surface. Only actual feet may move ER's body or trigger fall recovery.
+			let m = mc.as_ref().filter(|_| mc_ready).map(|m| m.feet);
 			let fell = m.and_then(|m| self.fallen_floor(player, &space, er, m));
 			let game_warp = er_travel > WARP_BLOCKS && self.written.is_none_or(|w| dist(w, er) > WARP_BLOCKS);
 			if self.sent.is_none() || game_warp {
@@ -502,6 +665,30 @@ impl Frame {
 			}
 		}
 
+		let mc_ready = mc_ready && mc.as_ref().is_some_and(|m| m.teleport_ack == self.teleport_seq);
+		if moving && !mc_ready {
+			let wait = self.handoff_wait.get_or_insert_with(|| (Instant::now(), false));
+			if wait.0.elapsed() >= HANDOFF_TIMEOUT {
+				log::line(&format!("movement: teleport {} was not acknowledged within eight seconds; returning to ER controls (MC ack {:?})",
+					self.teleport_seq, mc.as_ref().map(|m| m.teleport_ack)));
+				let back = self.recovery.map_or(er, |(at, _)| at);
+				self.drive = false;
+				self.restore_above_floor(player, &space, back);
+			} else if !wait.1 && wait.0.elapsed() >= HANDOFF_REFRESH {
+				wait.1 = true;
+				let at = self.sent.unwrap_or(er);
+				self.scanner.refresh_near(at);
+				log::line(&format!("movement: teleport {} awaits terrain/server acknowledgement; refreshing its destination", self.teleport_seq));
+			}
+		} else {
+			self.handoff_wait = None;
+		}
+		// Publish after mode changes/recovery so Minecraft gets a patch at the current
+		// destination, not at the position from before this frame's teleport.
+		let ground_at = mc.as_ref().filter(|_| moving && mc_ready).map_or(self.sent.unwrap_or(er), |m| m.feet);
+		let patch = mc.as_ref().filter(|m| m.in_world).and_then(|_| self.scanner.ground_patch(player, &space, ground_at));
+		self.link.publish_ground(space.world_id, self.scanner.epoch(), patch);
+
 		// Who has the controls: Minecraft while it drives, unless an Elden Ring menu is up (the
 		// game shows its cursor) or F10 handed them back.
 		if self.keys.pressed(keys::VK_F10) {
@@ -515,22 +702,32 @@ impl Frame {
 		}
 		// Recoveries change teleport_seq after the earlier snapshot check. Keep MC's camera
 		// and input ownership during acknowledgement; only forwarding/movement waits.
-		let mc_ready = mc.as_ref().is_some_and(|m| m.in_world && m.teleport_ack == self.teleport_seq);
+		let mc_ready = mc_ready && mc.as_ref().is_some_and(|m| m.teleport_ack == self.teleport_seq);
 		let mc_visible = self.drive && mc.as_ref().is_some_and(|m| m.in_world);
 		let mc_owns_input = mc_visible && keys::focused() && !menu && !self.er_controls;
 		let minecraft_controls = mc_owns_input && mc_ready;
+		// R taps ER's Event Action: doors, levers, pickups, graces and popup confirmation.
+		if self.keys.pressed(keys::VK_R) && mc_owns_input {
+			self.interact.begin(player);
+		}
 		dinput::set_block(mc_owns_input);
 		let mouse = dinput::take();
 
-		let feet = if self.drive && mc_ready { mc.as_ref().unwrap().pos }
+		// During an ER interaction animation the camera rides the body itself: Minecraft is parked
+		// and only re-teleported every half block, which would step the view and fight the motion.
+		let follow_body = self.drive && !moving;
+		let feet = if follow_body { er }
+			else if self.drive && mc_ready { mc.as_ref().unwrap().pos }
 			else if mc_visible { self.sent.unwrap_or(er) } else { er };
+		let eye_height = mc.as_ref().map_or(1.62, |m| m.eye_height as f64);
+		let eye_height = if eye_height.is_finite() { eye_height.clamp(0.2, 3.0) } else { 1.62 };
 		let eye = match &mc {
-			Some(m) if self.drive && mc_ready && m.eye != [0.0; 3] => m.eye,
-			_ => [feet[0], feet[1] + mc.as_ref().map_or(1.62, |m| m.eye_height as f64), feet[2]],
+			Some(m) if !follow_body && self.drive && mc_ready && m.eye.iter().all(|v| v.is_finite()) && dist(m.eye, m.pos) < 4.0 => m.eye,
+			_ => [feet[0], feet[1] + eye_height, feet[2]],
 		};
 		let screen_open = mc.as_ref().is_some_and(|m| m.screen_open);
 		self.combat.frame(&self.link, player, &space, &nearby, mc.as_ref(),
-			minecraft_controls && !screen_open && player.chr_ins.modules.data.hp > 0);
+			minecraft_controls && !follow_body && !screen_open && player.chr_ins.modules.data.hp > 0);
 		if minecraft_controls && mouse.wheel != 0 {
 			self.link.send_input(proto::IN_SCROLL, 0, mouse.wheel as i32);
 		}
@@ -576,14 +773,26 @@ impl Frame {
 			fov_deg,
 			mc: scene::View { eye: cam_eye, yaw: cam_yaw, pitch: cam_pitch, fov_deg },
 		}));
-		// While Minecraft drives: no gravity on the Elden Ring body (so it stays where it is put,
-		// on Minecraft blocks too) and no Elden Ring HUD (Minecraft's is shown).
-		// Keep the physical body held while Minecraft acknowledges a recovery teleport.
-		// Re-enabling gravity during that wait can resume the very fall we are repairing.
 		let driving = self.drive && mc.as_ref().is_some_and(|m| m.in_world);
-		// Reapply on this body each frame: a respawn can replace it without changing the mode.
+		// Installed ER code: no_gravity disables native ground-contact processing. That
+		// also prevents its ground geometry/map ownership from following a cave entry,
+		// despite the physics and model positions moving normally. Let the native
+		// controller resolve contact beside real ER ground. Do not mark an airborne or
+		// MC-block-supported player grounded, or overwrite last-safe save coordinates.
+		let native_contact = driving && mc_ready && body_lag <= NATIVE_CONTACT_BODY_LAG
+			&& patch.is_some_and(|(_, _, heights)| {
+				let gap = ground_at[1] - heights[0];
+				(-0.05..=NATIVE_CONTACT_GAP).contains(&gap)
+			});
+		// The ray patch is measured this frame, not the cached scan's outdoor roof.
+		// Missing support and every teleport acknowledgement wait keep suspension.
 		if driving || self.driving_was {
-			player.chr_ins.chr_flags1c4.set_no_gravity(driving);
+			player.chr_ins.chr_flags1c4.set_no_gravity(driving && moving && !native_contact);
+		}
+		if driving {
+			// Request the live local body's normal updates even when its model is transparent.
+			// ER consumes/resets this request every frame; it is not a persistent debug mode.
+			player.chr_ins.chr_flags1c4.set_force_update(true);
 		}
 		self.driving_was = driving;
 		{
@@ -599,14 +808,20 @@ impl Frame {
 				}
 			}
 		}
-		// The game can restore render flags during hit/respawn animations. Reapply to this live body.
-		if first_person || self.hid_model {
-			player.chr_ins.chr_flags1c5.set_enable_render(!first_person);
-			self.hid_model = first_person;
+		self.set_model_hidden(player, first_person);
+		// The moved body has no locomotion animation of its own while Minecraft drives it.
+		let living = player.chr_ins.modules.data.hp > 0 && !player.chr_ins.chr_flags1c5.death_flag();
+		self.hearing.frame(player, [p.0, p.1, p.2], er, driving && moving && mc_ready && living, mc.as_ref());
+		// ER offers only interactions the body faces: turn it with Minecraft's look.
+		if driving && moving && mc_ready && living {
+			self.interact.face(player, yaw);
+		} else if !self.drive {
+			self.interact.learn_forward(player);
 		}
 
 		let screen = screen_open.then(hud::viewport).flatten();
-		self.input.poll(&self.link, minecraft_controls, screen, (mouse.dx, mouse.dy));
+		// Movement/attack keys stay released while the animation owns the body (look still turns).
+		self.input.poll(&self.link, minecraft_controls && !follow_body, screen, (mouse.dx, mouse.dy));
 		self.link.publish(&Publish {
 			flags: proto::GAME_IN_GAME | if first_person && mc.as_ref().is_some_and(|m| m.camera_mode == 0) { proto::GAME_MC_HANDS } else { 0 },
 			world_id: space.world_id,
@@ -619,7 +834,7 @@ impl Frame {
 		});
 		scene::with(|s| {
 			s.view = first_person.then(|| scene::View { eye: cam_eye, yaw: cam_yaw, pitch: cam_pitch, fov_deg });
-			s.avatar_at = first_person.then(|| mc.as_ref().map(|m| m.pos)).flatten();
+			s.avatar_at = first_person.then(|| if follow_body { Some(er) } else { mc.as_ref().map(|m| m.pos) }).flatten();
 			let shown = mc_visible || self.combat.owns_health();
 			let m = mc.as_ref();
 			s.hud = scene::Hud {
@@ -650,7 +865,8 @@ impl Frame {
 		if now >= self.next_report {
 			self.next_report = now + Duration::from_secs(2);
 			let mc = match &mc {
-				Some(m) if m.in_world => format!("({:.2}, {:.2}, {:.2}) ack {}/{}", m.pos[0], m.pos[1], m.pos[2], m.teleport_ack, self.teleport_seq),
+				Some(m) if m.in_world => format!("feet ({:.2}, {:.2}, {:.2}), render ({:.2}, {:.2}, {:.2}) ack {}/{}",
+					m.feet[0], m.feet[1], m.feet[2], m.pos[0], m.pos[1], m.pos[2], m.teleport_ack, self.teleport_seq),
 				Some(_) => "not in a world".into(),
 				None => "busy".into(),
 			};
@@ -663,6 +879,7 @@ impl Frame {
 				self.mc_cache.as_ref().map_or(-1.0, |(_, seen)| seen.elapsed().as_secs_f64() * 1000.0),
 				self.scanner.floor_at(er[0], er[2])
 			));
+			log::line(&world::streaming_report(player, native_contact, patch.map(|(_, _, heights)| ground_at[1] - heights[0])));
 		}
 	}
 
@@ -672,12 +889,17 @@ impl Frame {
 	/// every havok position jumps in one frame while the tile-local position stays put. That is
 	/// taken at once. The tile-local position on its own can lag or be stale (loading, falling, our
 	/// own writes): those jumps are ignored unless the new mapping holds for ANCHOR_FRAMES frames.
-	/// Collision is kept either way: it is in world coordinates, which neither changes.
-	fn anchor(&mut self, fresh: Space) -> Option<Space> {
+	/// A pure Havok re-centre keeps world collision. A changed world offset parks Minecraft
+	/// for a frame and refreshes collision/handoff, since the previous coordinates are stale.
+	/// A connected map change keeps the held mapping until the new one settles (`hold_connected`).
+	fn anchor(&mut self, fresh: Space, alive: bool) -> Option<Space> {
 		let prev = self.prev_fresh.replace(fresh);
 		if let Some(held) = self.space.filter(|h| h.world_id == fresh.world_id) {
 			if held.drift(&fresh) < REANCHOR_METERS {
 				self.candidate = None;
+				if self.connected_since.take().is_some() {
+					log::line("maps: position returned to the held map before the new one settled");
+				}
 				return Some(held);
 			}
 			if let Some(p) = prev.filter(|p| p.world_id == fresh.world_id) {
@@ -686,6 +908,7 @@ impl Frame {
 				if havok_jump > REANCHOR_METERS && world_jump < REBASE_WORLD_STILL {
 					log::line(&format!("havok space re-centred by {havok_jump:.1} m; mapping follows"));
 					self.candidate = None;
+					self.connected_since = None;
 					self.space = Some(fresh);
 					return Some(fresh);
 				}
@@ -697,14 +920,55 @@ impl Frame {
 		};
 		self.candidate = Some((fresh, steady));
 		if steady < ANCHOR_FRAMES {
-			return self.space.filter(|h| h.world_id == fresh.world_id);
+			if let Some(held) = self.space.filter(|h| h.world_id == fresh.world_id) {
+				return Some(held);
+			}
+			return self.hold_connected(prev, fresh, alive);
 		}
 		self.candidate = None;
-		if let Some(held) = self.space.filter(|h| h.world_id == fresh.world_id) {
-			log::line(&format!("mapping moved {:.1} m and held steady; re-anchored", held.drift(&fresh)));
+		if let Some(since) = self.connected_since.take() {
+			log::line(&format!("maps: connected change to world {:08x} settled after {} ms; Minecraft camera and controls were kept",
+				fresh.world_id, since.elapsed().as_millis()));
 		}
+		let changed_offset = self.space.filter(|h| h.world_id == fresh.world_id).map(|h| h.drift(&fresh));
 		self.space = Some(fresh);
+		if let Some(drift) = changed_offset {
+			log::line(&format!("mapping moved {drift:.1} m and held steady; parking Minecraft and refreshing collision/handoff"));
+			// run cancels the old movement request before publish_loading discards the MC
+			// snapshot; the next settled frame starts a fresh collision epoch and teleport.
+			return None;
+		}
 		Some(fresh)
+	}
+
+	/// The previous mapping while a different map ID settles under the same live body. Havok is
+	/// continuous through a connected entrance, so the old offset still places this body, its
+	/// camera and its movement exactly; only the names of the coordinates are about to change.
+	/// A loading screen (no map ID) never reaches here. A havok jump, death or a wait beyond
+	/// CONNECTED_HOLD is not a connected walk: drop the mapping and use the normal loading path.
+	fn hold_connected(&mut self, prev: Option<Space>, fresh: Space, alive: bool) -> Option<Space> {
+		let Some(held) = self.space else {
+			self.connected_since = None;
+			return None;
+		};
+		let step = prev.map_or(f64::INFINITY, |p| dist(p.havok, fresh.havok));
+		let since = match self.connected_since {
+			Some(since) => since,
+			None => {
+				log::line(&format!("maps: world {:08x} -> {:08x} under the live body; holding the Minecraft view on the previous mapping while the new one settles",
+					held.world_id, fresh.world_id));
+				*self.connected_since.insert(Instant::now())
+			}
+		};
+		if alive && step < CONNECTED_STEP && since.elapsed() < CONNECTED_HOLD {
+			return Some(held);
+		}
+		log::line(&format!("maps: map change is not a connected walk (alive {alive}, havok step {step:.2} m, held {} ms); using the loading path",
+			since.elapsed().as_millis()));
+		self.connected_since = None;
+		// Never resume a hold on this offset after the body has jumped or the wait has failed.
+		self.space = None;
+		None
 	}
 
 	/// Validate each downward destination while ER is still above the surface. Waiting until
@@ -731,7 +995,7 @@ impl Frame {
 		// forward row points. In first person the camera is in the eye, so keep what was learned.
 		let to_eye = [eye[0] - from[0], eye[1] - from[1], eye[2] - from[2]];
 		let dist = (to_eye[0] * to_eye[0] + to_eye[1] * to_eye[1] + to_eye[2] * to_eye[2]).sqrt();
-		if dist > 1.0 {
+		if dist > 1.0 && self.model_state.is_none() {
 			let sign = if dir[0] * to_eye[0] + dir[1] * to_eye[1] + dir[2] * to_eye[2] < 0.0 { -1.0 } else { 1.0 };
 			if sign != self.cam_sign {
 				self.cam_sign = sign;

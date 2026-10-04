@@ -54,6 +54,11 @@ public final class Proto {
 	// Native player health, a = HP, b = maximum HP; both zero clears the display.
 	public static final int IN_PLAYER_HEALTH = 10;
 	public static final int IN_HURT_ORIGIN = 11;
+	/** An enemy the player last hit died: corpse position, identity, then the death (one batch). */
+	public static final int IN_LOOT_POS = 12;
+	public static final int IN_LOOT_ID = 13;
+	public static final int IN_ENEMY_DIED = 14;
+	public static final int ENEMY_BOSS = 1;
 	public static final long OFF_NATIVE_LIFE = 0x900, OFF_PLAYER_VITALS = 0x940;
 	public static final int LIFE_ACTIVE = 1, LIFE_RESPAWN = 2;
 	public static final int VITALS_VALID = 1, VITALS_DEAD = 2;

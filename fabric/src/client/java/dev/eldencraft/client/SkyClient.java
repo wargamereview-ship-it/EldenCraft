@@ -9,6 +9,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.sdl.SDLVideo;
 
@@ -39,6 +40,11 @@ public final class SkyClient {
 	private static Vec3 holdPos;
 	private static Vec3 unlinkedHold;
 	private static long holdSince;
+	private static long nextHoldReport;
+	private static boolean holdGroundAligned;
+	private static volatile int teleportTicket;
+	private static volatile int serverTeleportCompleted = -1;
+	private static int settledTeleportTicks;
 	private static long qpcFreq;
 	private static LocalPlayer eyePlayer;
 	private static float eyeSmoothed;
@@ -134,6 +140,7 @@ public final class SkyClient {
 		if (player != lastPlayer) {
 			lastPlayer = player;
 			teleportPending = true;
+			unlinkedHold = null;
 		}
 		if (sky.teleportSeq != lastTeleportSeq) {
 			lastTeleportSeq = sky.teleportSeq;
@@ -144,6 +151,8 @@ public final class SkyClient {
 			teleportAck = sky.teleportSeq;
 			teleportPending = false;
 			holdPos = new Vec3(sky.x, sky.y, sky.z);
+			holdSince = System.currentTimeMillis();
+			holdGroundAligned = false;
 		}
 
 		// Look direction is driven by Skyrim (zero-latency camera); MC uses it for everything else.
@@ -200,6 +209,45 @@ public final class SkyClient {
 		freezeWhileUnlinked(minecraft);
 		holdUntilReady(minecraft);
 		publishTick(minecraft);
+		watchServer(minecraft);
+	}
+
+	private static final long SERVER_STALL_MS = 10_000;
+	private static boolean stallReported;
+
+	/**
+	 * Handoffs complete on the integrated server. If it stops ticking while the client runs,
+	 * record every thread's stack once: a stall otherwise only shows as "server false" holds.
+	 */
+	private static void watchServer(Minecraft minecraft) {
+		var server = minecraft.getSingleplayerServer();
+		long last = dev.eldencraft.combat.SkyCombat.lastServerTickMs;
+		if (server == null || last == 0 || minecraft.player == null) {
+			stallReported = false;
+			return;
+		}
+		long stalled = System.currentTimeMillis() - last;
+		if (stalled < SERVER_STALL_MS) {
+			if (stallReported) {
+				EldenCraft.LOG.info("EldenCraft: integrated server ticks again");
+			}
+			stallReported = false;
+			return;
+		}
+		if (stallReported) {
+			return;
+		}
+		stallReported = true;
+		StringBuilder dump = new StringBuilder();
+		for (var entry : Thread.getAllStackTraces().entrySet()) {
+			Thread thread = entry.getKey();
+			dump.append("\n\"").append(thread.getName()).append("\" ").append(thread.getState());
+			for (StackTraceElement frame : entry.getValue()) {
+				dump.append("\n\tat ").append(frame);
+			}
+		}
+		EldenCraft.LOG.warn("EldenCraft: integrated server has not ticked for {} ms (paused {}, running {}); thread dump:{}",
+			stalled, minecraft.isPaused(), server.isRunning(), dump);
 	}
 
 	/**
@@ -215,12 +263,7 @@ public final class SkyClient {
 		if (unlinkedHold == null) {
 			unlinkedHold = player.position();
 		}
-		player.setDeltaMovement(Vec3.ZERO);
-		player.setPos(unlinkedHold.x, unlinkedHold.y, unlinkedHold.z);
-		player.xo = unlinkedHold.x;
-		player.yo = unlinkedHold.y;
-		player.zo = unlinkedHold.z;
-		player.resetFallDistance();
+		park(player, unlinkedHold);
 	}
 
 	/**
@@ -284,56 +327,84 @@ public final class SkyClient {
 		if (holdSince == 0) {
 			holdSince = System.currentTimeMillis();
 		}
-		int bx = (int) Math.floor(holdPos.x), by = (int) Math.floor(holdPos.y), bz = (int) Math.floor(holdPos.z);
-		boolean known = SkyCollision.isKnown(bx, by - 1, bz) && SkyCollision.isKnown(bx, by, bz)
-			&& SkyCollision.isKnown(bx, by - SkyCollision.REGION_SIZE, bz);
-		// Players use triangles, so nearby voxels alone do not prove their floor is ready.
-		// A known, genuinely empty area can still release after the mid-air timeout.
-		boolean ready = known && (!Double.isNaN(SkyCollider.groundAt(holdPos.x, holdPos.y, holdPos.z, 2.5))
-			|| System.currentTimeMillis() - holdSince > 6000);
+		var box = player.getBoundingBox().move(holdPos.subtract(player.position()));
+		boolean known = SkyCollider.terrainReady(box, Vec3.ZERO);
+		double maxAbove = player.maxUpStep() + 0.05;
+		double ground = known ? SkyCollider.groundAt(holdPos.x, holdPos.y, holdPos.z, maxAbove) : Double.NaN;
+		// Actual Minecraft blocks can also support a handoff (e.g. a platform we built).
+		boolean blockSupport = Entity.collideBoundingBox(player, new Vec3(0, -0.1, 0), box, player.level(), java.util.List.of()).y > -0.1;
+		boolean ready = known && (!Double.isNaN(ground) || blockSupport);
 		if (ready && sky.inGame() && !sky.loading()) {
-			// Skyrim's feet can sit a fraction of a voxel inside our ground layer. Minecraft's
-			// collision never pushes you out of a shape, so you'd drop through: lift out first.
-			Vec3 safe = liftOutOfGeometry(player, holdPos);
-			if (safe.y != holdPos.y) {
-				player.setPos(safe.x, safe.y, safe.z);
-				player.yo = safe.y;
-				EldenCraft.LOG.info("EldenCraft: lifted player {} blocks out of the ground", String.format("%.3f", safe.y - holdPos.y));
+			if (!holdGroundAligned) {
+				holdGroundAligned = true;
+				// Only a walkable surface within step height may lift the feet. Searching 2.5 m
+				// above them could select a tunnel roof or the underside of a nearby structure.
+				if (!Double.isNaN(ground) && ground > holdPos.y + 0.005) {
+					holdPos = new Vec3(holdPos.x, ground + 0.01, holdPos.z);
+					requestTeleport(minecraft, holdPos.x, holdPos.y, holdPos.z, sky.yaw, sky.pitch);
+				}
 			}
-			holdPos = null;
-			return;
+			if (serverTeleportCompleted == teleportTicket) {
+				// Let the local server's teleport packet reach the client while still parked;
+				// it must not put us back at the old feet after the native body starts following.
+				if (++settledTeleportTicks >= 2) {
+					park(player, holdPos);
+					EldenCraft.LOG.info("EldenCraft: teleport {} ready at {} (epoch {}, wait {} ms)",
+						teleportAck, holdPos, sky.collisionEpoch, System.currentTimeMillis() - holdSince);
+					holdPos = null;
+					return;
+				}
+			} else {
+				settledTeleportTicks = 0;
+			}
+		} else {
+			settledTeleportTicks = 0;
 		}
-		player.setDeltaMovement(Vec3.ZERO);
-		player.setPos(holdPos.x, holdPos.y, holdPos.z);
-		player.xo = holdPos.x;
-		player.yo = holdPos.y;
-		player.zo = holdPos.z;
-		player.resetFallDistance();
+		if (System.currentTimeMillis() >= nextHoldReport && System.currentTimeMillis() - holdSince >= 2000) {
+			nextHoldReport = System.currentTimeMillis() + 2000;
+			EldenCraft.LOG.info("EldenCraft: holding teleport {}: regions {}, ground {}, server {}, epoch {}",
+				teleportAck, known, ground, serverTeleportCompleted == teleportTicket, sky.collisionEpoch);
+		}
+		park(player, holdPos);
 	}
 
-	private static Vec3 liftOutOfGeometry(LocalPlayer player, Vec3 pos) {
-		// Stand on the exact Skyrim ground if it is slightly above the feet (up to 2.5 blocks).
-		double ground = SkyCollider.groundAt(pos.x, pos.y, pos.z, 2.5);
-		return !Double.isNaN(ground) && ground > pos.y ? new Vec3(pos.x, ground, pos.z) : pos;
+	/** A teleport/hold is a discontinuity; neither rendered feet nor published physics may lerp through it. */
+	private static void park(LocalPlayer player, Vec3 pos) {
+		player.setPos(pos.x, pos.y, pos.z);
+		player.xo = pos.x;
+		player.yo = pos.y;
+		player.zo = pos.z;
+		player.setDeltaMovement(Vec3.ZERO);
+		player.resetFallDistance();
+		mc.prevX = mc.curX = pos.x;
+		mc.prevY = mc.curY = pos.y;
+		mc.prevZ = mc.curZ = pos.z;
+		mc.tickQpc = SkyLink.qpc();
+		mc.tickMs = 50.0F;
 	}
 
 	private static void requestTeleport(Minecraft minecraft, double x, double y, double z, float yaw, float pitch) {
 		LocalPlayer player = minecraft.player;
-		player.setPos(x, y, z);
-		player.setDeltaMovement(Vec3.ZERO);
-		player.resetFallDistance();
+		park(player, new Vec3(x, y, z));
+		int ticket = ++teleportTicket;
+		serverTeleportCompleted = -1;
+		settledTeleportTicks = 0;
 		var server = minecraft.getSingleplayerServer();
 		if (server != null) {
 			var uuid = player.getUUID();
 			server.execute(() -> {
 				ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-				if (sp != null) {
+				if (sp != null && teleportTicket == ticket) {
 					sp.teleportTo(x, y, z);
+					sp.setDeltaMovement(Vec3.ZERO);
 					sp.setYRot(yaw);
 					sp.setXRot(pitch);
 					sp.resetFallDistance();
+					serverTeleportCompleted = ticket;
 				}
 			});
+		} else {
+			serverTeleportCompleted = ticket;
 		}
 		EldenCraft.LOG.info("EldenCraft: teleported to {} {} {}", x, y, z);
 	}
@@ -376,7 +447,7 @@ public final class SkyClient {
 			mc.pitch = player.getXRot();
 			// The eye, not the camera: in third person Minecraft's camera sits behind or in front.
 			Vec3 eye = camera.isDetached() ? player.getEyePosition(partial) : camera.position();
-			mc.eyeHeight = (float) (eye.y - feet.y);
+			mc.eyeHeight = holdPos == null ? (float) (eye.y - feet.y) : player.getEyeHeight();
 			mc.eyeX = eye.x;
 			mc.eyeY = eye.y;
 			mc.eyeZ = eye.z;

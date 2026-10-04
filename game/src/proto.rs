@@ -83,6 +83,13 @@ pub const IN_PLAYER_HEALTH: u16 = 10;
 /// Atomically precedes IN_HURT: source position as f32 bits; code 1 when known.
 pub const IN_HURT_ORIGIN: u16 = 11;
 pub const IN_HURT: u16 = 7;
+/// An enemy the player last hit died, sent as one batch: corpse position (a/b/c f32 bits),
+/// identity (a = map event entity ID, b = world ID, c = NpcParam ID), then the death itself
+/// (code = ENEMY_BOSS, a = native max HP, b = character model ID, c = actor ID).
+pub const IN_LOOT_POS: u16 = 12;
+pub const IN_LOOT_ID: u16 = 13;
+pub const IN_ENEMY_DIED: u16 = 14;
+pub const ENEMY_BOSS: u16 = 1;
 pub const OFF_NATIVE_LIFE: usize = 0x900;
 pub const OFF_PLAYER_VITALS: usize = 0x940;
 pub const LIFE_ACTIVE: u32 = 1;
@@ -303,3 +310,9 @@ const _: () = assert!(size_of::<McStateHead>() == 0xC8);
 
 pub const MC_IN_WORLD: u32 = 1 << 0;
 pub const MC_SCREEN_OPEN: u32 = 1 << 1;
+pub const MC_ON_GROUND: u32 = 1 << 2;
+pub const MC_SNEAKING: u32 = 1 << 3;
+pub const MC_SPRINTING: u32 = 1 << 4;
+pub const MC_DEAD: u32 = 1 << 5;
+pub const MC_SWIMMING: u32 = 1 << 6;
+pub const MC_FLYING: u32 = 1 << 7;

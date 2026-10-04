@@ -4,6 +4,8 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 use windows_sys::Win32::UI::WindowsAndMessaging::{CURSOR_SHOWING, CURSORINFO, GetCursorInfo, GetForegroundWindow, GetWindowThreadProcessId};
 use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 
+/// R: Elden Ring's Event Action while Minecraft has the controls (unbound in vanilla Minecraft).
+pub const VK_R: u8 = 0x52;
 pub const VK_F6: u8 = 0x75;
 pub const VK_F7: u8 = 0x76;
 pub const VK_F8: u8 = 0x77;

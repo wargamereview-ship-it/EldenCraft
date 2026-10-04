@@ -11,7 +11,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** Feeds the local player's movement through {@link TriCollider} against nearby Skyrim triangles. */
+/** Feeds the local player's movement through {@link TriCollider} against nearby ER triangles. */
 public final class SkyCollider {
 	private static long nextStreamReport;
 	private SkyCollider() {
@@ -21,7 +21,7 @@ public final class SkyCollider {
 		AABB box = player.getBoundingBox();
 		// Collision arrives asynchronously. An absent region is unknown, not empty air:
 		// wait here rather than accelerating into a hole before its floor can arrive.
-		if (SkyCollision.active() && !terrainReady(box, move)) {
+		if (!terrainReady(box, move)) {
 			long now = System.currentTimeMillis();
 			if (now >= nextStreamReport) {
 				nextStreamReport = now + 2000;
@@ -49,13 +49,17 @@ public final class SkyCollider {
 		return Entity.collideBoundingBox(player, new Vec3(r[0], r[1], r[2]), box, player.level(), List.of());
 	}
 
-	private static boolean terrainReady(AABB box, Vec3 move) {
+	static boolean terrainReady(AABB box, Vec3 move) {
+		var state = SkyClient.sky();
+		if (!state.inGame() || state.loading() || !SkyCollision.matchesEpoch(state.collisionEpoch)) {
+			return false;
+		}
 		AABB sweep = box.expandTowards(move);
 		int size = SkyCollision.REGION_SIZE;
 		int rx0 = Math.floorDiv((int) Math.floor(sweep.minX), size), rx1 = Math.floorDiv((int) Math.floor(sweep.maxX), size);
 		int rz0 = Math.floorDiv((int) Math.floor(sweep.minZ), size), rz1 = Math.floorDiv((int) Math.floor(sweep.maxZ), size);
 		int ry0 = Math.floorDiv((int) Math.floor(Math.min(box.minY, box.minY + move.y) - 0.1), size);
-		int ry1 = Math.floorDiv((int) Math.floor(Math.max(box.minY, box.minY + move.y)), size);
+		int ry1 = Math.floorDiv((int) Math.floor(sweep.maxY), size);
 		for (int rx = rx0; rx <= rx1; rx++) {
 			for (int ry = ry0; ry <= ry1; ry++) {
 				for (int rz = rz0; rz <= rz1; rz++) {
@@ -65,7 +69,7 @@ public final class SkyCollider {
 				}
 			}
 		}
-		return true;
+		return SkyCollision.matchesEpoch(state.collisionEpoch);
 	}
 
 	/** Highest Skyrim surface at or below {@code maxAbove} over the feet at (x, y, z), or NaN. */
