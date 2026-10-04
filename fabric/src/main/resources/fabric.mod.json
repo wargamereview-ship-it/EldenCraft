@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "eldencraft",
+  "version": "${version}",
+  "name": "EldenCraft",
+  "description": "Play Elden Ring with Minecraft physics, inventory and viewmodels.",
+  "authors": ["chasmlol"],
+  "contact": {
+    "sources": "https://github.com/chasmlol/EldenCraft"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "main": ["dev.eldencraft.EldenCraft"],
+    "client": ["dev.eldencraft.client.EldenCraftClient"]
+  },
+  "mixins": [
+    "eldencraft.mixins.json",
+    { "config": "eldencraft.client.mixins.json", "environment": "client" }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

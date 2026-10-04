@@ -1,0 +1,34 @@
+{
+  "required": true,
+  "package": "dev.eldencraft.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "CameraZoomMixin",
+    "ChatComponentMixin",
+    "ClientLevelAccessor",
+    "ClientLevelDigMixin",
+    "EntityCollideMixin",
+    "FramerateLimitTrackerMixin",
+    "InputConstantsMixin",
+    "IntegratedServerMixin",
+    "LevelExtractorMixin",
+    "LevelRendererMixin",
+    "MinecraftDigMixin",
+    "MinecraftMixin",
+    "RenderSetupAccessor",
+    "RenderTypeAccessor",
+    "ScreenMixin",
+    "SpriteContentsAccessor",
+    "TextureAtlasAccessor",
+    "TextureBindingAccessor",
+    "TextureManagerAccessor",
+    "WaitingForPlayerChunkMixin",
+    "WindowMixin",
+    "WorldOpenFlowsMixin",
+    "FirstPersonHandsMixin",
+    "HudCrosshairMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

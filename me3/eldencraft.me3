@@ -1,0 +1,9 @@
+# me3 profile: `me3 launch -p me3/eldencraft.me3` (or double-click it).
+# me3 starts Elden Ring without Easy Anti-Cheat, so it stays offline. Never take a modded game online.
+profileVersion = "v1"
+
+[[supports]]
+game = "eldenring"
+
+[[natives]]
+path = '../game/target/x86_64-pc-windows-msvc/release/eldencraft.dll'

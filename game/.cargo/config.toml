@@ -1,0 +1,3 @@
+# Elden Ring loads a Windows DLL. On Linux, build with `cargo xwin build --release`.
+[build]
+target = "x86_64-pc-windows-msvc"

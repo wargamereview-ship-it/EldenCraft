@@ -1,0 +1,34 @@
+[package]
+name = "eldencraft"
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Elden Ring structures. Pinned: game patches move offsets, so bump this deliberately.
+eldenring = { git = "https://github.com/vswarte/fromsoftware-rs", rev = "59fbd3b3b7daaf14aca47c9f73530493dba6bc79" }
+fromsoftware-shared = { git = "https://github.com/vswarte/fromsoftware-rs", rev = "59fbd3b3b7daaf14aca47c9f73530493dba6bc79" }
+glam = "0.33"  # must match eldenring's
+hudhook = { version = "0.9.3", default-features = false, features = ["dx12", "inject"] }
+windows-sys = { version = "0.60", features = [
+	"Win32_Foundation",
+	"Win32_Security",
+	"Win32_System_Diagnostics_ToolHelp",
+	"Win32_System_LibraryLoader",
+	"Win32_System_Memory",
+	"Win32_System_SystemInformation",
+	"Win32_System_Threading",
+	"Win32_UI_Input_KeyboardAndMouse",
+	"Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+debug = true
+
+[patch.crates-io]
+# hudhook 0.9.3 with its DirectX 12 texture upload fixed (see vendor/hudhook/src/renderer/backend/dx12.rs).
+hudhook = { path = "vendor/hudhook" }

@@ -1,0 +1,19 @@
+# cargo
+game/target/
+# gradle / loom
+fabric/.gradle/
+fabric/build/
+fabric/run/
+fabric/out/
+# ide
+.vs/
+.idea/
+*.iml
+# release packaging
+dist/
+__pycache__/
+*.pyc
+# game archives and installers dropped in the repo
+*.7z
+*.rar
+*.zip
