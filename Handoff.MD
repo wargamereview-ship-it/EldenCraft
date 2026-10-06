@@ -27,10 +27,11 @@ fight, gather, craft and build as a Minecraft player inside ER's world.
 
 ### Git state
 
-The player-status mirror and documentation updates are committed on local `main` after `7cef9fc`.
-Local `main` and `origin/main` have diverged: each holds its own copy of "Looting V1" (local `728d002`, GitHub
-`15739af`). Local is 4 ahead and 1 behind, so a push needs a merge or a force-push; ask the user which.
-Nothing has been pushed.
+The player-status mirror and documentation updates are committed as `5e87e7d` on `main` after
+`7cef9fc`. On 6 October the duplicate GitHub "Looting V1" commit (`15739af`) was reconciled with the
+local copy (`728d002`) through a merge retaining the current local files and both histories. Their
+original trees were verified identical (`712992dd62eb157511be38a65235671b667836dc`). `main` can now
+be pushed normally without rewriting history.
 
 ## Builds in use
 
@@ -313,6 +314,5 @@ Minecraft `<instance>/logs/latest.log`; me3 `~/.local/share/me3/logs/eldencraft/
 2. Play-check the new player status mirror: all seven effects, native timers, buildup/wards, cures,
    loading/death/respawn/disconnect cleanup. It is built, not yet seen in play. Any additional MC status
    penalties still need the user's decision.
-3. Decide how to reconcile `main` with `origin/main` before any push.
-4. Deferred by the user: floating gathering nodes, full-inventory / simultaneous-death / multi-phase boss
+3. Deferred by the user: floating gathering nodes, full-inventory / simultaneous-death / multi-phase boss
    tests. Not yet scoped: villager traders, seamless co-op.
