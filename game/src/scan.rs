@@ -432,6 +432,16 @@ impl Scanner {
 	}
 
 	pub fn step(&mut self, link: &Link, player: &PlayerIns, space: &Space, feet: V3) {
+		if space.world_id != self.world_id && self.world_id != u32::MAX {
+			// A connected map change (walking through a cave mouth): the coordinate ranges of the maps
+			// do not overlap, so what is already scanned stays valid. Clearing it made every crossing
+			// stall until the terrain around the player was scanned and sent again.
+			self.world_id = space.world_id;
+			self.job = None;
+			self.samples.clear();
+			self.hurry_until = Instant::now() + HURRY_FOR;
+			log::line(&format!("collision: connected change to world {:08x}; keeping {} scanned columns", space.world_id, self.done.len()));
+		}
 		if space.world_id != self.world_id {
 			self.world_id = space.world_id;
 			self.epoch = self.epoch.wrapping_add(1);
