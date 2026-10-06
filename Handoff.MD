@@ -27,7 +27,8 @@ Do not reset the checkout to remove the duplicate Looting V1 commit.
 The current DLL and installed JAR use **protocol version 3**. The shared-memory name remains
 `Local\EldenCraft_v1`; its suffix is not the protocol version. Both binaries must match.
 The installed JAR matches `fabric/build/libs/eldencraft-0.0.1.jar`, SHA-256:
-`08a2d142b91705353d30fbef688958d6b00e1ee78a9b2ec18934cdf166dd8e9a`.
+`a5d35f2ee521800991e18c635f69368d45bd886088a44472996ed4886f552906` (6 Oct 2026, wards, trims, XP orbs, varied boss weapons). Protocol additions that keep
+version 3 (old binaries ignore them): input `IN_HURT_ELEMENTS` (17) and `PlayerVitals.statusWards` (was padding).
 me3 loads the DLL directly from `game/target/x86_64-pc-windows-msvc/release/eldencraft.dll`.
 
 | Area | Current state | Evidence / remaining check |
@@ -174,6 +175,105 @@ rises ~0.35 m, so a rising lift must not trigger recovery: `Scanner::carried_ris
 (`ridesAPlatformThatRoseAboveTheStepHeight`); a first lift test still fell through (the recovery loop
 above); after the `carried_rise` follow-up the user confirmed lifts work (5 Oct 2026). Columns are still not rescanned for moving geometry.
 
+Elemental and status enchantments (`ElementalRules`, `StatusMeters`, `ElementalHit`; data in
+`data/eldencraft/enchantment/*.json`): Glintstone (magic), Flame, Lightning and Sacred (holy) add
+12% of the hit per level, scaled by the enemy family (holy vs undead, fire vs plant, ...); Bloodletting,
+Frostbite, Venom and Scarlet Rot fill an Elden Ring-style meter on the enemy (100, bosses 250, harder
+after each proc, draining when hits stop). Hemorrhage and frostbite proc a burst of the enemy's max HP,
+poison and rot tick for 18 s, frostbite also leaves the enemy taking 20% more for 20 s. These are
+Minecraft-side effects delivered as ordinary damage: the DLL sends `ActorRecord.level` as the enemy's max
+HP / 25 and treats events flagged `HIT_STATUS` as direct HP with no bullet or stagger. They are NOT
+native Elden Ring buildup or elemental damage types (no ER status effects, resistances or visuals). Weapons
+get them from bosses (name-themed, level 1-5 by tier) and from about a third of boss books; they
+are not in the enchanting table. Unconfirmed in play.
+
+Element of incoming hits (research, 6 Oct 2026; for planned elemental armour enchantments): the damage record at
+the HP stage (`native_hits`, 0x448910) names its attack: AtkParam row id at +0x40, table at +0x44 (0 AtkParam_Npc,
+1 AtkParam_Pc). The game itself looks the pair up as param slot table+7 (fn 0x140d247d0, called from 0x140449dfd)
+and reads `throw_type_id` (+0x68) of the row. The row's `atk_phys/atk_mag/atk_fire/atk_thun/atk_dark` give the
+attack's base damage by type. The record does not hold the final per-type damage: the core calculation 0x140685820
+(called from 0x140448325) returns the total, stored at +0x228. Seven per-status buildups scaled by +0x120..+0x138 are
+stored at +0x158..+0x170 (likely poison, rot, bleed, deathblight, frost, sleep, madness, the order of
+`PlayerGameData::resistance_gauges`; unverified). Each captured hit is logged as
+`life: damage call lost ... attack AtkParam_Npc <id> phys .. magic .. fire .. lightning .. holy ..`. Confirmed in play
+6 Oct 2026: 20 hits, all resolved to AtkParam_Npc rows; physical attacks read pure physical (e.g. 4382200 phys 210) and
+fire attacks pure fire (4382140 fire 180, 4500232 fire 360), one enemy (actor 131) using both. Magic, lightning and
+holy not yet seen but come from the same row fields.
+
+Ward enchantments (built 6 Oct 2026, not yet seen in play; `WardRules`, `Wards`, `AnvilMenuMixin`, data
+`enchantment/*_ward.json`): eight armour enchantments, levels I-VII at 10% each. Glintstone/Flame/Storm/Sacred Ward cut
+their element's share of an ER hit; Rot/Bleed/Frost/Venom Ward cut that status's buildup on the player. Only the
+strongest piece of a ward counts (no stacking); one ward per piece (exclusive set `ward`). Not in the enchanting
+table, trades or chests. Element path: the DLL turns each captured hit's AtkParam base values into percentages and
+sends `IN_HURT_ELEMENTS` before `IN_HURT`; `SkyCombat.hurtNativePlayer` cuts the damage before vanilla armour and logs
+`[physical ..% magic ..% ..., wards cut x of y]`. Status path: Java writes the wearer's status ward levels into the
+vitals every tick; `native_hits` scales the record's buildup (+0x158..) for hits on the player before the HP stage
+copies it, and logs `life: status buildup on you: <status> a -> b`. The status order (poison, scarlet rot, blood
+loss, deathblight, frostbite, sleep, madness) is assumed: confirm from a log line after a known status hit. Wards
+do not cut buildup from ground (rot lakes, poison swamps), which applies no attack. Distribution
+(`tools/generate_loot.py` `WARDS`/`WARD_SEVEN`, written to `loot_rules.json` as `ward`/`ward_seven`, listed in
+`docs/loot-boss-rewards.md`): 142 of 208 bosses have a ward theme (21 marked unsure in the generator). Their armour
+carries it at level = tier (max VI), their book is that ward (same level; replaces the random book), and their
+weapon gets the matching weapon enchantment (unthemed bosses keep the name-based one). VII is only the book of one
+DLC boss per ward: Messmer (Flame), Bayle (Storm), Rellana (Glintstone), Promised Consort Radahn (Sacred), Romina
+(Rot), Divine Beast Dancing Lion of Rauh (Frost), Chief Bloodfiend (Bleed); Venom Ward has no DLC boss and stops at IV.
+The anvil cannot make VII from two VIs (`WardRules.anvilLevel`). Existing claimed boss rewards are not changed.
+
+Vanilla enchantments against Elden Ring (6 Oct 2026, built, not yet seen in play). Dead ones are no longer given by
+boss rewards: Fire and Blast Protection (ER fire/explosions arrive as attacks; those sets now get Protection), Aqua
+Affinity. Still dead and never given: Thorns (vanilla post_attack effects only fire from an attacker's own attack
+code; ER hits call `hurtServer` directly), Looting (ER kills roll chest-style loot), Bane of Arthropods, Impaling,
+Punch (arrows `push`, not `knockback`), Breach, Soul Speed, Frost Walker. Made to work:
+- Projectile Protection: the DLL builds the set of AtkParam ids that BulletParam rows use (`Attack::projectile`) and
+  sends such hits as `HURT_PROJECTILE`; Java gives them the `mob_projectile` damage type even without a shooter.
+  Spells, breath and thrown pots are bullets too, so they count as projectiles. Logged as `..., projectile`.
+- Smite: `EnchantmentHelperMixin` adds 2.5 a level in `modifyDamage` when the target stand-in's family is undead
+  (the generator's undead now includes deathbird, revenant, tibia mariner; this also changed those models' drops).
+- Knockback: `native_damage::reaction` takes the hit's strongest MC push (`McEvent.d`; 0.4 plain, 0.5 per Knockback
+  level or sprint): each 0.5 adds half the poise damage, two or more steps one reaction size. Sprint hits stagger more too.
+Boss gear: each set has its own armour trim (`SETS` in the generator, `reward.trim`). Each weapon boss gives the kind
+of weapon it fights with in ER (`WEAPONS` in the generator: sword, axe, spear, mace, trident, bow, crossbow, pickaxe;
+maces get Density, crossbows Piercing, the rest Sharpness/Power) and a signature enchantment (`reward.signature`:
+Smite for undead, Fire Aspect for fire bosses, else Sweeping Edge/Knockback/Lunge/Wind Burst/Loyalty/Infinity/
+Multishot by weapon; level in `LootEquipment.signatureLevel`). Where two different bosses would still give the same
+weapon, the later (by name) gets one or two extra enchantments (`reward.flair`, `FLAIRS`); the generator asserts no two
+different bosses share a weapon reward (repeat fights of one boss do). Physical bosses' weapons get no element. XP: enemies and bosses drop XP orbs at the death spot (held in the air
+like loot until collision there is known); a boss drops them only on its first reward (`BossRewards.Enqueued`).
+The full list is `rewards.md`, written from the reward code by `RewardsSheetTest`, which only runs on request:
+`ELDENCRAFT_REWARDS=1 ./gradlew cleanTest test --tests dev.eldencraft.combat.RewardsSheetTest` (in `fabric`, with the
+usual JAVA_HOME/GRADLE_USER_HOME). Regenerate it after changing rewards.
+
+Graces: nodes keep 7 m from any grace the player has rested at or arrived beside (the DLL sends the
+position with `IN_GRACE_REST`, code 0 for a rest, 1 for the arrival after a load); the world file keeps a
+`graces` list and nodes already there are removed when it is first noted. Known limit: Elden Ring's
+effects (the grace glow, particles) write no depth, so a block farther away than such an effect but not behind
+anything solid is drawn over it. Floating nodes make this
+worse; the Minecraft log prints native ground vs block bottom for the first few nodes of each 30 s.
+
+Occlusion by the game's real depth: WORKS (seen in play 6 Oct 2026). Pillars, ruins and grass hide blocks, and
+geometry the game fades out near the camera (a dithered pillar) lets blocks show through in the same pattern. History and
+the investigation are in `docs/depth-occlusion-handoff.md`. On by default; F3 switches back to the collision occluders
+as a fallback. Files: `depth.rs`, `depth_math.rs`, shader `PSBlock`.
+How it works: a MinHook on `ID3D12GraphicsCommandList::ResourceBarrier` (installed on the first frame) takes the first
+full-size single-sample depth texture the game moves into the depth-write state as the scene depth (it is
+`D32_FLOAT_S8X24_UINT`, format 19, at back-buffer size). It records a `CopyResource` of it into our texture (SRV
+slot 65) inside the game's own command list, so the game's queue orders the copy and the depth's state is known:
+once when the game makes the whole depth readable (state 0xc0), and again at the end of the game's frame (when it
+moves a swap-chain back buffer to PRESENT, using the planes' states tracked from its barriers). The encoding
+(standard / reversed / reversed-infinite) is learned at run time: a row of 64 values from the copy is read back and
+the centre is compared with a native ray's distance straight ahead (first person, 3-100 m, with the camera's
+near/far planes), logged as `depth: the game's depth is encoded as mode N`. It is reversed-Z, near 0.05, far 10000;
+modes 2 and 3 both fit. Once known, the collision occluders are skipped and a block fragment more than 0.1 m (+2%)
+behind the game's depth is discarded; fragments nearer than 1.5 m are never tested (the hidden player model).
+`depth: blocks are now / are not hidden by the game's depth (...)` logs every change of that state. Any failure
+(no barrier seen, unsupported format, no fit after 20 s) logs `depth: ...` and leaves the collision occlusion in
+place; F3 off and on tries again. In the pixel shader the block's distance is `SV_Position.w` itself: D3D gives clip
+w there, not OpenGL's 1/w (taking 1/w was the bug that made it look broken). The targeted-block outline and the
+contact shadows use the same test (`HiddenByGame` in the shader), so a sunk block's outline stops at the ground.
+Translucent effects (the grace glow, particles) write no depth, so blocks are drawn over them. Accepted limit (the
+user's call, 6 Oct 2026): putting the game's VFX over blocks was considered (copy the scene colour before and after
+the game's effects pass, add the difference over blocks) and not pursued.
+
 Block lighting: the renderer copies Elden Ring's finished frame (`gpu.rs` `FrameCopy`, taken before our
 pass, SRV slot 64) and the block vertex shader averages 32 of its pixels around each vertex's screen
 position (`GameLight`), so blocks pick up the game's shadows, fog, weather, colour grading, lamp light and
@@ -215,6 +315,8 @@ rustc --test tools/test_grace_edges.rs -o /tmp/eldencraft-grace-test
 /tmp/eldencraft-grace-test
 rustc --test tools/test_lighting.rs -o /tmp/eldencraft-lighting-test
 /tmp/eldencraft-lighting-test
+rustc --edition 2021 --test tools/test_depth.rs -o /tmp/eldencraft-depth-test
+/tmp/eldencraft-depth-test
 ```
 
 For the Java build:
@@ -234,7 +336,7 @@ closed. The DLL is already at me3's configured load path. Instance:
 `/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/SteamLibrary/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Local/EldenCraft/Prism/instances/EldenCraft/.minecraft`.
 
 Launch from the root with `~/.local/bin/me3 launch -p me3/eldencraft.me3`.
-Controls: F8 MC movement, F9 first person, F10 input owner, F5 MC camera, F7 collision view, F4 block light source (game picture / clock),
+Controls: F8 MC movement, F9 first person, F10 input owner, F5 MC camera, F7 collision view, F4 block light source (game picture / clock), F3 block occlusion (game depth / collision),
 F6 ray probes, F11 render-history delay, R native interaction. R assumes ER Event Action is E.
 
 Capture logs before relaunching:

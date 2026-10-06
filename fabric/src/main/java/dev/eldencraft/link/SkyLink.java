@@ -441,7 +441,8 @@ public final class SkyLink {
 		s.set(JAVA_FLOAT, b + 24, Math.max(0, player.getHealth()));
 		s.set(JAVA_FLOAT, b + 28, player.getMaxHealth());
 		s.set(JAVA_FLOAT, b + 32, player.getAbsorptionAmount());
-		s.set(JAVA_INT, b + 36, 0);
+		// Status ward levels (poison, rot, blood loss, frostbite; a byte each) for the DLL to scale buildup.
+		s.set(JAVA_INT, b + 36, dev.eldencraft.combat.WardRules.packStatus(dev.eldencraft.combat.Wards.worn(player)));
 		VarHandle.storeStoreFence(); INT.setRelease(s, b, seq + 1);
 	}
 

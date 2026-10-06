@@ -26,7 +26,8 @@ public final class SkyLoot {
 	private static final int[] ENEMY_XP = {2,4,8,16,30,45,60}, BOSS_XP = {60,120,220,350,500,700,1000};
 	public record Death(Vec3 pos,int entityId,int worldId,int npcParamId,int maxHp,int characterId,boolean boss,int mapId,int playRegion,int bossFlag) {}
 	private record Deferred(UUID owner,Death death) {}
-	private static final List<ItemEntity> FLOATING=new ArrayList<>();
+	/** Drops and XP orbs held in the air where the ground is not scanned yet. */
+	private static final List<net.minecraft.world.entity.Entity> FLOATING=new ArrayList<>();
 	private static final List<Deferred> DEFERRED=new ArrayList<>();
 	private static MinecraftServer server;
 	private static int ticks;
@@ -66,13 +67,16 @@ public final class SkyLoot {
 			int tier=boss.get("tier").getAsInt();
 			List<ItemStack> drops=new ArrayList<>();
 			drops.add(LootEquipment.bossGear(current,boss));
-			drops.add(LootEquipment.book(current,tier,level.getRandom()));
+			drops.add(LootEquipment.bossBook(current,boss,level.getRandom()));
 			drops.addAll(table(current,"boss/tier_"+tier).getRandomItems(params));
 			String key=death.bossFlag()!=0 ? "boss:"+Integer.toUnsignedString(death.bossFlag())
 				: "placed:"+Integer.toUnsignedString(death.mapId())+":"+(death.entityId()!=0 ? Integer.toUnsignedString(death.entityId())
 					: death.npcParamId()+":"+(int)Math.floor(death.pos().x/16)+":"+(int)Math.floor(death.pos().z/16));
-			if(!BossRewards.enqueue(player,key,boss.get("name").getAsString(),drops,BOSS_XP[tier-1])) {
-				DEFERRED.add(new Deferred(player.getUUID(),death));
+			// Items wait in the durable ledger; XP drops as orbs where the boss died, on the first reward only.
+			switch(BossRewards.enqueue(player,key,boss.get("name").getAsString(),drops,0)) {
+				case FAILED -> DEFERRED.add(new Deferred(player.getUUID(),death));
+				case ADDED -> dropXp(level,death.pos(),BOSS_XP[tier-1]);
+				case ALREADY -> {}
 			}
 			return;
 		}
@@ -105,8 +109,7 @@ public final class SkyLoot {
 		}
 		spawn(level,death.pos(),drops);
 		int xp=ENEMY_XP[tier-1];
-		if(collisionKnown(death.pos())) ExperienceOrb.award(level,death.pos().add(0,0.5,0),xp);
-		else player.giveExperiencePoints(xp);
+		dropXp(level,death.pos(),xp);
 		EldenCraft.LOG.info("EldenCraft: loot c{} npc {} entity {} map {}: {} tier {}, {} xp, {}",
 			death.characterId(),death.npcParamId(),death.entityId(),Integer.toUnsignedString(death.mapId(),16),family,tier,xp,drops);
 	}
@@ -122,9 +125,20 @@ public final class SkyLoot {
 			level.addFreshEntity(item);
 		}
 	}
+	/** XP as orbs where the enemy died, split as vanilla splits it; held in the air until the ground is known. */
+	private static void dropXp(ServerLevel level,Vec3 at,int xp) {
+		boolean grounded=collisionKnown(at);
+		while(xp>0) {
+			int value=ExperienceOrb.getExperienceValue(xp);
+			xp-=value;
+			var orb=new ExperienceOrb(level,at.x,at.y+0.5,at.z,value);
+			if(!grounded) { orb.setNoGravity(true);FLOATING.add(orb); }
+			level.addFreshEntity(orb);
+		}
+	}
 	private static boolean collisionKnown(Vec3 at) { return SkyCollision.isKnown((int)Math.floor(at.x),(int)Math.floor(at.y)-1,(int)Math.floor(at.z)); }
 	public static void tick() {
-		FLOATING.removeIf(item -> { if(item.isRemoved()) return true;if(collisionKnown(item.position())) {item.setNoGravity(false);return true;}return false; });
+		FLOATING.removeIf(entity -> { if(entity.isRemoved()) return true;if(collisionKnown(entity.position())) {entity.setNoGravity(false);return true;}return false; });
 		if(server==null || ++ticks%20!=0) return;
 		BossRewards.tick();
 		var retry=new ArrayList<>(DEFERRED);DEFERRED.clear();

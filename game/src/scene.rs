@@ -69,6 +69,12 @@ pub struct Scene {
 	pub light: crate::lighting::Light,
 	/// Light blocks from the game's own picture (F4 switches this off for the clock's light alone).
 	pub game_light: bool,
+	/// Hide blocks behind what the game really draws (F3): its scene depth is found and copied.
+	pub depth_occlusion: bool,
+	/// The distance from the camera to what the game's own ray hits straight ahead, to learn how its depth is stored.
+	pub depth_probe: Option<f32>,
+	/// The game camera's near and far planes.
+	pub camera_planes: (f32, f32),
 }
 
 static SCENE: LazyLock<Mutex<Scene>> = LazyLock::new(|| Mutex::new(Scene::default()));

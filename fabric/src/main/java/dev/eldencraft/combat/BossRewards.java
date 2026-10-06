@@ -80,10 +80,13 @@ public final class BossRewards {
 			return false;
 		}
 	}
-	public static boolean enqueue(ServerPlayer player, String key, String name, List<ItemStack> items, int xp) {
-		if (!healthy) return false;
+	/** What became of a boss reward: newly recorded, already recorded before (a repeat kill), or not recorded. */
+	public enum Enqueued { ADDED, ALREADY, FAILED }
+
+	public static Enqueued enqueue(ServerPlayer player, String key, String name, List<ItemStack> items, int xp) {
+		if (!healthy) return Enqueued.FAILED;
 		var rewards = ledger.getAsJsonObject("rewards");
-		if (rewards.has(key)) return true;
+		if (rewards.has(key)) return Enqueued.ALREADY;
 		var entry = new JsonObject();
 		entry.addProperty("owner", player.getUUID().toString());
 		entry.addProperty("name",name);
@@ -101,9 +104,9 @@ public final class BossRewards {
 		}
 		entry.add("items",encoded);
 		rewards.add(key,entry);
-		if (!persist()) { rewards.remove(key); return false; }
+		if (!persist()) { rewards.remove(key); return Enqueued.FAILED; }
 		player.sendSystemMessage(Component.literal("Boss reward earned: "+name+". Items wait for you if your inventory is full."));
-		return true;
+		return Enqueued.ADDED;
 	}
 	private static boolean received(ServerPlayer player, String token) {
 		return player.getAttachedOrCreate(RECEIPTS).contains(token);

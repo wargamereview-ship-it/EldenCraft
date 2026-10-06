@@ -1,0 +1,23 @@
+{
+  "description": {
+    "translate": "enchantment.eldencraft.scarlet_rot"
+  },
+  "supported_items": "#eldencraft:enchantable/elemental",
+  "primary_items": "#eldencraft:enchantable/elemental",
+  "weight": 2,
+  "max_level": 5,
+  "min_cost": {
+    "base": 15,
+    "per_level_above_first": 8
+  },
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 8
+  },
+  "anvil_cost": 4,
+  "slots": [
+    "mainhand"
+  ],
+  "exclusive_set": "#eldencraft:exclusive_set/status",
+  "effects": {}
+}

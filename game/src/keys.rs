@@ -6,6 +6,8 @@ use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 
 /// R: Elden Ring's Event Action while Minecraft has the controls (unbound in vanilla Minecraft).
 pub const VK_R: u8 = 0x52;
+/// F3: blocks are hidden by the game's real scene depth, or by the scanned collision.
+pub const VK_F3: u8 = 0x72;
 /// F4: blocks take their light from the game's picture, or from the clock alone.
 pub const VK_F4: u8 = 0x73;
 pub const VK_F6: u8 = 0x75;

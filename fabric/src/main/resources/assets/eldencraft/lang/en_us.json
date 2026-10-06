@@ -1,3 +1,23 @@
 {
-  "block.eldencraft.loose_stone": "Loose Stone"
+  "block.eldencraft.loose_stone": "Loose Stone",
+  "enchantment.eldencraft.magic": "Glintstone",
+  "enchantment.eldencraft.fire": "Flame",
+  "enchantment.eldencraft.lightning": "Lightning",
+  "enchantment.eldencraft.holy": "Sacred",
+  "enchantment.eldencraft.hemorrhage": "Bloodletting",
+  "enchantment.eldencraft.frostbite": "Frostbite",
+  "enchantment.eldencraft.poison": "Venom",
+  "enchantment.eldencraft.scarlet_rot": "Scarlet Rot",
+  "enchantment.eldencraft.glintstone_ward": "Glintstone Ward",
+  "enchantment.eldencraft.flame_ward": "Flame Ward",
+  "enchantment.eldencraft.storm_ward": "Storm Ward",
+  "enchantment.eldencraft.sacred_ward": "Sacred Ward",
+  "enchantment.eldencraft.rot_ward": "Rot Ward",
+  "enchantment.eldencraft.bleed_ward": "Bleed Ward",
+  "enchantment.eldencraft.frost_ward": "Frost Ward",
+  "enchantment.eldencraft.venom_ward": "Venom Ward",
+  "eldencraft.status.hemorrhage": "Hemorrhage!",
+  "eldencraft.status.frostbite": "Frostbite!",
+  "eldencraft.status.poison": "Poisoned!",
+  "eldencraft.status.scarlet_rot": "Scarlet Rot!"
 }

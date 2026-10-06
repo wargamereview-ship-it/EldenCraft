@@ -83,6 +83,10 @@ pub const IN_PLAYER_HEALTH: u16 = 10;
 /// Atomically precedes IN_HURT: source position as f32 bits; code 1 when known.
 pub const IN_HURT_ORIGIN: u16 = 11;
 pub const IN_HURT: u16 = 7;
+/// IN_HURT codes: how the hit reached the player (Proto.HURT_* / HurtKind).
+pub const HURT_MELEE: u16 = 0;
+pub const HURT_PROJECTILE: u16 = 1;
+pub const HURT_OTHER: u16 = 3;
 /// An enemy the player last hit died, sent as one batch: corpse position (a/b/c f32 bits),
 /// identity (a = map event entity ID, b = world ID, c = NpcParam ID), then the death itself
 /// (code = ENEMY_BOSS, a = native max HP, b = character model ID, c = actor ID).
@@ -93,6 +97,9 @@ pub const IN_ENEMY_DIED: u16 = 14;
 pub const IN_LOOT_REGION: u16 = 15;
 /// A native grace-rest edge, distinct from map loads and respawn.
 pub const IN_GRACE_REST: u16 = 16;
+/// Atomically precedes IN_HURT, code 1 when the hit's attack is known: a = magic, fire, lightning,
+/// holy percent (a byte each, low first), b = physical percent.
+pub const IN_HURT_ELEMENTS: u16 = 17;
 pub const ENEMY_BOSS: u16 = 1;
 pub const OFF_NATIVE_LIFE: usize = 0x900;
 pub const OFF_PLAYER_VITALS: usize = 0x940;
@@ -111,7 +118,9 @@ pub struct NativeLife {
 pub struct PlayerVitals {
 	pub seq: u32, pub epoch: u32, pub world_id: u32, pub flags: u32,
 	pub updated_ms: u64,
-	pub health: f32, pub max_health: f32, pub absorption: f32, pub pad: u32,
+	pub health: f32, pub max_health: f32, pub absorption: f32,
+	/// Ward levels 0-7, a byte each, low first: poison, scarlet rot, blood loss, frostbite.
+	pub status_wards: u32,
 }
 const _: () = assert!(size_of::<NativeLife>() == 24);
 const _: () = assert!(size_of::<PlayerVitals>() == 40);
@@ -132,6 +141,8 @@ pub const WEAPON_MACE: u32 = 7;
 pub const WEAPON_MACE_SMASH: u32 = 8;
 pub const HIT_PROJECTILE: u32 = 1 << 1;
 pub const HIT_FIRE: u32 = 1 << 3;
+/// Status damage (poison, rot, a hemorrhage or frostbite proc): straight to HP, no bullet, no stagger.
+pub const HIT_STATUS: u32 = 1 << 4;
 pub const ACTOR_HOSTILE: u32 = 1;
 pub const ACTOR_DEAD: u32 = 1 << 1;
 pub const ACTOR_ESSENTIAL: u32 = 1 << 2;

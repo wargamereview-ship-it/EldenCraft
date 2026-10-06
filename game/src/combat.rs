@@ -28,7 +28,19 @@ const _: () = assert!(size_of::<CSChrDataModule>() > DATA_DEBUG_FLAGS);
 type Identity = (FieldInsHandle, usize, i32);
 
 struct HealthOwner { body: (usize, usize), original_no_death: bool, expected_hp: i32 }
-struct IncomingHit { damage: f32, actor: u32, origin: Option<[f64; 3]> }
+/// `shares`: the hit's make-up for Minecraft's element wards, as sent in IN_HURT_ELEMENTS (a, b).
+/// `projectile`: an arrow, spell or thrown object (Minecraft's Projectile Protection applies).
+struct IncomingHit { damage: f32, actor: u32, origin: Option<[f64; 3]>, shares: Option<(i32, i32)>, projectile: bool }
+
+/// Percentages by damage type from an attack's base values (physical, magic, fire, lightning, holy):
+/// magic..holy packed a byte each (low first), and physical. None when the attack deals no typed damage.
+fn hit_shares(base: [u16; 5]) -> Option<(i32, i32)> {
+	let total: u32 = base.iter().map(|&v| u32::from(v)).sum();
+	if total == 0 { return None; }
+	let pct = |v: u16| (u32::from(v) * 100 / total) as i32;
+	let packed = pct(base[1]) | pct(base[2]) << 8 | pct(base[3]) << 16 | pct(base[4]) << 24;
+	Some((packed, pct(base[0])))
+}
 
 fn body(player: &PlayerIns) -> (usize, usize) {
 	(player as *const PlayerIns as usize, &*player.chr_ins.modules.data as *const CSChrDataModule as usize)
@@ -179,6 +191,8 @@ impl Combat {
 			log::line("life: native HP becomes a hit sensor; Minecraft hearts own health and death");
 		}
 		if let Some(v) = vitals { self.health_fraction = (v.health / v.max_health).clamp(0.0, 1.0); }
+		// Minecraft's status wards, for the damage hook to cut the buildup of hits on the player.
+		crate::native_hits::set_status_wards(vitals.map_or(0, |v| v.status_wards));
 		let owner = self.health_owner.as_mut().unwrap();
 		let hp = player.chr_ins.modules.data.hp;
 		let max_hp = player.chr_ins.modules.data.max_hp.max(1);
@@ -203,17 +217,37 @@ impl Combat {
 				(id, Some(space.havok_to_mc([h.0, h.1, h.2])))
 			});
 			let damage = if hp <= 1 && captured.len() == 1 { 20.0 } else { hit.lost as f32 * 20.0 / max_hp as f32 };
-			if self.incoming.len() < 64 { self.incoming.push_back(IncomingHit { damage, actor, origin }); }
+			let elements = hit.attack.and_then(|a| a.elements());
+			let shares = elements.and_then(hit_shares);
+			let projectile = hit.attack.is_some_and(|a| a.projectile());
+			if self.incoming.len() < 64 { self.incoming.push_back(IncomingHit { damage, actor, origin, shares, projectile }); }
 			else { log::line("life: incoming hit queue full while Minecraft is unresponsive"); }
-			log::line(&format!("life: damage call lost {} HP -> {damage:.2} MC damage from actor {actor}, directed {}, attack param {}",
-				hit.lost, origin.is_some(), player.chr_ins.modules.action_flag.received_damage_type));
+			// Which attack it was and its base damage by type (physical/magic/fire/lightning/holy).
+			let attack = hit.attack.map_or("unknown".to_string(), |a| {
+				let table = if a.npc { "AtkParam_Npc" } else { "AtkParam_Pc" };
+				match elements {
+					Some([p, m, f, l, h]) => format!("{table} {} phys {p} magic {m} fire {f} lightning {l} holy {h}", a.id),
+					None => format!("{table} {} (row not found)", a.id),
+				}
+			});
+			log::line(&format!("life: damage call lost {} HP -> {damage:.2} MC damage from actor {actor}, directed {}, attack param {}, attack {attack}{}",
+				hit.lost, origin.is_some(), player.chr_ins.modules.action_flag.received_damage_type, if projectile { ", projectile" } else { "" }));
+		}
+		// Status buildup hits put on the player, and what the wards left of it (names in the assumed order).
+		for b in crate::native_hits::take_buildups() {
+			let parts: Vec<String> = (0..7).filter(|&i| b.before[i] > 0.0).map(|i| if b.after[i] < b.before[i] {
+				format!("{} {:.1} -> {:.1}", crate::native_hits::STATUSES[i], b.before[i], b.after[i])
+			} else {
+				format!("{} {:.1}", crate::native_hits::STATUSES[i], b.before[i])
+			}).collect();
+			log::line(&format!("life: status buildup on you: {}", parts.join(", ")));
 		}
 		// Falls, status ticks and other HP changes outside the attack call remain undirected.
 		// Subtract captured losses so no attack is applied twice through the old HP sensor.
 		let other = lost.saturating_sub(captured_hp).max(0);
 		if other > 0 {
 			let damage = if hp <= 1 && captured.is_empty() { 20.0 } else { other as f32 * 20.0 / max_hp as f32 };
-			if self.incoming.len() < 64 { self.incoming.push_back(IncomingHit { damage, actor: 0, origin: None }); }
+			if self.incoming.len() < 64 { self.incoming.push_back(IncomingHit { damage, actor: 0, origin: None, shares: None, projectile: false }); }
 			log::line(&format!("life: uncaptured HP change {other} -> {damage:.2} MC damage (no attack origin)"));
 		}
 		crate::native_hits::arm(body(player), self.life_epoch);
@@ -224,7 +258,10 @@ impl Combat {
 			let p = hit.origin.unwrap_or([0.0; 3]).map(|v| (v as f32).to_bits() as i32);
 			let sent = link.send_inputs(&[
 				proto::InputEvent { kind: proto::IN_HURT_ORIGIN, code: u16::from(hit.origin.is_some()), a: p[0], b: p[1], c: p[2] },
-				proto::InputEvent { kind: proto::IN_HURT, code: if hit.origin.is_some() { 0 } else { 3 },
+				proto::InputEvent { kind: proto::IN_HURT_ELEMENTS, code: u16::from(hit.shares.is_some()),
+					a: hit.shares.map_or(0, |s| s.0), b: hit.shares.map_or(0, |s| s.1), c: 0 },
+				proto::InputEvent { kind: proto::IN_HURT,
+					code: if hit.projectile { proto::HURT_PROJECTILE } else if hit.origin.is_some() { proto::HURT_MELEE } else { proto::HURT_OTHER },
 					a: (hit.damage * 100.0).round().max(1.0) as i32, b: hit.actor as i32, c: self.life_epoch as i32 },
 			]);
 			if !sent { break; }
@@ -294,7 +331,8 @@ impl Combat {
 						log::line(&format!("combat: dropped MC hit for unpublished/stale actor {}", event.id));
 						continue;
 					};
-					let ranged = event.flags & (proto::HIT_PROJECTILE | proto::HIT_FIRE) != 0;
+					let status = event.flags & proto::HIT_STATUS != 0;
+					let ranged = event.flags & (proto::HIT_PROJECTILE | proto::HIT_FIRE | proto::HIT_STATUS) != 0;
 					let reach = distance_to_box(eye, actor);
 					if !ranged && reach > MELEE_REACH {
 						log::line(&format!("combat: dropped melee actor {} c{}; reach {reach:.2} m exceeds {MELEE_REACH:.2} m", actor.id,
@@ -313,11 +351,22 @@ impl Combat {
 						continue;
 					}
 					let before = chr.modules.data.hp;
-					let damage = (event.a.min(1000.0) * HP_PER_DAMAGE).round().max(1.0) as i32;
+					// A status (a percentage of a boss's health) can be far more than one swing.
+					let damage = (event.a.min(if status { 100_000.0 } else { 1000.0 }) * HP_PER_DAMAGE).round().max(1.0) as i32;
+					if status {
+						// Poison, rot and the burst of a hemorrhage or frostbite: health only, like ER's own
+						// status ticks, so no bullet, no flinch and no new alert.
+						let after = before.saturating_sub(damage).max(0);
+						chr.modules.data.hp = after;
+						chr.last_hit_by = player.chr_ins.field_ins_handle;
+						*actor = record(chr, space, actor.id);
+						log::line(&format!("combat: actor {} c{} status {:.2} -> {} ER HP; {before} -> {after}", actor.id, chr.character_id, event.a, before - after));
+						continue;
+					}
 					// A native bullet carries the hit into ER's own pipeline: guard, poise/stagger,
 					// reaction, effects and AI response; MC's damage replaces the bullet's at HP.
 					let critical = event.flags & proto::HIT_CRITICAL != 0;
-					let (after, aggro) = match self.native.send(chr, &player.chr_ins, damage, event.weapon, critical) {
+					let (after, aggro) = match self.native.send(chr, &player.chr_ins, damage, event.weapon, critical, event.d) {
 						// Feedback reports the expected result; ER applies it a few frames later.
 						crate::native_damage::Outcome::Sent => (before.saturating_sub(damage).max(0), "native hit sent"),
 						crate::native_damage::Outcome::Unavailable(why) => {
@@ -455,7 +504,7 @@ fn record(chr: &ChrIns, space: &Space, id: u32) -> proto::ActorRecord {
 			| if protected(chr) { proto::ACTOR_ESSENTIAL } else { 0 },
 		pos: space.havok_to_mc([h.0, h.1, h.2]).map(|p| p as f32), yaw,
 		width, height, health_frac: (chr.modules.data.hp as f32 / chr.modules.data.max_hp.max(1) as f32).clamp(0.0, 1.0),
-		level: 0, pad: 0, name,
+		level: (chr.modules.data.max_hp.max(25) / 25).clamp(1, u16::MAX as i32) as u16, pad: 0, name,
 	}
 }
 

@@ -21,6 +21,8 @@ public final class InputBridge {
 	private static int modifiers;
 	private static int clickLogs;
 	private static net.minecraft.world.phys.Vec3 hurtOrigin;
+	/** The next hit's shares by damage type (WardRules order), when the DLL knows its attack. */
+	private static float[] hurtShares;
 	private static net.minecraft.world.phys.Vec3 lootPos;
 	private static int[] lootId;
 	private static int[] lootRegion;
@@ -68,9 +70,11 @@ public final class InputBridge {
 			case Proto.IN_RELEASE_ALL -> releaseAll();
 			case Proto.IN_HURT_ORIGIN -> hurtOrigin = code == 1
 				? new net.minecraft.world.phys.Vec3(Float.intBitsToFloat(a), Float.intBitsToFloat(b), Float.intBitsToFloat(c)) : null;
+			case Proto.IN_HURT_ELEMENTS -> hurtShares = code == 1 ? dev.eldencraft.combat.WardRules.shares(a, b) : null;
 			case Proto.IN_HURT -> {
-				hurt(minecraft, code, a / 100.0F, b, c, hurtOrigin);
+				hurt(minecraft, code, a / 100.0F, b, c, hurtOrigin, hurtShares);
 				hurtOrigin = null;
+				hurtShares = null;
 			}
 			case Proto.IN_LOOT_POS -> lootPos = new net.minecraft.world.phys.Vec3(Float.intBitsToFloat(a), Float.intBitsToFloat(b), Float.intBitsToFloat(c));
 			case Proto.IN_LOOT_ID -> lootId = new int[] { a, b, c };
@@ -86,7 +90,7 @@ public final class InputBridge {
 			}
 			case Proto.IN_GRACE_REST -> {
                 var current=minecraft.getSingleplayerServer();
-                if(current!=null) current.execute(() -> dev.eldencraft.world.ResourceNodes.graceRested(current));
+                if(current!=null) current.execute(() -> dev.eldencraft.world.ResourceNodes.graceNoticed(current,code==0,a,b,c));
             }
 			case Proto.IN_HIT_FEEDBACK -> CombatHud.hit(b, a, c, code);
 			case Proto.IN_PLAYER_HEALTH -> CombatHud.playerHealth(a, b);
@@ -117,7 +121,8 @@ public final class InputBridge {
 	}
 
 	/** Skyrim hit the player: apply it as Minecraft damage on the integrated server (or the host's). */
-	private static void hurt(Minecraft minecraft, int kind, float mcDamage, int attacker, int epoch, net.minecraft.world.phys.Vec3 origin) {
+	private static void hurt(Minecraft minecraft, int kind, float mcDamage, int attacker, int epoch, net.minecraft.world.phys.Vec3 origin,
+		float[] shares) {
 		var life = SkyLink.readNativeLife();
 		if (life == null || !life.active() || life.epoch() != epoch || life.worldId() != SkyClient.sky().worldId) return;
 		var server = minecraft.getSingleplayerServer();
@@ -135,7 +140,7 @@ public final class InputBridge {
 		server.execute(() -> {
 			ServerPlayer player = server.getPlayerList().getPlayer(uuid);
 			if (player != null) {
-				var result = SkyCombat.hurtNativePlayer(player, kind, mcDamage, attacker, epoch, origin);
+				var result = SkyCombat.hurtNativePlayer(player, kind, mcDamage, attacker, epoch, origin, shares);
 				if (result.blocked() > 0) minecraft.execute(() -> {
 					var currentLife = SkyLink.readNativeLife();
 					if (currentLife != null && currentLife.active() && currentLife.epoch() == epoch

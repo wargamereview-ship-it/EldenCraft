@@ -60,6 +60,9 @@ public final class Proto {
 	public static final int IN_ENEMY_DIED = 14;
 	public static final int IN_LOOT_REGION = 15;
 	public static final int IN_GRACE_REST = 16;
+	/** Atomically precedes IN_HURT: the hit's make-up when its attack is known (code 1): a = magic, fire,
+	 *  lightning, holy percent (a byte each, low first), b = physical percent. */
+	public static final int IN_HURT_ELEMENTS = 17;
 	public static final int ENEMY_BOSS = 1;
 	public static final long OFF_NATIVE_LIFE = 0x900, OFF_PLAYER_VITALS = 0x940;
 	public static final int LIFE_ACTIVE = 1, LIFE_RESPAWN = 2;
@@ -102,6 +105,8 @@ public final class Proto {
 	public static final int HIT_PROJECTILE = 1 << 1;
 	public static final int HIT_SWEEP = 1 << 2;
 	public static final int HIT_FIRE = 1 << 3;
+	/** Status damage (poison, rot, hemorrhage, frostbite): direct HP, no stagger. */
+	public static final int HIT_STATUS = 1 << 4;
 	public static final int WEAPON_UNARMED = 0;
 	public static final int WEAPON_BLADE = 1;
 	public static final int WEAPON_AXE = 2;

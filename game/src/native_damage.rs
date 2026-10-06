@@ -103,7 +103,11 @@ pub fn substitute_damage(module: *mut u8, hit: *mut u8) {
 /// harder and half again the poise. Small flinches for quick weapons, a medium stagger for axes
 /// and the mace, and a large stagger for the mace's falling smash; poise breaks come from
 /// repeated hits like ER's own.
-fn reaction(weapon: u32, critical: bool) -> (u8, f32) {
+///
+/// Minecraft's knockback feeds the stagger: `knockback` is the hit's strongest push (0.4 for a plain
+/// hit, 0.5 per Knockback level and for a sprint hit). Each 0.5 adds half the poise damage, and two
+/// or more steps (Knockback II, or I while sprinting) also hit one reaction size harder.
+fn reaction(weapon: u32, critical: bool, knockback: f32) -> (u8, f32) {
 	use crate::proto::*;
 	let (level, poise) = match weapon {
 		WEAPON_BLADE => (1, 15.0),
@@ -116,7 +120,9 @@ fn reaction(weapon: u32, critical: bool) -> (u8, f32) {
 		WEAPON_ARROW => (1, 8.0),
 		_ => (1, 8.0),              // unarmed
 	};
-	if critical { ((level + 1).min(3), poise * 1.5) } else { (level, poise) }
+	let (level, poise) = if critical { ((level + 1).min(3), poise * 1.5) } else { (level, poise) };
+	let steps = if knockback.is_finite() { (knockback / 0.5).floor().clamp(0.0, 3.0) } else { 0.0 };
+	((level + steps as u8 / 2).min(3), poise * (1.0 + 0.5 * steps))
 }
 
 pub struct NativeDamage {
@@ -186,11 +192,11 @@ impl NativeDamage {
 	}
 
 	/// Send an MC hit of `damage` ER HP from `player` into `victim` as a native bullet.
-	pub fn send(&mut self, victim: &ChrIns, player: &ChrIns, damage: i32, weapon: u32, critical: bool) -> Outcome {
+	pub fn send(&mut self, victim: &ChrIns, player: &ChrIns, damage: i32, weapon: u32, critical: bool, knockback: f32) -> Outcome {
 		let Some(spawn) = SPAWN.get().copied() else { return Outcome::Unavailable("bullet spawn unavailable") };
 		if let Err(reason) = self.carrier() { return Outcome::Unavailable(reason); }
 		let Ok(manager) = (unsafe { CSBulletManager::instance_mut() }) else { return Outcome::Unavailable("no bullet manager") };
-		let (level, poise) = reaction(weapon, critical);
+		let (level, poise) = reaction(weapon, critical, knockback);
 		self.set_reaction(level, poise);
 
 		// Start just outside the target on the player's side and fly into it at chest height.

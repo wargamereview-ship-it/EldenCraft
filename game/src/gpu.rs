@@ -87,8 +87,10 @@ cbuffer C : register(b0) {
 	float4 ambient; // blocks: colour of the light on every face
 	float4 frame;   // blocks: the game's picture on screen (x, y, width, height in back buffer pixels)
 	float4 look;    // blocks: x 1 = take light from the game's picture, y its reference brightness, z tint strength, w sample radius (pixels)
+	float4 depthInfo; // blocks: x camera near, y far, z depth encoding (0: do not test), w bias (blocks)
 };
 Texture2D<float4> frameTex : register(t1);
+Texture2D<float> erDepth : register(t2); // the game's scene depth, copied
 Texture2D tex : register(t0);
 SamplerState samp : register(s0);
 
@@ -116,7 +118,8 @@ float3 GameLight(float4 clip) {
 	float3 avg = acc / 32.0;
 	float luma = dot(avg, float3(0.299, 0.587, 0.114));
 	float3 tint = lerp(float3(1, 1, 1), clamp(avg / max(luma, 0.02), 0.6, 1.6), look.z);
-	return clamp(luma / look.y, 0.05, 1.3) * tint;
+	// A slight lift in the darks (the picture's dim places are the ones that read too dark on a block).
+	return clamp(pow(max(luma, 0.0) / look.y, 0.85), 0.06, 1.3) * tint;
 }
 
 BOut VSBlock(BIn i) {
@@ -155,7 +158,21 @@ BOut VSBlock(BIn i) {
 	return o;
 }
 
+// Whether anything the game really drew is in front of this point (blocks, their outline and contact shadows).
+bool HiddenByGame(float4 pos) {
+	// Nearer than a block and a half is not tested: the game's own (hidden) player model may be in its depth there.
+	// In a D3D pixel shader SV_Position.w is clip w itself (OpenGL's gl_FragCoord.w is 1/w), here the forward distance.
+	if (depthInfo.z < 0.5 || pos.w <= 1.5) return false;
+	float d = erDepth.Load(int3(int2(pos.xy), 0));
+	float n = depthInfo.x, f = depthInfo.y;
+	float dist = depthInfo.z < 1.5 ? f * n / (f - d * (f - n))
+		: depthInfo.z < 2.5 ? f * n / (n + d * (f - n))
+		: n / max(d, 1e-7);
+	return dist < pos.w - depthInfo.w * (1.0 + pos.w * 0.02);
+}
+
 float4 PSBlock(BOut i) : SV_Target {
+	if (HiddenByGame(i.pos)) discard;
 	float4 t = tex.Sample(samp, i.uv) * i.col;
 	if ((i.flags & 1) != 0 && t.a < 0.5) discard;
 	return float4(t.rgb * i.lit, (i.flags & 2) != 0 ? t.a : 1.0);
@@ -163,13 +180,17 @@ float4 PSBlock(BOut i) : SV_Target {
 
 // Contact shadow: a soft dark disc over the quad.
 float4 PSShadow(BOut i) : SV_Target {
+	if (HiddenByGame(i.pos)) discard;
 	float2 d = i.uv * 2 - 1;
 	float a = saturate(1 - dot(d, d));
 	return float4(0, 0, 0, 0.45 * a * a);
 }
 
 // The outline around the block Minecraft targets.
-float4 PSLine(BOut i) : SV_Target { return float4(0, 0, 0, 0.5); }
+float4 PSLine(BOut i) : SV_Target {
+	if (HiddenByGame(i.pos)) discard;
+	return float4(0, 0, 0, 0.5);
+}
 
 float4 VSOccluder(float3 pos : POSITION) : SV_Position {
 	float3 p = pos + offset.xyz - eye.xyz;
@@ -212,11 +233,13 @@ float4 PSInvert(OOut i) : SV_Target {
 }
 "#;
 
-const CONSTANTS: u32 = 48;
+const CONSTANTS: u32 = 52;
 /// Descriptor slots: 0 the block atlas, 1 the GUI, then Minecraft's entity textures by id.
-const SRV_SLOTS: u32 = 65;
+const SRV_SLOTS: u32 = 66;
 /// The copy of the game's picture (blocks take their light from it).
 const FRAME_SLOT: u32 = 64;
+/// The copy of the game's scene depth (blocks are hidden by it).
+const DEPTH_SLOT: u32 = 65;
 
 fn texture_slot(id: u32) -> Option<u32> {
 	(id >= 1 && id + 1 < FRAME_SLOT).then_some(id + 1)
@@ -237,6 +260,7 @@ struct Constants {
 	ambient: [f32; 4],
 	frame: [f32; 4],
 	look: [f32; 4],
+	depth: [f32; 4],
 }
 
 struct FrameCopy {
@@ -250,6 +274,26 @@ struct FrameCopy {
 
 /// What a vertex shader (or any) reads the copy of the game's picture in.
 const FRAME_READ: D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATES(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE.0 | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE.0);
+
+/// How to read the depth plane of a depth format back to the CPU: the footprint format to copy it as,
+/// and whether the 32-bit words hold a float (otherwise 24-bit normalised).
+fn depth_readback(format: DXGI_FORMAT) -> Option<(DXGI_FORMAT, bool)> {
+	match format {
+		DXGI_FORMAT_D32_FLOAT | DXGI_FORMAT_R32_TYPELESS => Some((DXGI_FORMAT_R32_FLOAT, true)),
+		DXGI_FORMAT_D32_FLOAT_S8X24_UINT | DXGI_FORMAT_R32G8X24_TYPELESS => Some((DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS, true)),
+		DXGI_FORMAT_D24_UNORM_S8_UINT | DXGI_FORMAT_R24G8_TYPELESS => Some((DXGI_FORMAT_R24_UNORM_X8_TYPELESS, false)),
+		_ => None,
+	}
+}
+
+/// A copy of the game's scene depth, and a small buffer to read a few of its values back from.
+struct SceneDepth {
+	resource: ID3D12Resource,
+	readback: ID3D12Resource,
+	width: u32,
+	height: u32,
+	format: DXGI_FORMAT,
+}
 
 struct Mesh {
 	source: Arc<Vec<RenVertex>>,
@@ -304,6 +348,14 @@ struct Renderer {
 	/// A copy of the game's picture taken before drawing, and whether making one has failed for good.
 	frame_copy: Option<FrameCopy>,
 	frame_failed: bool,
+	/// Our copy of the game's scene depth, the encoding found for it (0 not yet, 1-3 see depth_math, 9 none fits),
+	/// and a calibration read waiting to be looked at: (true distance, near, far).
+	scene_depth: Option<SceneDepth>,
+	depth_mode: u32,
+	depth_probe: Option<(f32, f32, f32)>,
+	depth_attempts: u32,
+	/// Whether blocks were hidden by the game's depth last frame (logged when it changes).
+	depth_was_ready: bool,
 	meshes: HashMap<[i32; 3], Mesh>,
 	/// Entity textures by Minecraft's id, and what they were made from.
 	entity_textures: HashMap<u32, (Texture, Arc<Atlas>)>,
@@ -423,6 +475,23 @@ impl Renderer {
 						},
 					},
 					ShaderVisibility: D3D12_SHADER_VISIBILITY_VERTEX,
+				},
+				// The game's scene depth, read by the block pixel shader.
+				D3D12_ROOT_PARAMETER {
+					ParameterType: D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+					Anonymous: D3D12_ROOT_PARAMETER_0 {
+						DescriptorTable: D3D12_ROOT_DESCRIPTOR_TABLE {
+							NumDescriptorRanges: 1,
+							pDescriptorRanges: &D3D12_DESCRIPTOR_RANGE {
+								RangeType: D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+								NumDescriptors: 1,
+								BaseShaderRegister: 2,
+								RegisterSpace: 0,
+								OffsetInDescriptorsFromTableStart: 0,
+							},
+						},
+					},
+					ShaderVisibility: D3D12_SHADER_VISIBILITY_PIXEL,
 				},
 			];
 			let root_desc = D3D12_ROOT_SIGNATURE_DESC {
@@ -580,6 +649,18 @@ impl Renderer {
 					}),
 					handle,
 				);
+				let mut depth_handle = srv_heap.GetCPUDescriptorHandleForHeapStart();
+				depth_handle.ptr += (DEPTH_SLOT * srv_step) as usize;
+				device.CreateShaderResourceView(
+					None,
+					Some(&D3D12_SHADER_RESOURCE_VIEW_DESC {
+						Format: DXGI_FORMAT_R32_FLOAT,
+						ViewDimension: D3D12_SRV_DIMENSION_TEXTURE2D,
+						Shader4ComponentMapping: D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+						Anonymous: D3D12_SHADER_RESOURCE_VIEW_DESC_0 { Texture2D: D3D12_TEX2D_SRV { MipLevels: 1, ..Default::default() } },
+					}),
+					depth_handle,
+				);
 			}
 
 			Ok(Self {
@@ -608,6 +689,11 @@ impl Renderer {
 				overlay_flip: false,
 				frame_copy: None,
 				frame_failed: false,
+				scene_depth: None,
+				depth_mode: 0,
+				depth_probe: None,
+				depth_attempts: 0,
+				depth_was_ready: false,
 				meshes: HashMap::new(),
 				entity_textures: HashMap::new(),
 				dynamic: None,
@@ -785,6 +871,152 @@ impl Renderer {
 		Ok(true)
 	}
 
+	/// Makes (or remakes) our copy of the game's scene depth once the game's own has been seen.
+	/// False while it has not, or when its format cannot be read.
+	unsafe fn ensure_scene_depth(&mut self) -> Result<bool> {
+		let Some((format, width, height)) = crate::depth::scene() else { return Ok(false) };
+		let Some((typeless, read)) = crate::depth::formats(format) else { return Ok(false) };
+		if self.scene_depth.as_ref().is_some_and(|d| d.width == width && d.height == height && d.format == format) {
+			return Ok(true);
+		}
+		unsafe {
+			let resource: ID3D12Resource = util::try_out_ptr(|v| {
+				self.device.CreateCommittedResource(
+					&D3D12_HEAP_PROPERTIES { Type: D3D12_HEAP_TYPE_DEFAULT, ..Default::default() },
+					D3D12_HEAP_FLAG_NONE,
+					&D3D12_RESOURCE_DESC {
+						Dimension: D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+						Width: width as u64,
+						Height: height,
+						DepthOrArraySize: 1,
+						MipLevels: 1,
+						Format: typeless,
+						SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+						Layout: D3D12_TEXTURE_LAYOUT_UNKNOWN,
+						..Default::default()
+					},
+					crate::depth::COPY_READ,
+					None,
+					v,
+				)
+			})?;
+			let readback: ID3D12Resource = util::try_out_ptr(|v| {
+				self.device.CreateCommittedResource(
+					&D3D12_HEAP_PROPERTIES { Type: D3D12_HEAP_TYPE_READBACK, ..Default::default() },
+					D3D12_HEAP_FLAG_NONE,
+					&D3D12_RESOURCE_DESC {
+						Dimension: D3D12_RESOURCE_DIMENSION_BUFFER,
+						Width: 256,
+						Height: 1,
+						DepthOrArraySize: 1,
+						MipLevels: 1,
+						SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+						Layout: D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+						..Default::default()
+					},
+					D3D12_RESOURCE_STATE_COPY_DEST,
+					None,
+					v,
+				)
+			})?;
+			let mut handle = self.srv_heap.GetCPUDescriptorHandleForHeapStart();
+			handle.ptr += (DEPTH_SLOT * self.srv_step) as usize;
+			self.device.CreateShaderResourceView(
+				&resource,
+				Some(&D3D12_SHADER_RESOURCE_VIEW_DESC {
+					Format: read,
+					ViewDimension: D3D12_SRV_DIMENSION_TEXTURE2D,
+					Shader4ComponentMapping: D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+					Anonymous: D3D12_SHADER_RESOURCE_VIEW_DESC_0 { Texture2D: D3D12_TEX2D_SRV { MipLevels: 1, ..Default::default() } },
+				}),
+				handle,
+			);
+			// The game's command lists may still refer to an older copy for a while: keep it for a good few frames.
+			crate::depth::set_copy(Some(&resource));
+			if let Some(old) = self.scene_depth.replace(SceneDepth { resource, readback, width, height, format }) {
+				self.garbage.push(old.resource);
+				self.garbage.push(old.readback);
+			}
+			self.depth_mode = 0;
+			self.depth_attempts = 0;
+			self.depth_probe = None;
+		}
+		log::line(&format!("gpu: copying the game's scene depth ({width}x{height}, format {}) to hide blocks behind what it draws", format.0));
+		Ok(true)
+	}
+
+	/// Looks at the few depth values read back last frame (a row through the middle of the
+	/// picture) against the distance the game's own rays measured there, to learn how its depth is stored.
+	unsafe fn read_depth_probe(&mut self) {
+		let (Some((truth, near, far)), Some(depth)) = (self.depth_probe.take(), self.scene_depth.as_ref()) else { return };
+		let mut values = [0.0f32; 64];
+		unsafe {
+			let mut ptr = std::ptr::null_mut();
+			if depth.readback.Map(0, Some(&D3D12_RANGE { Begin: 0, End: 256 }), Some(&mut ptr)).is_err() || ptr.is_null() {
+				return;
+			}
+			std::ptr::copy_nonoverlapping(ptr as *const f32, values.as_mut_ptr(), 64);
+			depth.readback.Unmap(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }));
+		}
+		if depth_readback(depth.format).is_some_and(|(_, float)| !float) {
+			for v in values.iter_mut() {
+				*v = (v.to_bits() & 0x00FF_FFFF) as f32 / 16_777_215.0;
+			}
+		}
+		let mut middle = [values[30], values[31], values[32], values[33], values[34]];
+		middle.sort_by(|a, b| a.total_cmp(b));
+		let sample = middle[2];
+		self.depth_attempts += 1;
+		match crate::depth_math::calibrate(sample, truth, near, far) {
+			Some(mode) => {
+				self.depth_mode = mode;
+				log::line(&format!("depth: the game's depth is encoded as mode {mode} (stored {sample:.6}, true distance {truth:.2} m, near {near}, far {far})"));
+			}
+			None => {
+				if self.depth_attempts <= 6 || self.depth_attempts % 200 == 0 {
+					log::line(&format!("depth: attempt {}: stored {sample:.6} does not fit true distance {truth:.2} m (near {near}, far {far}); row {:.5} {:.5} {:.5}",
+						self.depth_attempts, values[0], values[32], values[63]));
+				}
+				if self.depth_attempts >= 1200 {
+					self.depth_mode = 9;
+					log::line("depth: giving up on the game's depth; blocks keep the scanned-collision occlusion");
+				}
+			}
+		}
+	}
+
+	/// Copies a row of 64 depth values through the middle of the picture into the readback buffer.
+	unsafe fn record_depth_probe(&mut self, truth: f32, near: f32, far: f32) {
+		let Some(depth) = self.scene_depth.as_ref() else { return };
+		let Some((footprint, _)) = depth_readback(depth.format) else { return };
+		let (resource, readback) = (depth.resource.clone(), depth.readback.clone());
+		let (left, row) = ((depth.width / 2).saturating_sub(32), depth.height / 2);
+		unsafe {
+			self.barrier(&resource, crate::depth::COPY_READ, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			let dst = D3D12_TEXTURE_COPY_LOCATION {
+				pResource: ManuallyDrop::new(Some(readback)),
+				Type: D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+				Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
+					PlacedFootprint: D3D12_PLACED_SUBRESOURCE_FOOTPRINT {
+						Offset: 0,
+						Footprint: D3D12_SUBRESOURCE_FOOTPRINT { Format: footprint, Width: 64, Height: 1, Depth: 1, RowPitch: 256 },
+					},
+				},
+			};
+			let src = D3D12_TEXTURE_COPY_LOCATION {
+				pResource: ManuallyDrop::new(Some(resource.clone())),
+				Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+				Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 { SubresourceIndex: 0 },
+			};
+			let region = D3D12_BOX { left, top: row, front: 0, right: left + 64, bottom: row + 1, back: 1 };
+			self.list.CopyTextureRegion(&dst, 0, 0, 0, &src, Some(&region));
+			let _ = ManuallyDrop::into_inner(dst.pResource);
+			let _ = ManuallyDrop::into_inner(src.pResource);
+			self.barrier(&resource, D3D12_RESOURCE_STATE_COPY_SOURCE, crate::depth::COPY_READ);
+		}
+		self.depth_probe = Some((truth, near, far));
+	}
+
 	unsafe fn barrier(&self, resource: &ID3D12Resource, before: D3D12_RESOURCE_STATES, after: D3D12_RESOURCE_STATES) {
 		let barriers = [util::create_barrier(resource, before, after)];
 		unsafe { self.list.ResourceBarrier(&barriers) };
@@ -883,11 +1115,52 @@ impl Renderer {
 			let (width, height) = (desc.Width as u32, desc.Height);
 			crate::hud::set_viewport(width, height);
 
-			let (view, aspect, hud, atlas, entities, textures, avatar, light, game_light) = scene::with(|s| -> Result<_> {
+			let (view, aspect, hud, atlas, entities, textures, avatar, light, game_light, depth_on, probe, planes) = scene::with(|s| -> Result<_> {
 				self.sync_buffers(s)?;
 				let avatar = s.avatar.clone().zip(s.avatar_at).map(|(a, at)| (a, at));
-				Ok((s.view, s.aspect, s.hud, s.atlas.clone(), s.entities.clone(), s.textures.clone(), avatar, s.light, s.game_light))
+				Ok((s.view, s.aspect, s.hud, s.atlas.clone(), s.entities.clone(), s.textures.clone(), avatar, s.light, s.game_light,
+					s.depth_occlusion, s.depth_probe, s.camera_planes))
 			})?;
+			// Blocks hidden by the game's real scene depth, when asked for and when it can be found and understood.
+			crate::depth::ACTIVE.store(depth_on, std::sync::atomic::Ordering::Relaxed);
+			crate::depth::note_back_buffer(back_buffer);
+			if !depth_on && self.depth_mode == 9 {
+				self.depth_mode = 0; // switching it off and on again tries afresh
+				self.depth_attempts = 0;
+			}
+			if depth_on && self.depth_mode != 9 {
+				if !crate::depth::install(&self.device) {
+					self.depth_mode = 9;
+				} else {
+					match self.ensure_scene_depth() {
+						Ok(false) => {
+							self.depth_attempts += 1;
+							if self.depth_attempts % 900 == 0 {
+								log::line("depth: still no full-size readable depth texture seen from the game's barriers");
+							}
+						}
+						Ok(true) => {}
+						Err(e) => {
+							log::line(&format!("gpu: cannot copy the game's scene depth: {e}"));
+							self.depth_mode = 9;
+						}
+					}
+					self.read_depth_probe();
+				}
+			}
+			let depth_ready = depth_on && (1..=3).contains(&self.depth_mode) && crate::depth::copies() > 0 && self.scene_depth.is_some();
+			if depth_ready != self.depth_was_ready {
+				self.depth_was_ready = depth_ready;
+				log::line(&format!(
+					"depth: blocks {} hidden by the game's depth (switch {}, mode {}, {} copies, {} at frame end, copy texture {})",
+					if depth_ready { "are now" } else { "are not" },
+					if depth_on { "on" } else { "off" },
+					self.depth_mode,
+					crate::depth::copies(),
+					crate::depth::END_COPIES.load(std::sync::atomic::Ordering::Relaxed),
+					if self.scene_depth.is_some() { "made" } else { "missing" },
+				));
+			}
 			// Blocks take their light from the game's picture when this works; never at the cost of drawing.
 			let sampling = game_light && !self.frame_failed && match self.ensure_frame_copy(&desc) {
 				Ok(ok) => ok,
@@ -964,6 +1237,7 @@ impl Renderer {
 			self.list.SetGraphicsRootSignature(&self.root);
 			self.list.SetDescriptorHeaps(&[Some(self.srv_heap.clone())]);
 			self.list.SetGraphicsRootDescriptorTable(2, self.srv(FRAME_SLOT));
+			self.list.SetGraphicsRootDescriptorTable(3, self.srv(DEPTH_SLOT));
 			self.list.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			let full = RECT { left: 0, top: 0, right: width as i32, bottom: height as i32 };
 			self.list.RSSetScissorRects(&[full]);
@@ -976,7 +1250,8 @@ impl Renderer {
 				// The player's model sits at its feet; only drawn when the camera is away from the eye.
 				let avatar = avatar.map(|(a, at)| scene::Entities { origin: at, batches: a.batches.clone(), verts: a.verts.clone() });
 				let dynamic = self.build_dynamic(&things, selection, entities.as_deref(), avatar.as_ref(), origin)?;
-				self.draw_world(view, aspect, width, height, self.srv(0), &dynamic, entities.as_deref(), avatar.as_ref(), light, sampling);
+				self.draw_world(view, aspect, width, height, self.srv(0), &dynamic, entities.as_deref(), avatar.as_ref(), light, sampling,
+					depth_ready.then(|| (self.depth_mode, planes.0, planes.1)));
 			}
 
 			if let (Some(t), true) = (self.overlay.as_ref().filter(|t| t.ready), hud.shown) {
@@ -1004,6 +1279,17 @@ impl Renderer {
 				}
 			}
 
+			// While the depth encoding is unknown: read back a row of depth values through the middle of the picture.
+			if depth_on && self.depth_mode == 0 && crate::depth::copies() > 0 {
+				if let (Some(truth), Some(format)) = (probe, self.scene_depth.as_ref().map(|d| d.format)) {
+					if depth_readback(format).is_some() {
+						self.record_depth_probe(truth, planes.0, planes.1);
+					} else {
+						log::line("depth: this depth format cannot be calibrated here; blocks keep the scanned-collision occlusion");
+						self.depth_mode = 9;
+					}
+				}
+			}
 			self.barrier(back_buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 			self.list.Close()?;
 			queue.ExecuteCommandLists(&[Some(self.list.cast()?)]);
@@ -1099,6 +1385,7 @@ impl Renderer {
 		avatar: Option<&scene::Entities>,
 		light: crate::lighting::Light,
 		sampling: bool,
+		depth: Option<(u32, f32, f32)>,
 	) {
 		if !self.atlas.as_ref().is_some_and(|(t, _)| t.ready) {
 			return;
@@ -1137,13 +1424,16 @@ impl Renderer {
 				// Where the game's picture is on screen, and how its brightness becomes light: 0.42
 				// is about the average of a sunlit scene, and the radius is wide enough to smooth texture detail.
 				frame: [(width as f32 - vw) * 0.5, (height as f32 - vh) * 0.5, vw, vh],
-				look: [if sampling { 1.0 } else { 0.0 }, 0.42, 0.5, vh * 0.12],
+				look: [if sampling { 1.0 } else { 0.0 }, 0.34, 0.5, vh * 0.12],
+				// Hidden by the game's own depth when it is known: its camera planes, how it is encoded, and
+				// a bias of a tenth of a block so blocks resting on a surface are not cut by it.
+				depth: depth.map_or([0.0; 4], |(mode, near, far)| [near, far, mode as f32, 0.1]),
 			};
 			let near = |p: [f64; 3], reach: f64| (p[0] - view.eye[0]).abs() < reach && (p[1] - view.eye[1]).abs() < reach && (p[2] - view.eye[2]).abs() < reach;
 
-			// The scanned collision, depth only.
+			// The scanned collision, depth only (not needed when the game's own depth hides blocks).
 			self.list.SetPipelineState(&self.pso_occluder);
-			for ((rx, rz), o) in &self.occluders {
+			for ((rx, rz), o) in self.occluders.iter().filter(|_| depth.is_none()) {
 				let at = [(*rx * 8) as f64, 0.0, (*rz * 8) as f64];
 				if !near([at[0] + 4.0, view.eye[1], at[2] + 4.0], OCCLUDE_DISTANCE) || o.count == 0 {
 					continue;

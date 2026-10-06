@@ -1,122 +1,117 @@
-# EldenCraft — current roadmap
+# EldenCraft — gameplay roadmap
 
-Updated 5 October 2026 (America/Toronto). This replaces the previous milestone history.
-`Handoff.MD` describes the installed build and operational details. Mark gameplay as confirmed
-only when observed; builds and automated tests have their own status.
+Updated 5 October 2026 (America/Toronto). This roadmap lists gameplay features only. Rendering,
+collision, stability, tooling and other technical work are tracked in `Handoff.MD` and are done
+when a feature needs them. Mark gameplay as confirmed only when observed in play.
 
 ## Confirmed in play
 
-- MC exploration and connected cave entry, with the camera retained through connected changes.
-- Opening attacks against ordinary enemies; footsteps detected by native enemy AI.
-- ER interactions through R, with native interaction animations and corrected body alignment.
-- MC hits delivered through the native combat path.
-- Regular enemy drops and boss drops from the new loot system, after the zero-ID boss fix.
-- Elevators: riding lifts up and down without falling through or hovering (user confirmed 5 October 2026).
-- Empty start and the gathering system: log piles, loose stone, rocks, mine ores in the eight mapped
-  interiors, and replenishment after a grace rest (user confirmed 5 October 2026).
+- Exploring Elden Ring's world as Minecraft, including entering connected caves.
+- Attacking ordinary enemies; enemies noticing the player's footsteps.
+- Elden Ring interactions through R: doors, levers, pickups, graces.
+- Minecraft hits landing on Elden Ring enemies with native staggers and reactions.
+- Regular enemy drops and boss drops from the new loot system.
+- Riding lifts up and down.
+- Starting with an empty inventory.
+- Gathering: log piles, loose stone, rocks and mine ores, depleting and replenishing after a rest at a grace.
 
-These confirmations cover tested examples, not every enemy, region or encounter variant.
+These confirmations cover tested examples, not every enemy, region or encounter.
 
-## Built and installed
+## In the game now
 
-The current matching DLL/JAR use protocol version 3.
+- **Loot:** seven regional tiers (base game T1–T5, Shadow of the Erdtree T6–T7). Every ordinary kill
+  drops materials by enemy family; 10% of kills with worn equipment also drop gear, with a small
+  chance of a tier higher. Bosses give fixed named enchanted gear, a curated book, materials and XP.
+- **Boss collections:** 17 four-piece sets (68 pieces) spread over fixed boss encounters across the
+  208 mapped fights. Rewards wait safely if the inventory is full or the player is dead.
+- **Gathering:** visible log piles, bare-handed loose stone, rocks that sometimes hold copper or iron,
+  and regional ore in eight mapped mines. Nodes come back after a grace rest.
+- **Elemental enchantments:** four elements (Glintstone, Flame, Lightning, Sacred) add damage, scaled by
+  enemy kind. Four statuses (Bloodletting, Frostbite, Venom, Scarlet Rot) build up on enemies like Elden
+  Ring's. Boss weapons carry one, and about a third of boss books hold one. Not yet played.
+- Native terrain digging is off, by request.
 
-- Empty starting inventory; starter, builder and test-guest kits removed.
-- Seven loot tiers: base game T1–T5 and Shadow of the Erdtree T6–T7.
-- Guaranteed family materials; 10% eligible worn equipment, including the capped upgrade roll.
-- 208 mapped boss encounters with named enchanted gear, books and materials.
-- 17 collections / 68 fixed boss pieces; persistent pending boss rewards and player receipts.
-- Visible log piles, bare-handed loose stone and pickaxe deposits with 10% copper/iron bonuses.
-- Visible regional mine ores in eight explicitly mapped interiors; valuable gathering materials
-  restricted to mines.
-- Persistent resource depletion and replenishment from native grace-rest transitions.
-- Native digging explicitly disabled at the user's request.
+Not yet played on the current build: node placement and density after the latest changes, the
+elemental enchantments, and the crafting route below.
 
-Latest checks pass: DLL/JAR builds, 40 Java tests, five standalone Rust identity/rest tests,
-Minecraft parsing of 106 loot tables, and 700,000 simulated kills. Existing worlds receive
-gathering nodes without a reset.
+## Next: finish the survival loop from an empty start
 
-## Immediate next: tune gathering and verify crafting
+Test on a fresh world.
 
-Gathering and the empty start are confirmed. Remaining from the checklist below: the crafting
-route, tuning, and the player-built-block check. Do not erase saves to test.
+1. Collect logs and loose stone bare-handed.
+2. Craft a workbench and wooden pickaxe, then mine larger stone and make a furnace and stone tools.
+3. Mine copper and iron, smelt them, and craft a first meaningful equipment upgrade.
+4. Put a player-built block where a node was and check replenishment leaves it alone.
+5. Leave and return: furnaces, chests and the base should still be there.
 
-1. Find visible log piles and low mossy loose-stone slabs outdoors; collect both bare-handed.
-2. Craft a workbench and wooden pickaxe, then harvest larger stone and make a furnace/stone tools.
-3. Check that ordinary rocks supply stone and occasional copper/iron, without valuable ores.
-4. Visit a supported mine, verify visible ore and correct tool requirements, then smelt materials.
-5. Harvest a deposit, travel/reload and verify it stays depleted; rest at a grace and verify it returns.
-6. Put a player-built block in a depleted node position and verify replenishment leaves it alone.
+Tune node density, yields and what each region offers from what you find.
 
-Adjust visibility, density, placement, yields and replenishment from results. Check crafting,
-furnaces and storage on native terrain, including persistence after leaving and returning.
+**Complete when:** an empty character can gather, craft a meaningful upgrade and repeat the loop
+without a world reset or losing built blocks.
 
-**Complete when:** an empty character can gather, craft a meaningful equipment upgrade, and
-repeat the resource loop without a world reset or loss of player-built blocks.
-
-## Following priorities
+## Priorities after that
 
 ### 1. Crafting and building progression
 
-Balance the material demand of early tools, armour, repair and enchanting against drops/nodes.
-Add ER-themed recipes where they improve progression. Verify smithing, uneven-ground placement,
-standing on MC blocks, and storage/furnace persistence through loads and rebases.
-Shared-map mines need precise zone definitions rather than enabling ore across protected locations.
+Balance what early tools, armour, repair and enchanting cost against what drops and nodes supply.
+Add Elden Ring-themed recipes where they improve progression. Check smithing, building on uneven
+ground and standing on placed blocks. Mines that share a map with protected areas (such as Sealed
+Tunnel) need exact zones before they hold ore.
 
-**Complete when:** a useful small base and its inventories survive travel, and regional resources
-produce a clear crafting progression.
+**Complete when:** a small base survives travel, and each region's resources lead to a clear
+crafting progression.
 
 ### 2. Survival and combat balance
 
-Review hunger, food and healing against ER damage. Current death rules keep inventory and respawn
-immediately; design changes need a user decision. Tune weapon reactions and poise, including spears,
-mace and mace smash. Check ranged/crowded hits, carrier visibility and guarded-hit feedback.
+Review hunger, food and healing against Elden Ring's damage. Death currently keeps your inventory
+and respawns you at once; changing that is a design decision for you. Tune weapon feel and poise,
+including spears, mace and mace smash, plus ranged and crowded fights.
 
-**Complete when:** gathering, food, equipment and fighting support a coherent survival loop.
+**Complete when:** gathering, food, equipment and fighting form one coherent survival loop.
 
-### 3. Villager traders — scope with the user first
+### 3. Villager traders — scope with you first
 
-The user asked whether selected ER NPCs could become custom villager traders. Start by discussing
-which merchants, their inventories and payment materials. Prefer preserving native quest/dialogue
-logic behind a custom trader presentation. No trader implementation has been authorized yet.
+Replace or overlay chosen Elden Ring merchants with Minecraft villager trades. Start by deciding
+which merchants, what they sell, and which materials pay for it. Keep the native quest and dialogue
+behaviour behind the trader presentation. Nothing is authorized yet.
 
-**Complete when:** a chosen trader offers useful, tier-appropriate trades without breaking native
-NPC behavior or progression.
+**Complete when:** a chosen trader offers useful, tier-appropriate trades without breaking its
+native behaviour or progression.
 
-### 4. Loot refinement and collections
+### 4. Loot and collections
 
-Tune regional rewards from play and inspect the generated boss reward sheet. Verify collection
-pieces across different encounters, improve signature reward variety, then design collection bonuses.
-Looting support, rarity/pickup feedback and custom visuals remain follow-ups.
+Tune regional rewards from play and review the boss reward sheet (`docs/loot-boss-rewards.md`).
+Check that collection pieces come from the intended encounters, add variety to signature rewards,
+then design set bonuses. Looting enchantment support and rarity cues are follow-ups.
 
-**Complete when:** the regional upgrade curve and boss collections are useful and understandable
-across a longer route, including the DLC.
+**Complete when:** the upgrade curve and boss collections are clear and rewarding over a long
+route, including the DLC.
 
-### 5. Interaction, stability and lifecycle
+### 5. Elden Ring interactions
 
-Improve native prompt visibility, readable enemy names and interaction-key configuration. Check
-ladders, lifts and less common interactions. Strengthen recovery after server/game stalls and
-restarts; add a build/install helper that checks processes and matching protocol versions.
+Check ladders and the less common interactions Elden Ring offers, such as lift controls, chests and
+bonfire-style actions, and make anything that fails work under Minecraft control.
 
-**Complete when:** ordinary play and relaunching do not require manual repair.
+**Complete when:** every common way of moving through and using the world works as a Minecraft player.
 
-## Deferred verification — user chose to test later
+## Open gameplay checks — you chose to test these later
 
-- Boss rewards with a full inventory and subsequent space becoming available.
-- Simultaneous boss/player death, delivery after respawn and restart during partial delivery.
-- Duo, multi-phase, field and surrender encounters; no duplicate or missing completion rewards.
-- Regional boundaries, shared underground maps, later tiers and NG+ behavior.
-- Fresh-start and death-transition edge cases beyond the examples already played.
+- Boss rewards with a full inventory, and then space becoming available.
+- A boss and the player dying together; rewards arriving after respawn.
+- Duo, multi-phase, field and surrender bosses: exactly one reward each.
+- Region boundaries, shared underground maps, later tiers and NG+.
+- Death and respawn cases beyond the ones already played.
 
-Keep these open. A regular boss payout does not confirm all encounter/recovery paths.
+A normal boss payout does not confirm these.
 
-## Longer-term work
+## Longer term
 
-- ER elemental/status enchantments: native Magic/Fire/Lightning/Holy and appropriate buildup.
-  Implement actual native effects before adding their books or claims to named gear.
-- Seamless co-op: hook compatibility, per-player native hits, guest loot/gathering and coherent
-  death/respawn rules. Current resource and loot routing is host-only.
-- Nether/End feasibility, then a polished route: empty start -> gathering -> crafted upgrade ->
-  early boss -> regional progression.
+- **Native elemental and status effects:** the enchantments work through Minecraft damage. Making them
+  true Elden Ring effects (its own damage types and resistances, real status buildup, its visuals)
+  would need game-data work and is optional once the current ones feel right.
+- **Seamless co-op:** per-player hits, guest loot and gathering, and shared death and respawn rules.
+  Loot and gathering currently go to the host only.
+- **Nether and End:** decide whether they fit, then polish the route from empty start through
+  gathering, a crafted upgrade and an early boss to regional progression.
 
-Native terrain excavation is out of scope unless the user explicitly requests it again.
+Native terrain digging stays out of scope unless you ask for it again.

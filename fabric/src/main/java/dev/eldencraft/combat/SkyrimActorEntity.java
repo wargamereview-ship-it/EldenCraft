@@ -38,6 +38,12 @@ public class SkyrimActorEntity extends LivingEntity {
 	private double pushX, pushZ;
 	private float pushStrength;
 	private boolean hitThisTick;
+	// Status buildup on this enemy, and what it is (health in damage points, boss, kind of enemy).
+	private final StatusMeters meters = new StatusMeters();
+	private float maxHp = 20.0F;
+	private boolean boss;
+	private String family = "unknown";
+	private float pendingStatus;
 
 	public SkyrimActorEntity(EntityType<? extends SkyrimActorEntity> type, Level level) {
 		super(type, level);
@@ -91,7 +97,10 @@ public class SkyrimActorEntity extends LivingEntity {
 		if (this.isInvulnerableTo(level, source) || dmg <= 0.0F) {
 			return;
 		}
-		this.pendingDamage += dmg;
+		// Frostbite leaves an enemy open; the weapon's elements add to the hit, its statuses fill meters.
+		float damage = dmg * meters.amplify(level.getGameTime());
+		damage += ElementalHit.apply(level, this, source, ElementalHit.weapon(source), damage);
+		this.pendingDamage += damage;
 		if (source.getDirectEntity() instanceof Projectile) {
 			this.pendingFlags |= Proto.HIT_PROJECTILE;
 		}
@@ -114,6 +123,41 @@ public class SkyrimActorEntity extends LivingEntity {
 			this.pushZ = -zd / len;
 		}
 		this.hitThisTick = true;
+	}
+
+	public StatusMeters meters() {
+		return this.meters;
+	}
+
+	public float maxHp() {
+		return this.maxHp;
+	}
+
+	public boolean isBoss() {
+		return this.boss;
+	}
+
+	public String family() {
+		return this.family;
+	}
+
+	/** What kind of enemy this is, from Elden Ring: its health in damage points, boss or not, family. */
+	public void setProfile(float maxHp, boolean boss, String family) {
+		this.maxHp = maxHp > 0.0F ? maxHp : 20.0F;
+		this.boss = boss;
+		this.family = family;
+	}
+
+	/** Status damage (a burst, or poison and rot ticking) waiting to go to Elden Ring. */
+	public void addStatusDamage(float damage) {
+		if (damage > 0.0F && Float.isFinite(damage)) this.pendingStatus += damage;
+	}
+
+	/** Returns the status damage queued since last time and clears it. */
+	public float takeStatus() {
+		float damage = this.pendingStatus;
+		this.pendingStatus = 0.0F;
+		return damage;
 	}
 
 	/** Player.crit() was called on us this tick. */
@@ -176,6 +220,13 @@ public class SkyrimActorEntity extends LivingEntity {
 		// Position and rotation come from Skyrim (SkyCombat); keep hurt timers and fire ticking.
 		this.baseTick();
 		this.setHealth(this.getMaxHealth());
+		if (this.level() instanceof net.minecraft.server.level.ServerLevel level) {
+			float dot = this.meters.tick(level.getGameTime());
+			if (dot > 0.0F) {
+				this.addStatusDamage(dot);
+				ElementalHit.burst(level, this, net.minecraft.core.particles.ParticleTypes.CRIMSON_SPORE, 5);
+			}
+		}
 	}
 
 	@Override

@@ -27,6 +27,15 @@ public final class ResourceRules {
     }
     /** A harvested node stays depleted until a later grace cycle; reload is not a new cycle. */
     public static boolean depleted(long harvested, long cycle) { return harvested >= cycle; }
+    /** Nodes keep this far (blocks) from a grace, so they never sit in its light or on its ground. */
+    public static final double GRACE_CLEARANCE = 7.0;
+    /** True when (x, y, z) is within {@code GRACE_CLEARANCE} (across, and 6 up or down) of any grace in the list. */
+    public static boolean nearGrace(java.util.List<int[]> graces, double x, double y, double z) {
+        for (int[] g : graces) {
+            if (Math.abs(g[1] + 0.5 - y) <= 6.0 && Math.hypot(g[0] + 0.5 - x, g[2] + 0.5 - z) < GRACE_CLEARANCE) return true;
+        }
+        return false;
+    }
     /**
      * Where the bottom of a deposit rests over ground at {@code ground}. A cube cannot sit at a fractional
      * height: it sinks into the ground (up to 0.6, the rest shows) or, if that would bury it, rises to the next

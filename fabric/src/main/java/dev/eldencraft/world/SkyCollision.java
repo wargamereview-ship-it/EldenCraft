@@ -129,6 +129,11 @@ public final class SkyCollision {
 		return KNOWN_REGIONS.contains(regionKey(Math.floorDiv(x, REGION_SIZE), Math.floorDiv(y, REGION_SIZE), Math.floorDiv(z, REGION_SIZE)));
 	}
 
+	/** The collision epoch this side is on (-1 while clearing), for diagnostics. */
+	public static int epoch() {
+		return epoch;
+	}
+
 	/** Old regions cannot authorize movement after a native load or grace respawn. */
 	public static boolean matchesEpoch(int expected) {
 		return epoch == expected;

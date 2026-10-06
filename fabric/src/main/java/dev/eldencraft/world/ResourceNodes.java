@@ -46,6 +46,8 @@ public final class ResourceNodes {
     }
     private static final Map<String,Node> nodes = new HashMap<>();
     private static final Map<String,Node> justRemoved = new HashMap<>();
+    /** Graces the player has rested at or arrived beside (block coordinates): no nodes grow near them. */
+    private static final java.util.List<int[]> graces = new ArrayList<>();
     private static final Set<String> cells = new HashSet<>();
     private static final SkyLink.SkyState sky = new SkyLink.SkyState();
     private static MinecraftServer server;
@@ -69,7 +71,7 @@ public final class ResourceNodes {
         return true;
     }
     // Why candidate cells were skipped, logged periodically so density can be tuned from play.
-    private static int seenCells, noFloor, blocked, noSupport, placed;
+    private static int seenCells, noFloor, blocked, noSupport, placed, logged;
     private static long nextReport;
     private ResourceNodes() {}
     private static String key(int world, BlockPos pos) { return Integer.toUnsignedString(world)+":"+pos.asLong(); }
@@ -81,7 +83,7 @@ public final class ResourceNodes {
         });
     }
     public static void load(MinecraftServer current) {
-        server=current;nodes.clear();cells.clear();settled.clear();justRemoved.clear();ticks=0;cycle=0;dirty=false;healthy=false;
+        server=current;nodes.clear();cells.clear();settled.clear();graces.clear();justRemoved.clear();ticks=0;cycle=0;dirty=false;healthy=false;
         file=current.getWorldPath(LevelResource.ROOT).resolve("eldencraft_resources_v1.json");
         try (var reader=new InputStreamReader(current.getResourceManager().getResourceOrThrow(
                 Identifier.fromNamespaceAndPath(EldenCraft.MOD_ID,"resource_rules.json")).open(),StandardCharsets.UTF_8)) {
@@ -91,6 +93,7 @@ public final class ResourceNodes {
                 var saved=JsonParser.parseString(Files.readString(file)).getAsJsonObject();
                 if(saved.get("version").getAsInt()!=1) throw new IllegalStateException("Unsupported resource save");
                 cycle=saved.get("cycle").getAsLong();
+                if(saved.has("graces")) for(var entry:saved.getAsJsonArray("graces")) { var g=entry.getAsJsonArray();graces.add(new int[]{g.get(0).getAsInt(),g.get(1).getAsInt(),g.get(2).getAsInt()}); }
                 for(var entry:saved.getAsJsonArray("cells")) cells.add(entry.getAsString());
                 for(var entry:saved.getAsJsonArray("nodes")) {
                     var n=entry.getAsJsonObject();
@@ -110,6 +113,9 @@ public final class ResourceNodes {
         try {
             var root=new JsonObject();root.addProperty("version",1);root.addProperty("cycle",cycle);
             var generated=new JsonArray();cells.stream().sorted().forEach(generated::add);root.add("cells",generated);
+            var known=new JsonArray();
+            for(var g:graces) { var a=new JsonArray();a.add(g[0]);a.add(g[1]);a.add(g[2]);known.add(a); }
+            root.add("graces",known);
             var list=new JsonArray();
             nodes.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(pair -> {
                 var node=pair.getValue();var n=new JsonObject();n.addProperty("world",node.world());n.addProperty("pos",node.pos().asLong());
@@ -125,6 +131,34 @@ public final class ResourceNodes {
         if(current!=server || !healthy) return;
         cycle++;dirty=true;
         if(save()) EldenCraft.LOG.info("EldenCraft: grace rest replenished gathering nodes (cycle {})",cycle);
+    }
+    /**
+     * The game put the player at, or the player rested at, a grace at (x, y, z). Remember it, clear the
+     * nodes that grew around it, and (for a rest) start a new grace cycle so harvested nodes return.
+     */
+    public static void graceNoticed(MinecraftServer current,boolean rested,int x,int y,int z) {
+        if(current!=server || !healthy) return;
+        if(rested) { cycle++;dirty=true; }
+        if(!ResourceRules.nearGrace(graces,x+0.5,y+0.5,z+0.5)) {
+            graces.add(new int[]{x,y,z});dirty=true;
+            var near=new ArrayList<Node>();
+            for(var node:nodes.values()) {
+                if(Math.abs(node.pos().getY()-y)<=6 && Math.hypot(node.pos().getX()-x,node.pos().getZ()-z)<ResourceRules.GRACE_CLEARANCE) near.add(node);
+            }
+            var players=current.getPlayerList().getPlayers();
+            int removed=0;
+            for(var node:near) {
+                nodes.remove(key(node.world(),node.pos()));
+                if(!players.isEmpty()) {
+                    var level=players.getFirst().level();
+                    if(level.isLoaded(node.pos()) && level.getBlockState(node.pos()).is(state(node).getBlock())) { level.removeBlock(node.pos(),false);removed++; }
+                }
+            }
+            settled.clear();
+            EldenCraft.LOG.info("EldenCraft: grace at {} {} {} noted; {} gathering nodes near it removed",x,y,z,removed);
+        }
+        if(dirty) save();
+        if(rested) EldenCraft.LOG.info("EldenCraft: grace rest replenished gathering nodes (cycle {})",cycle);
     }
     private static BlockState state(Node node) {
         var s=BuiltInRegistries.BLOCK.getValue(Identifier.parse(node.block())).defaultBlockState();
@@ -173,6 +207,7 @@ public final class ResourceNodes {
                     long hash=attempt==0?first:ResourceRules.hash(level.getSeed(),world+attempt*0x9e3779b1,cx,cz);
                     int x=cx*spacing+2+Math.floorMod(hash>>>8,spacing-4);
                     int z=cz*spacing+2+Math.floorMod(hash>>>16,spacing-4);
+                    if(ResourceRules.nearGrace(graces,x+0.5,player.getY(),z+0.5)) continue;
                     if(!SkyCollision.isKnown(x,(int)Math.floor(player.getY()),z)) { unknown=true;continue; }
                     double ground=groundHeight(x,z,player.getY());if(Double.isNaN(ground)) continue;
                     BlockPos base=new BlockPos(x,(int)Math.ceil(ground-0.001),z);
@@ -192,6 +227,8 @@ public final class ResourceNodes {
                         BlockPos pos=new BlockPos(x+i,(int)Math.floor(rest),z);
                         if(!clear(level,pos,player,Math.clamp(here-pos.getY(),0.0,1.0))) continue;
                         boolean top=kind.equals("loose") && rest-pos.getY()>=0.5;
+                        if(logged++<4) EldenCraft.LOG.info("EldenCraft: node {} at {} {} {}: native ground {}, block bottom {} (player feet {})",
+                            kind,pos.getX(),pos.getY(),pos.getZ(),String.format("%.2f",here),String.format("%.2f",rest),String.format("%.2f",player.getY()));
                         deposit.add(new Node(world,pos,block,top?"loose_top":kind,tier,-1));
                     }
                     if(deposit.isEmpty()) { noSupport++;continue; }
@@ -227,7 +264,7 @@ public final class ResourceNodes {
             if(placed+noFloor+blocked+noSupport>0)
                 EldenCraft.LOG.info("EldenCraft: gathering nodes in the last 30 s: {} placed, skipped {} no native floor, {} blocked/not clear, {} no support, {} already generated ({} nodes total)",
                     placed,noFloor,blocked,noSupport,seenCells,nodes.size());
-            placed=noFloor=blocked=noSupport=seenCells=0;
+            placed=noFloor=blocked=noSupport=seenCells=0;logged=0;
         }
     }
     private static void replenish(ServerLevel level,ServerPlayer player,int world) {

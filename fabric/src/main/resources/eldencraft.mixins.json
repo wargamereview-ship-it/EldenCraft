@@ -4,8 +4,10 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "AbstractArrowMixin",
+    "AnvilMenuMixin",
     "BlockCollisionsMixin",
     "BlockStateBaseMixin",
+    "EnchantmentHelperMixin",
     "EntityFluidInteractionMixin",
     "EntityPickMixin",
     "EntitySwimMixin",

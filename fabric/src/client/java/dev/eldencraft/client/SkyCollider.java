@@ -14,6 +14,7 @@ import net.minecraft.world.phys.Vec3;
 /** Feeds the local player's movement through {@link TriCollider} against nearby ER triangles. */
 public final class SkyCollider {
 	private static long nextStreamReport;
+	private static long nextBlockedReport;
 	// Scanned floors are a snapshot: a lift moves its floor away (or up) afterwards. A scanned floor
 	// this far above what the live probes find under the feet is a leftover, not ground.
 	private static final double STALE_GROUND = 0.3;
@@ -32,8 +33,10 @@ public final class SkyCollider {
 			long now = System.currentTimeMillis();
 			if (now >= nextStreamReport) {
 				nextStreamReport = now + 2000;
-				dev.eldencraft.EldenCraft.LOG.info("EldenCraft: movement held for terrain at {} {} {} ({} regions)",
-					player.getX(), player.getY(), player.getZ(), SkyCollision.regionCount());
+				var state = SkyClient.sky();
+				dev.eldencraft.EldenCraft.LOG.info("EldenCraft: movement held for terrain at {} {} {} ({} regions): in game {}, loading {}, epoch native {} here {}",
+					player.getX(), player.getY(), player.getZ(), SkyCollision.regionCount(), state.inGame(), state.loading(),
+					state.collisionEpoch, SkyCollision.epoch());
 			}
 			return Vec3.ZERO;
 		}
@@ -61,6 +64,25 @@ public final class SkyCollider {
 		);
 		if (r[0] == move.x && r[1] == move.y && r[2] == move.z) {
 			return move;
+		}
+		// Asked to walk, allowed almost nowhere: say why, so a stuck player can be diagnosed from the log.
+		if (Math.hypot(move.x, move.z) > 0.02 && Math.hypot(r[0], r[2]) < 0.2 * Math.hypot(move.x, move.z)) {
+			long now = System.currentTimeMillis();
+			if (now >= nextBlockedReport) {
+				nextBlockedReport = now + 1000;
+				int walls = 0;
+				double lowest = Double.POSITIVE_INFINITY, highest = Double.NEGATIVE_INFINITY;
+				for (SkyTri t : tris) {
+					if (!t.walkable) {
+						walls++;
+						lowest = Math.min(lowest, t.minY);
+						highest = Math.max(highest, t.maxY);
+					}
+				}
+				dev.eldencraft.EldenCraft.LOG.info("EldenCraft: walking blocked: asked ({}, {}), allowed ({}, {}); feet {} {} {}; {} triangles ({} steep, y {}..{}); step {}, on ground {}, patch rise {}",
+					move.x, move.z, r[0], r[2], player.getX(), player.getY(), player.getZ(), tris.size(), walls, lowest, highest, step, onGround,
+					patch == null ? "none" : patch.heights()[0] - box.minY);
+			}
 		}
 		// The triangle pass (snapping down a slope, pushing out of a wall) can move the player into a
 		// Minecraft block placed on the terrain; collide that result with Minecraft blocks again.

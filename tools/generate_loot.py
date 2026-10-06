@@ -2,7 +2,7 @@
 """Generate the seven-tier loot data and native encounter catalog from the checked-in snapshot.
 No network/game install required. Re-run after changing the mappings below, then tools/test_loot.py.
 """
-import collections, json, pathlib, re
+import collections, itertools, json, pathlib, re
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / 'fabric/src/main/resources/data/eldencraft'
 SOURCE = json.loads((ROOT/'tools/loot_catalog.json').read_text())
@@ -48,29 +48,155 @@ def region_tier(location, mp=''):
 
 def block(mp): return int.from_bytes(bytes(int(x) for x in mp[1:].split('_')), 'big')
 
-# Four stable encounters per collection, ordered helmet/chest/legs/boots.
+# Four stable encounters per collection, ordered helmet/chest/legs/boots. Theme: 'projectile' sets get
+# Projectile Protection (ER arrows, spells and thrown objects), the rest Protection. Each set has its own
+# armour trim (pattern, material) so its pieces are told apart at a glance.
 SETS = [
- (1,"Wayfarer's Hide",[31030800,31150800,30020800,31170800],'general'),
- (1,'Morne Wanderer',[30000800,1043300800,32000800,1042330800],'projectile'),
- (2,'Stormgate Vanguard',[10000850,10000800,1042370800,1042360800],'general'),
- (2,'Carian Lakeguard',[14000850,14000800,1035500800,32020800],'projectile'),
- (3,'Redmane Exile',[1049390850,1049380800,31200800,32070800],'fire'),
- (3,'Eternal Pathfinder',[12020850,12090800,12020800,12010800],'general'),
- (3,'Amber Roadwarden',[1038510800,1039540800,30080800,1041500800],'blast'),
- (4,'Gilded Omenward',[11000850,11000800,35000800,1045520800],'general'),
- (4,'Cinder Pilgrim',[1037530800,16000800,16000850,1036540800],'fire'),
- (4,'Duskbound Seeker',[12030850,12040800,1033420800,1034420800],'projectile'),
- (5,'Winterbound Sentinel',[1051570800,1252520800,15000850,1050560800],'fire'),
- (5,'Bloodroot Sovereign',[12050800,15000800,1050570850,30190800],'general'),
- (5,'Last Age Champion',[13000850,13000800,13000830,19000800],'blast'),
- (6,'Nameless Oath',[2046410800,2048440800,41000800,43000800],'general'),
- (6,'Veiled Coastkeeper',[2046400800,22000800,2046380800,2047390800],'projectile'),
- (7,'Ashen Crucible',[2049480800,21010800,2044450800,2050480800],'fire'),
- (7,'Eclipse Sovereign',[28000800,20010800,25000800,2054390800],'general'),
+ (1,"Wayfarer's Hide",[31030800,31150800,30020800,31170800],'general',('wild','copper')),
+ (1,'Morne Wanderer',[30000800,1043300800,32000800,1042330800],'projectile',('coast','emerald')),
+ (2,'Stormgate Vanguard',[10000850,10000800,1042370800,1042360800],'general',('sentry','iron')),
+ (2,'Carian Lakeguard',[14000850,14000800,1035500800,32020800],'projectile',('tide','lapis')),
+ (3,'Redmane Exile',[1049390850,1049380800,31200800,32070800],'general',('dune','redstone')),
+ (3,'Eternal Pathfinder',[12020850,12090800,12020800,12010800],'general',('wayfinder','amethyst')),
+ (3,'Amber Roadwarden',[1038510800,1039540800,30080800,1041500800],'general',('raiser','resin')),
+ (4,'Gilded Omenward',[11000850,11000800,35000800,1045520800],'general',('host','gold')),
+ (4,'Cinder Pilgrim',[1037530800,16000800,16000850,1036540800],'general',('snout','netherite')),
+ (4,'Duskbound Seeker',[12030850,12040800,1033420800,1034420800],'projectile',('eye','diamond')),
+ (5,'Winterbound Sentinel',[1051570800,1252520800,15000850,1050560800],'general',('ward','quartz')),
+ (5,'Bloodroot Sovereign',[12050800,15000800,1050570850,30190800],'general',('vex','redstone')),
+ (5,'Last Age Champion',[13000850,13000800,13000830,19000800],'general',('bolt','emerald')),
+ (6,'Nameless Oath',[2046410800,2048440800,41000800,43000800],'general',('silence','iron')),
+ (6,'Veiled Coastkeeper',[2046400800,22000800,2046380800,2047390800],'projectile',('flow','lapis')),
+ (7,'Ashen Crucible',[2049480800,21010800,2044450800,2050480800],'general',('rib','resin')),
+ (7,'Eclipse Sovereign',[28000800,20010800,25000800,2054390800],'general',('spire','gold')),
 ]
+assert len({row[4][0] for row in SETS})==len(SETS), 'one trim pattern per set'
 EXCEPTIONS={1252380800:4,12040800:4,12090800:3,12020800:3,12010800:3,
             12020850:3,12030800:4,12030850:4,12030390:4,12050800:5,
             12010850:4,12020830:2,12080800:2,2054390850:7}
+
+# Ward theme of each boss, from its signature attacks: boss-name prefix -> ward (the longest matching
+# prefix wins; None = physical, no ward). Its armour carries the ward (level = tier, at most VI) and its
+# book is that ward (same level). Marked `# unsure` where the attack element is a best guess.
+WARDS = {
+ 'Ancient Hero of Zamor':'frost_ward','Beastman of Farum Azula':None,'Bell Bearing Hunter':None,'Black Knife Assassin':'sacred_ward',
+ 'Bloodhound Knight':'bleed_ward','Cemetery Shade':None,'Deathbird':None,'Demi-Human Chiefs':None,'Erdtree Avatar':'sacred_ward',
+ 'Erdtree Burial Watchdog':'flame_ward','Flying Dragon':'flame_ward','Grave Warden Duelist':None,'Guardian Golem':None,
+ 'Leonine Misbegotten':None,'Mad Pumpkin Head':None,'Miranda the Blighted Bloom':'venom_ward',"Night's Cavalry":None,
+ 'Patches':None,'Runebear':None,'Scaly Misbegotten':None,'Soldier of Godrick':None,'Stonedigger Troll':None,
+ 'Tibia Mariner':'glintstone_ward',  # unsure
+ 'Ulcerated Tree Spirit':'flame_ward',  # unsure
+ 'Adan, Thief of Fire':'flame_ward','Ancestor Spirit':'glintstone_ward',  # unsure
+ 'Bols, Carian Knight':'glintstone_ward','Cleanrot Knight':'rot_ward','Crucible Knight':None,'Crystalian':'glintstone_ward',
+ 'Death Rite Bird':'frost_ward','Dragonkin Soldier (Siofra':'frost_ward','Dragonkin Soldier (Lake':'frost_ward',  # unsure
+ 'Dragonkin Soldier of Nokstella':'storm_ward',  # unsure
+ 'Glintstone Dragon':'glintstone_ward','Godrick the Grafted':'flame_ward','Grafted Scion':None,'Magma Wyrm':'flame_ward',
+ 'Margit':'sacred_ward','Omenkiller &':'venom_ward','Omenkiller':None,'Onyx Lord':'glintstone_ward',
+ 'Red Wolf of Radagon':'glintstone_ward','Rennala':'glintstone_ward','Royal Knight Loretta':'glintstone_ward',
+ 'Royal Revenant':None,'Spirit-Caller Snail':None,'Tree Sentinel':'sacred_ward','Ancient Dragon Lansseax':'storm_ward',
+ 'Battlemage Hugues':'glintstone_ward',"Commander O'Niel":'rot_ward','Decaying Ekzykes':'rot_ward',
+ 'Demi-Human Queen':'glintstone_ward','Elemer of the Briar':'bleed_ward','Fallingstar Beast':'glintstone_ward',
+ 'Full-Grown Fallingstar Beast':'glintstone_ward','Fell Twins':None,'Frenzied Duelist':None,'Godefroy':None,
+ 'Godskin':'flame_ward','Mimic Tear':None,'Stray Mimic Tear':None,'Necromancer Garris':None,
+ 'Nox Swordstress':'glintstone_ward','Perfumer Tricia':'venom_ward','Putrid':'rot_ward',
+ 'Regal Ancestor Spirit':'glintstone_ward',  # unsure
+ 'Sanguine Noble':'bleed_ward','Valiant Gargoyles':'venom_ward','Wormface':None,'Abductor Virgins':None,
+ 'Alecto':'glintstone_ward',  # unsure
+ 'Astel':'glintstone_ward','Black Blade Kindred':None,'Draconic Tree Sentinel':'storm_ward',
+ 'Elder Dragon Greyoll':'flame_ward','Esgar':'bleed_ward',"Fia's Champions":None,
+ 'Godfrey':'sacred_ward',  # unsure
+ 'Kindred of Rot':'venom_ward','Lichdragon Fortissax':'storm_ward','Mohg':'bleed_ward','Morgott':'sacred_ward',
+ 'Red Wolf of the Champion':'glintstone_ward',  # unsure
+ 'Rykard':'flame_ward','Starscourge Radahn':'glintstone_ward','Borealis':'frost_ward','Commander Niall':'frost_ward',
+ 'Dragonlord Placidusax':'storm_ward','Elden Beast':'sacred_ward','Fire Giant':'flame_ward','Great Wyrm Theodorix':'flame_ward',
+ 'Hoarah Loux':None,'Lorretta':'sacred_ward','Malenia':'rot_ward','Maliketh':'sacred_ward','Misbegotten Crusader':'sacred_ward',
+ 'Roundtable Knight Vyke':'flame_ward','Sir Gideon Ofnir':'glintstone_ward','Crucible Knight Siluria':None,
+ # Shadow of the Erdtree
+ 'Ancient Dragon-Man':None,
+ 'Black Knight':'sacred_ward',  # unsure
+ 'Chief Bloodfiend':'bleed_ward','Count Ymir':'glintstone_ward',
+ 'Curseblade Labirith':'bleed_ward',  # unsure
+ 'Dancer of Ranah':'frost_ward',  # unsure
+ 'Death Knight':'storm_ward','Demi-Human Swordmaster Onze':None,'Divine Beast Dancing Lion':'frost_ward','Dryleaf Dane':None,
+ 'Ghostflame Dragon':'frost_ward','Jagged Peak Drake':'flame_ward','Knight of the Solitary Gaol':None,'Lamenter':None,
+ 'Putrescent Knight':'frost_ward',  # unsure
+ 'Rakshasa':'flame_ward',  # unsure
+ 'Ralva':None,'Red Bear':None,'Rugalea':None,'Rellana':'glintstone_ward','Ancient Dragon Senessax':'storm_ward',
+ 'Bayle':'storm_ward',
+ 'Commander Gaius':'glintstone_ward',  # unsure
+ 'Golden Hippopotamus':None,'Jori':None,'Messmer':'flame_ward',
+ 'Metyr':'glintstone_ward',  # unsure
+ 'Midra':'flame_ward','Promised Consort Radahn':'sacred_ward','Romina':'rot_ward','Scadutree Avatar':'sacred_ward',
+}
+# The one boss whose book is a ward at level VII (no poison boss in the DLC, so Venom Ward stops at IV).
+WARD_SEVEN = {'Messmer the Impaler','Bayle, the Dread','Rellana, Twin Moon Knight','Promised Consort Radahn',
+              'Romina, Saint of the Bud','Divine Beast Dancing Lion (Ancient Ruins of Rauh)','Chief Bloodfiend'}
+WARD_NAMES = {'glintstone_ward':'Glintstone Ward','flame_ward':'Flame Ward','storm_ward':'Storm Ward','sacred_ward':'Sacred Ward',
+              'rot_ward':'Rot Ward','bleed_ward':'Bleed Ward','frost_ward':'Frost Ward','venom_ward':'Venom Ward'}
+ROMAN = ['','I','II','III','IV','V','VI','VII']
+
+# The Minecraft weapon each boss gives, after what it fights with in Elden Ring (boss-name prefix, the
+# longest matching wins). Every boss that does not give armour must be listed.
+WEAPONS = {
+ 'Abductor Virgins':'pickaxe','Adan, Thief of Fire':'crossbow','Ancestor Spirit':'trident','Ancient Dragon Lansseax':'spear',
+ 'Ancient Dragon Senessax':'spear','Ancient Dragon-Man':'sword','Ancient Hero of Zamor':'sword','Astel, Stars of Darkness':'bow',
+ 'Beastman of Farum Azula':'sword','Bell Bearing Hunter':'axe','Black Blade Kindred':'axe','Black Knife Assassin':'sword',
+ 'Black Knight Edreed':'sword','Black Knight Garrew':'mace','Bloodhound Knight':'sword','Bols, Carian Knight':'sword',
+ 'Borealis the Freezing Fog':'axe','Cemetery Shade':'sword','Cleanrot Knight':'spear','Count Ymir':'mace',
+ 'Crucible Knight & Crucible Knight Ordovis':'sword','Crucible Knight & Misbegotten Warrior':'sword','Crucible Knight Siluria':'spear',
+ 'Crystalian Duo':'spear','Curseblade Labirith':'sword','Death Knight':'axe','Death Rite Bird':'mace','Deathbird':'mace',
+ 'Decaying Ekzykes':'axe','Demi-Human Queen Margot':'mace','Divine Beast Dancing Lion':'axe','Dragonkin Soldier':'mace',
+ 'Dryleaf Dane':'mace','Elder Dragon Greyoll':'axe','Erdtree Avatar':'mace','Erdtree Burial Watchdog':'sword',
+ 'Esgar, Priest of Blood':'sword','Fallingstar Beast':'pickaxe','Fell Twins':'axe',"Fia's Champions":'sword',
+ 'Flying Dragon':'axe','Frenzied Duelist':'mace','Ghostflame Dragon':'axe','Glintstone Dragon Smarag':'axe',
+ 'Godefroy the Grafted':'axe','Godskin Apostle':'spear','Golden Hippopotamus':'mace','Grafted Scion':'sword',
+ 'Grave Warden Duelist':'axe','Hoarah Loux':'axe','Jagged Peak Drake':'axe','Jori, Elder Inquisitor':'bow',
+ 'Kindred of Rot':'spear','Lamenter':'mace','Mad Pumpkin Head':'mace','Magma Wyrm':'sword','Miranda the Blighted Bloom':'axe',
+ 'Misbegotten Crusader':'sword','Necromancer Garris':'mace',"Night's Cavalry":'spear','Nox Swordstress':'sword',
+ 'Omenkiller':'axe','Onyx Lord':'sword','Patches':'spear','Perfumer Tricia':'crossbow','Putrid Avatar':'mace',
+ 'Putrid Crystallian Trio':'pickaxe','Putrid Tree Spirit':'axe','Rakshasa':'sword','Ralva':'axe','Red Bear':'axe',
+ 'Red Wolf of the Champion':'sword','Roundtable Knight Vyke':'spear','Royal Revenant':'axe','Rugalea':'axe','Runebear':'axe',
+ 'Sanguine Noble':'spear','Sir Gideon Ofnir':'bow','Soldier of Godrick':'sword','Spirit-Caller Snail':'trident',
+ 'Starscourge Radahn':'sword','Stonedigger Troll':'mace','Stray Mimic Tear':'sword','Tibia Mariner':'trident',
+ 'Tree Sentinel':'spear','Ulcerated Tree Spirit':'axe','Wormface':'axe',
+}
+WEAPON_NAMES={'sword':'Blade','axe':'Cleaver','pickaxe':'Delver','bow':'Longbow','spear':'Lance','mace':'Maul',
+              'trident':'Trident','crossbow':'Arbalest'}
+def weapon_of(name):
+    prefix = max((k for k in WEAPONS if name.startswith(k)), key=len, default=None)
+    assert prefix is not None, f'no weapon for boss {name!r}'
+    return WEAPONS[prefix]
+
+# A signature enchantment on each boss weapon, so bosses of one tier and theme differ. Smite for the
+# undead (it counts ER's undead family), Fire Aspect for fire bosses, otherwise one that suits the weapon:
+# Sweeping Edge for swords (Knockback for big bruisers; it adds stagger in ER), Knockback for axes, Lunge
+# for spears, Wind Burst for maces, Loyalty for tridents, Flame or Infinity for bows, Multishot for crossbows.
+BRUISERS = ['troll','giant','golem','bear','misbegotten','gargoyle','hippopotamus','avatar','watchdog','abductor','godfrey',
+            'hoarah','radahn','beast','tree spirit','pumpkin','fallingstar','dragon','wyrm','lion','godefroy','grafted','crucible']
+def signature_of(name,fam,ward,slot):
+    n=name.lower()
+    if slot=='bow':return 'flame' if ward=='flame_ward' else 'infinity'
+    if slot=='crossbow':return 'multishot'
+    if slot=='trident':return 'loyalty'
+    if fam=='undead':return 'smite'
+    if ward=='flame_ward':return 'fire_aspect'
+    if slot=='spear':return 'lunge'
+    if slot=='mace':return 'wind_burst'
+    if slot=='axe' or any(x in n for x in BRUISERS):return 'knockback'
+    return 'sweeping_edge'
+
+# When different bosses would still give the same weapon (same tier, weapon, theme and signature), each
+# after the first gets extra enchantments from its weapon's list: one, generic ones first, then pairs.
+# Repeat fights of one boss keep the same reward.
+FLAIRS = {'sword':['sweeping_edge','knockback','smite','fire_aspect'],'axe':['efficiency','knockback','smite','fire_aspect'],
+          'mace':['knockback','wind_burst','smite','fire_aspect'],'spear':['knockback','lunge','smite','fire_aspect'],
+          'trident':['knockback','smite','fire_aspect'],'bow':['flame','infinity'],'crossbow':[]}
+def identity(name): return re.sub(r' \(.*\)$','',name)
+
+def ward_of(name):
+    prefix = max((k for k in WARDS if name.startswith(k)), key=len, default=None)
+    assert prefix is not None, f'no ward theme for boss {name!r}'
+    return WARDS[prefix]
 
 FAMILIES = ['beast','soldier','archer','miner','magic','undead','plant','dragon','stone','unknown']
 def family(name):
@@ -80,7 +206,7 @@ def family(name):
     if any(x in n for x in ['miner','smith golem']): return 'miner'
     if any(x in n for x in ['archer','marionette','avionette']): return 'archer'
     if any(x in n for x in ['sorcerer','battlemage','scholar','oracle','shaman','inquisitor','graven','clayman','lamprey']): return 'magic'
-    if any(x in n for x in ['skeleton','shade','corpse','death rite','gravebird']): return 'undead'
+    if any(x in n for x in ['skeleton','shade','corpse','death rite','gravebird','deathbird','revenant','tibia mariner']): return 'undead'
     if any(x in n for x in ['miranda','slug','squirt','rot','wormface','putrid flesh','jar innards']): return 'plant'
     if any(x in n for x in ['crystalian','golem','watchdog','fallingstar','sentry stone','living jar','abductor','chariot']): return 'stone'
     if any(x in n for x in ['wolf','stray','rat','bear','crab','bat','hawk','ant','octopus','fingercreeper','dog','crow','basilisk','scorpion','snail','jellyfish','scarab','eel','hippopotamus','fly']): return 'beast'
@@ -156,27 +282,57 @@ for b in SOURCE['bosses']:
     t=EXCEPTIONS.get(flag,t)
     primary=matches[0] if matches else None
     fam=family(primary['name'] if primary else b['name'])
-    signature='axe' if fam in ('beast','dragon','plant') else 'sword'
-    if fam in ('miner','stone'):signature='pickaxe'
-    if fam=='magic':signature='bow'
-    reward={'slot':signature,'name':b['name'].split(' (')[0]+"'s "+{'axe':'Cleaver','sword':'Blade','pickaxe':'Delver','bow':'Longbow'}[signature],'theme':'general'}
-    for tier,setname,flags,theme in SETS:
+    reward=None
+    for tier,setname,flags,theme,(pattern,material) in SETS:
         if flag in flags:
             t=tier;slot=['helmet','chestplate','leggings','boots'][flags.index(flag)]
-            reward={'slot':slot,'name':setname+' '+{'helmet':'Helm','chestplate':'Raiment','leggings':'Greaves','boots':'Boots'}[slot],'set':setname,'theme':theme}
+            reward={'slot':slot,'name':setname+' '+{'helmet':'Helm','chestplate':'Raiment','leggings':'Greaves','boots':'Boots'}[slot],'set':setname,'theme':theme,
+                    'trim':{'pattern':pattern,'material':material}}
+    if reward is None:
+        slot=weapon_of(b['name'])
+        reward={'slot':slot,'name':b['name'].split(' (')[0]+"'s "+WEAPON_NAMES[slot],'theme':'general'}
     actor_ids=sorted(set(e['entity'] for e in matches if e['entity'] != 0))
     # Radagon is a phase of the Elden Beast encounter, not another boss reward.
     if flag==19000800:actor_ids.append(19000810)
     if flag==14000800:actor_ids.append(14000801)
     if flag==13000850:actor_ids.extend([13000851,13000852,13000853,13000854])
-    bosses.append(dict(flag=flag,name=b['name'],region=b['region'],tier=t,reward=reward,actors=sorted(set(actor_ids)),
-                       map=block(primary['map']) if primary else 0,model=primary['model'] if primary else 0,npc=primary['npc'] if primary else 0))
+    boss=dict(flag=flag,name=b['name'],region=b['region'],tier=t,reward=reward,actors=sorted(set(actor_ids)),
+              map=block(primary['map']) if primary else 0,model=primary['model'] if primary else 0,npc=primary['npc'] if primary else 0)
+    ward=ward_of(b['name'])
+    if reward['slot'] not in ('helmet','chestplate','leggings','boots','pickaxe'):
+        reward['signature']=signature_of(b['name'],fam,ward,reward['slot'])
+    if ward:
+        boss['ward']=ward
+        if b['name'] in WARD_SEVEN:boss['ward_seven']=True
+    bosses.append(boss)
+
+groups=collections.defaultdict(list)
+for b in bosses:
+    r=b['reward']
+    if 'signature' in r:groups[(b['tier'],r['slot'],b.get('ward'),r['signature'])].append(b)
+for key,members in groups.items():
+    names=sorted({identity(b['name']) for b in members})
+    single=[f for f in FLAIRS[key[1]] if f!=key[3]]
+    options=[[f] for f in single]+[list(pair) for pair in itertools.combinations(single,2)]
+    for i,name in enumerate(names[1:]):
+        assert i<len(options), f'no extra enchantment left to tell {name} apart in {key}'
+        for b in members:
+            if identity(b['name'])==name:b['reward']['flair']=options[i]
+packages=collections.defaultdict(set)
+for b in bosses:
+    r=b['reward']
+    if 'signature' in r:packages[(b['tier'],r['slot'],b.get('ward'),r['signature'],tuple(r.get('flair',[])))].add(identity(b['name']))
+assert all(len(names)==1 for names in packages.values()), [n for n in packages.values() if len(n)>1]
 
 # Important bosses missing from the public respawn list: exact placed identity/completion flag.
 extra=[('Spiritcaller Cave completion',31220800)]
 # This one is already in the catalog; assertion guards an accidental duplicate.
 assert len({b['flag'] for b in bosses})==len(bosses)
 assert all(sum(flag in [b['flag'] for b in bosses] for flag in row[2])==4 for row in SETS)
+assert all(b['reward'].get('signature') for b in bosses if b['reward']['slot'] not in ('helmet','chestplate','leggings','boots','pickaxe'))
+# Level VII: exactly one DLC boss per ward that has one, and it carries that ward.
+assert sorted(b['ward'] for b in bosses if b.get('ward_seven'))==sorted(set(WARD_NAMES)-{'venom_ward'})
+assert all(b['tier']>=6 for b in bosses if b.get('ward_seven'))
 
 for t in range(1,8):
     lo,hi=[(1,2),(1,3),(2,4),(2,5),(3,6),(3,7),(4,8)][t-1]
@@ -222,11 +378,14 @@ rs.append('];')
 (ROOT/'game/src/loot_catalog.rs').write_text('\n'.join(rs)+'\n')
 # Human-readable complete reward sheet, kept in sync with runtime data.
 lines=['# Implemented boss rewards', '', 'Generated by `tools/generate_loot.py`. These are EldenCraft rewards, not original ER drops.',
-       'All rows also grant a curated enchanted book and regional materials. Named gear has full durability.',
+       'All rows also grant an enchanted book and regional materials. Named gear has full durability.',
+       'A boss with a ward theme puts its ward on its armour (level = tier, at most VI) and its book is that ward',
+       '(same level; VII only from the one DLC boss marked so). A boss without one gives the random curated book.',
        'Completion flags and actor mappings come from the checked-in public-data snapshot; in-game confirmation is pending.', '',
-       '| Region | Boss | Tier | Guaranteed gear | Collection |', '|---|---|---|---|---|']
+       '| Region | Boss | Tier | Guaranteed gear | Collection | Ward (book) |', '|---|---|---|---|---|---|']
 for b in sorted(bosses,key=lambda b:(b['tier'],b['region'],b['name'])):
     r=b['reward']
-    lines.append(f"| {b['region']} | {b['name']} | {b['tier']} | {r['name']} | {r.get('set','Signature')} |")
+    ward=f"{WARD_NAMES[b['ward']]} {ROMAN[7 if b.get('ward_seven') else min(b['tier'],6)]}" if b.get('ward') else '—'
+    lines.append(f"| {b['region']} | {b['name']} | {b['tier']} | {r['name']} | {r.get('set','Signature')} | {ward} |")
 (ROOT/'docs/loot-boss-rewards.md').write_text('\n'.join(lines)+'\n')
 print(f'Generated {len(maps)} region maps, {len(models)} enemy families, {len(bosses)} bosses, {len(SETS)*4} fixed set pieces')

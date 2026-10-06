@@ -57,4 +57,12 @@ class ResourceRulesTest {
         for(double g=3.0;g<5.0;g+=0.01) assertTrue(Math.abs(ResourceRules.restHeight(g,true)-g)<=0.25+1e-9);
         for(double g=3.0;g<5.0;g+=0.01) { double r=ResourceRules.restHeight(g,false);assertTrue(r-g<=0.4+1e-9 && g-r<=0.6+1e-9); }
     }
+    @Test void nodesKeepClearOfGracesButNotOfFarPlacesOrOtherLevels() {
+        var graces=java.util.List.of(new int[]{100,50,-200});
+        assertTrue(ResourceRules.nearGrace(graces,100.5,50.5,-199.5));
+        assertTrue(ResourceRules.nearGrace(graces,104.0,50.5,-204.0)); // 5.6 m away
+        assertFalse(ResourceRules.nearGrace(graces,110.0,50.5,-200.0)); // 9.5 m away
+        assertFalse(ResourceRules.nearGrace(graces,100.5,60.5,-199.5)); // directly above, another floor
+        assertFalse(ResourceRules.nearGrace(java.util.List.of(),0,0,0));
+    }
 }

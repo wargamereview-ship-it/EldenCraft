@@ -12,6 +12,8 @@ mod loot;
 mod loot_catalog;
 mod resources;
 mod grace_edges;
+mod depth;
+mod depth_math;
 mod lighting;
 mod dinput;
 mod hud;
@@ -196,6 +198,8 @@ struct Frame {
 	light: lighting::Light,
 	/// Blocks are lit from the game's own picture (F4).
 	game_light: bool,
+	/// Blocks hidden by the game's real scene depth instead of the scanned collision (on by default; F3 switches it off).
+	depth_occlusion: bool,
 	/// The game camera sits in Minecraft's eye (and the Elden Ring body is hidden).
 	first_person: bool,
 	/// Original transparency/render state while our camera hides this body's model.
@@ -273,6 +277,7 @@ impl Frame {
 			collision_draw: render::CollisionDraw::default(),
 			light: lighting::Light::default(),
 			game_light: true,
+			depth_occlusion: true,
 			first_person: true,
 			model_state: None,
 			look: None,
@@ -517,6 +522,7 @@ impl Frame {
 		if self.loading_was {
 			self.loading_was = false;
 			self.scanner.reset_after_load();
+			self.resources.arrived();
 			self.sent = None;
 			self.observed = None;
 			log::line("movement: load settled; refreshing collision and Minecraft handoff for this body");
@@ -563,6 +569,10 @@ impl Frame {
 		if self.keys.pressed(keys::VK_F11) {
 			log::line(&format!("blocks drawn with the camera from {} frame(s) back (F11)", camera::cycle_delay()));
 		}
+		if self.keys.pressed(keys::VK_F3) {
+			self.depth_occlusion = !self.depth_occlusion;
+			log::line(if self.depth_occlusion { "block occlusion: from the game's scene depth (F3)" } else { "block occlusion: from the scanned collision (F3)" });
+		}
 		if self.keys.pressed(keys::VK_F4) {
 			self.game_light = !self.game_light;
 			log::line(if self.game_light { "block light: from the game's picture" } else { "block light: from the clock only" });
@@ -575,6 +585,7 @@ impl Frame {
 
 		let p = player.chr_ins.modules.physics.position;
 		let er = space.havok_to_mc([p.0, p.1, p.2]);
+		self.resources.at(er);
 		// A settled connected map change renames the coordinates, not the body's place.
 		let previous_er = self.observed.replace(er).filter(|_| space.world_id == self.world_id);
 		let er_travel = previous_er.map_or(0.0, |old| dist(old, er));
@@ -860,9 +871,23 @@ impl Frame {
 		let hour = clock_hour();
 		self.light.approach(lighting::light(hour, outdoors), 0.04);
 		let (light, game_light) = (self.light, self.game_light);
+		// How far away the game's own ray says the ground straight ahead is: it tells the renderer how the
+		// game stores its depth. Only from the eye (first person) and past a few metres, clear of our own body.
+		let planes = unsafe { CSCamera::instance() }.ok().map(|c| (c.pers_cam_1.near_plane, c.pers_cam_1.far_plane))
+			.filter(|(n, f)| n.is_finite() && f.is_finite() && *n > 0.0 && *f > *n * 2.0).unwrap_or((0.1, 5000.0));
+		let probe = (self.depth_occlusion && first_person).then(|| {
+			let (y, p) = ((cam_yaw as f64).to_radians(), (cam_pitch as f64).to_radians());
+			let forward = [-y.sin() * p.cos(), -p.sin(), y.cos() * p.cos()];
+			let reach = forward.map(|c| c * 120.0);
+			self.scanner.ray(player, &space, cam_eye, reach).map(|hit| dist(hit, cam_eye))
+		}).flatten().filter(|d| *d > 3.0 && *d < 100.0).map(|d| d as f32);
+		let depth_occlusion = self.depth_occlusion;
 		scene::with(|s| {
 			s.light = light;
 			s.game_light = game_light;
+			s.depth_occlusion = depth_occlusion;
+			s.depth_probe = probe;
+			s.camera_planes = planes;
 			s.view = first_person.then(|| scene::View { eye: cam_eye, yaw: cam_yaw, pitch: cam_pitch, fov_deg });
 			s.avatar_at = first_person.then(|| if follow_body { Some(er) } else { mc.as_ref().map(|m| m.pos) }).flatten();
 			let shown = mc_visible || self.combat.owns_health();

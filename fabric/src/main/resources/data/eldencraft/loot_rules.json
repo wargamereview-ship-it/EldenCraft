@@ -12575,11 +12575,11 @@
     },
     "4000": {
       "name": "Revenant Follower",
-      "family": "beast"
+      "family": "undead"
     },
     "4020": {
       "name": "Royal Revenant",
-      "family": "beast"
+      "family": "undead"
     },
     "4040": {
       "name": "Slug",
@@ -13083,7 +13083,7 @@
     },
     "4950": {
       "name": "Tibia Mariner",
-      "family": "unknown"
+      "family": "undead"
     },
     "4960": {
       "name": "Giant Skeleton Torso",
@@ -13415,7 +13415,7 @@
     },
     "5620": {
       "name": "Tibia Mariner",
-      "family": "unknown"
+      "family": "undead"
     },
     "5630": {
       "name": "Giant Crayfish",
@@ -13623,7 +13623,7 @@
     },
     "6270": {
       "name": "Royal Revenant",
-      "family": "beast"
+      "family": "undead"
     },
     "6290": {
       "name": "Misbegotten",
@@ -13989,7 +13989,8 @@
       "reward": {
         "slot": "bow",
         "name": "Jori, Elder Inquisitor's Longbow",
-        "theme": "general"
+        "theme": "general",
+        "signature": "infinity"
       },
       "actors": [
         2052430800,
@@ -14016,7 +14017,11 @@
         "slot": "helmet",
         "name": "Eclipse Sovereign Helm",
         "set": "Eclipse Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "spire",
+          "material": "gold"
+        }
       },
       "actors": [
         28000800,
@@ -14024,7 +14029,8 @@
       ],
       "map": 469762048,
       "model": 5050,
-      "npc": 50500086
+      "npc": 50500086,
+      "ward": "flame_ward"
     },
     {
       "flag": 14000850,
@@ -14035,14 +14041,19 @@
         "slot": "helmet",
         "name": "Carian Lakeguard Helm",
         "set": "Carian Lakeguard",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "tide",
+          "material": "lapis"
+        }
       },
       "actors": [
         14000850
       ],
       "map": 234881024,
       "model": 3181,
-      "npc": 31811024
+      "npc": 31811024,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 14000800,
@@ -14053,7 +14064,11 @@
         "slot": "chestplate",
         "name": "Carian Lakeguard Raiment",
         "set": "Carian Lakeguard",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "tide",
+          "material": "lapis"
+        }
       },
       "actors": [
         14000800,
@@ -14093,7 +14108,8 @@
       ],
       "map": 234881024,
       "model": 100,
-      "npc": 1200000
+      "npc": 1200000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1041520800,
@@ -14101,16 +14117,18 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "axe",
-        "name": "Ancient Dragon Lansseax's Cleaver",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Ancient Dragon Lansseax's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1041520800
       ],
       "map": 1009333248,
       "model": 4510,
-      "npc": 45102030
+      "npc": 45102030,
+      "ward": "storm_ward"
     },
     {
       "flag": 30080800,
@@ -14121,14 +14139,19 @@
         "slot": "leggings",
         "name": "Amber Roadwarden Greaves",
         "set": "Amber Roadwarden",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "raiser",
+          "material": "resin"
+        }
       },
       "actors": [
         30080800
       ],
       "map": 503840768,
       "model": 7100,
-      "npc": 71000030
+      "npc": 71000030,
+      "ward": "frost_ward"
     },
     {
       "flag": 31190800,
@@ -14138,7 +14161,8 @@
       "reward": {
         "slot": "sword",
         "name": "Black Knife Assassin's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         31190800,
@@ -14146,7 +14170,8 @@
       ],
       "map": 521338880,
       "model": 100,
-      "npc": 1000000
+      "npc": 1000000,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1040520800,
@@ -14156,14 +14181,16 @@
       "reward": {
         "slot": "sword",
         "name": "Black Knife Assassin's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         1040520800
       ],
       "map": 1009267712,
       "model": 2100,
-      "npc": 21000830
+      "npc": 21000830,
+      "ward": "sacred_ward"
     },
     {
       "flag": 32050800,
@@ -14171,9 +14198,10 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "pickaxe",
-        "name": "Crystalian Duo's Delver",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Crystalian Duo's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         32050800,
@@ -14181,7 +14209,8 @@
       ],
       "map": 537198592,
       "model": 3350,
-      "npc": 33500930
+      "npc": 33500930,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1038510800,
@@ -14192,14 +14221,19 @@
         "slot": "helmet",
         "name": "Amber Roadwarden Helm",
         "set": "Amber Roadwarden",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "raiser",
+          "material": "resin"
+        }
       },
       "actors": [
         1038510800
       ],
       "map": 1009136384,
       "model": 4130,
-      "npc": 41301030
+      "npc": 41301030,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1039540800,
@@ -14210,14 +14244,19 @@
         "slot": "chestplate",
         "name": "Amber Roadwarden Raiment",
         "set": "Amber Roadwarden",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "raiser",
+          "material": "resin"
+        }
       },
       "actors": [
         1039540800
       ],
       "map": 1009202688,
       "model": 3100,
-      "npc": 31000931
+      "npc": 31000931,
+      "ward": "bleed_ward"
     },
     {
       "flag": 30070800,
@@ -14225,16 +14264,18 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "pickaxe",
-        "name": "Erdtree Burial Watchdog's Delver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Erdtree Burial Watchdog's Blade",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         30070800
       ],
       "map": 503775232,
       "model": 4260,
-      "npc": 42602932
+      "npc": 42602932,
+      "ward": "flame_ward"
     },
     {
       "flag": 1041500800,
@@ -14245,14 +14286,19 @@
         "slot": "boots",
         "name": "Amber Roadwarden Boots",
         "set": "Amber Roadwarden",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "raiser",
+          "material": "resin"
+        }
       },
       "actors": [
         1041500800
       ],
       "map": 1009332736,
       "model": 4680,
-      "npc": 46801930
+      "npc": 46801930,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1039500800,
@@ -14260,9 +14306,13 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Godefroy the Grafted's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Godefroy the Grafted's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "smite"
+        ]
       },
       "actors": [
         1039500800,
@@ -14278,16 +14328,18 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Godskin Apostle's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Godskin Apostle's Lance",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         1042550800
       ],
       "map": 1009399552,
       "model": 3560,
-      "npc": 35600030
+      "npc": 35600030,
+      "ward": "flame_ward"
     },
     {
       "flag": 31190850,
@@ -14295,9 +14347,13 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Necromancer Garris's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Necromancer Garris's Maul",
+        "theme": "general",
+        "signature": "wind_burst",
+        "flair": [
+          "smite"
+        ]
       },
       "actors": [
         31190380,
@@ -14315,9 +14371,10 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1039510800,
@@ -14335,7 +14392,8 @@
       "reward": {
         "slot": "axe",
         "name": "Omenkiller & Miranda the Blighted Bloom's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         31180800,
@@ -14343,7 +14401,8 @@
       ],
       "map": 521273344,
       "model": 4480,
-      "npc": 44800930
+      "npc": 44800930,
+      "ward": "venom_ward"
     },
     {
       "flag": 30120800,
@@ -14351,9 +14410,10 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Perfumer Tricia & Misbegotten Warrior's Blade",
-        "theme": "general"
+        "slot": "crossbow",
+        "name": "Perfumer Tricia & Misbegotten Warrior's Arbalest",
+        "theme": "general",
+        "signature": "multishot"
       },
       "actors": [
         30120800,
@@ -14361,7 +14421,8 @@
       ],
       "map": 504102912,
       "model": 3460,
-      "npc": 34600930
+      "npc": 34600930,
+      "ward": "venom_ward"
     },
     {
       "flag": 1040530800,
@@ -14369,16 +14430,18 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Sanguine Noble's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Sanguine Noble's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1040530800
       ],
       "map": 1009267968,
       "model": 3550,
-      "npc": 35500930
+      "npc": 35500930,
+      "ward": "bleed_ward"
     },
     {
       "flag": 32040800,
@@ -14386,9 +14449,13 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Stonedigger Troll's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Stonedigger Troll's Maul",
+        "theme": "general",
+        "signature": "wind_burst",
+        "flair": [
+          "fire_aspect"
+        ]
       },
       "actors": [
         32040800
@@ -14403,16 +14470,18 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Tibia Mariner's Blade",
-        "theme": "general"
+        "slot": "trident",
+        "name": "Tibia Mariner's Trident",
+        "theme": "general",
+        "signature": "loyalty"
       },
       "actors": [
         1038520340
       ],
       "map": 1009136640,
       "model": 4950,
-      "npc": 49500032
+      "npc": 49500032,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1041510800,
@@ -14420,9 +14489,10 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Tree Sentinel Duo's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Tree Sentinel Duo's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1041510800,
@@ -14430,7 +14500,8 @@
       ],
       "map": 1009332992,
       "model": 3251,
-      "npc": 32511030
+      "npc": 32511030,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1041530800,
@@ -14438,9 +14509,14 @@
       "region": "Altus Plateau",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Wormface's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Wormface's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency",
+          "smite"
+        ]
       },
       "actors": [
         1041530800,
@@ -14458,9 +14534,10 @@
       "region": "Ancient Ruins of Rauh",
       "tier": 7,
       "reward": {
-        "slot": "sword",
-        "name": "Divine Beast Dancing Lion's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Divine Beast Dancing Lion's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         2046460800,
@@ -14475,7 +14552,9 @@
       ],
       "map": 1026436608,
       "model": 5210,
-      "npc": 52100094
+      "npc": 52100094,
+      "ward": "frost_ward",
+      "ward_seven": true
     },
     {
       "flag": 2044450800,
@@ -14486,7 +14565,11 @@
         "slot": "leggings",
         "name": "Ashen Crucible Greaves",
         "set": "Ashen Crucible",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "rib",
+          "material": "resin"
+        }
       },
       "actors": [
         2044450800,
@@ -14494,7 +14577,9 @@
       ],
       "map": 1026305280,
       "model": 100,
-      "npc": 1000000
+      "npc": 1000000,
+      "ward": "rot_ward",
+      "ward_seven": true
     },
     {
       "flag": 30050850,
@@ -14504,14 +14589,16 @@
       "reward": {
         "slot": "sword",
         "name": "Black Knife Assassin's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         30050850
       ],
       "map": 503644160,
       "model": 2100,
-      "npc": 21000820
+      "npc": 21000820,
+      "ward": "sacred_ward"
     },
     {
       "flag": 30050800,
@@ -14521,7 +14608,8 @@
       "reward": {
         "slot": "sword",
         "name": "Cemetery Shade's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         30050800,
@@ -14539,9 +14627,10 @@
       "region": "Bellum Highway",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1036480340
@@ -14558,7 +14647,8 @@
       "reward": {
         "slot": "sword",
         "name": "Cemetery Shade's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         30150800
@@ -14576,14 +14666,19 @@
         "slot": "chestplate",
         "name": "Redmane Exile Raiment",
         "set": "Redmane Exile",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "dune",
+          "material": "redstone"
+        }
       },
       "actors": [
         1049380800
       ],
       "map": 1009853952,
       "model": 3000,
-      "npc": 30008040
+      "npc": 30008040,
+      "ward": "rot_ward"
     },
     {
       "flag": 1049370850,
@@ -14591,16 +14686,18 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Death Rite Bird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Death Rite Bird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1049370850
       ],
       "map": 1009853696,
       "model": 4980,
-      "npc": 49801040
+      "npc": 49801040,
+      "ward": "frost_ward"
     },
     {
       "flag": 1048370800,
@@ -14608,16 +14705,18 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Decaying Ekzykes's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Decaying Ekzykes's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1048370800
       ],
       "map": 1009788160,
       "model": 4501,
-      "npc": 45010040
+      "npc": 45010040,
+      "ward": "rot_ward"
     },
     {
       "flag": 30140800,
@@ -14625,9 +14724,10 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "pickaxe",
-        "name": "Erdtree Burial Watchdog's Delver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Erdtree Burial Watchdog's Blade",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         30140800,
@@ -14635,7 +14735,8 @@
       ],
       "map": 504233984,
       "model": 4260,
-      "npc": 42600940
+      "npc": 42600940,
+      "ward": "flame_ward"
     },
     {
       "flag": 32080800,
@@ -14652,7 +14753,8 @@
       ],
       "map": 537395200,
       "model": 4680,
-      "npc": 46801940
+      "npc": 46801940,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 31210800,
@@ -14660,9 +14762,10 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Frenzied Duelist's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Frenzied Duelist's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         31210800
@@ -14677,9 +14780,13 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Mad Pumpkin Head Duo's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Mad Pumpkin Head Duo's Maul",
+        "theme": "general",
+        "signature": "wind_burst",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         1048400800,
@@ -14698,14 +14805,19 @@
         "slot": "boots",
         "name": "Redmane Exile Boots",
         "set": "Redmane Exile",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "dune",
+          "material": "redstone"
+        }
       },
       "actors": [
         32070800
       ],
       "map": 537329664,
       "model": 4910,
-      "npc": 49100940
+      "npc": 49100940,
+      "ward": "flame_ward"
     },
     {
       "flag": 1049370800,
@@ -14713,9 +14825,10 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1049370800,
@@ -14733,7 +14846,8 @@
       "reward": {
         "slot": "sword",
         "name": "Nox Swordstress & Nox Priest's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         1049390800,
@@ -14741,7 +14855,8 @@
       ],
       "map": 1009854208,
       "model": 3300,
-      "npc": 33000940
+      "npc": 33000940,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1047400800,
@@ -14749,16 +14864,18 @@
       "region": "Caelid",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Putrid Avatar's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Putrid Avatar's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1047400800
       ],
       "map": 1009723392,
       "model": 4811,
-      "npc": 48110040
+      "npc": 48110040,
+      "ward": "rot_ward"
     },
     {
       "flag": 31110800,
@@ -14777,7 +14894,8 @@
       ],
       "map": 520814592,
       "model": 3350,
-      "npc": 33501940
+      "npc": 33501940,
+      "ward": "rot_ward"
     },
     {
       "flag": 1043530800,
@@ -14787,7 +14905,8 @@
       "reward": {
         "slot": "axe",
         "name": "Bell Bearing Hunter's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1043530800
@@ -14804,7 +14923,8 @@
       "reward": {
         "slot": "sword",
         "name": "Crucible Knight & Crucible Knight Ordovis's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         30100800,
@@ -14820,9 +14940,10 @@
       "region": "Capital Outskirts",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Deathbird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Deathbird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1044530800
@@ -14840,14 +14961,19 @@
         "slot": "boots",
         "name": "Gilded Omenward Boots",
         "set": "Gilded Omenward",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "host",
+          "material": "gold"
+        }
       },
       "actors": [
         1045520800
       ],
       "map": 1009595392,
       "model": 3250,
-      "npc": 32500033
+      "npc": 32500033,
+      "ward": "storm_ward"
     },
     {
       "flag": 34140850,
@@ -14855,9 +14981,13 @@
       "region": "Capital Outskirts",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Fell Twins's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Fell Twins's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         34140850,
@@ -14873,9 +15003,13 @@
       "region": "Capital Outskirts",
       "tier": 3,
       "reward": {
-        "slot": "sword",
-        "name": "Grave Warden Duelist's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Grave Warden Duelist's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "fire_aspect"
+        ]
       },
       "actors": [
         30130800
@@ -14892,14 +15026,19 @@
       "reward": {
         "slot": "sword",
         "name": "Onyx Lord's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         34120800
       ],
       "map": 571211776,
       "model": 3600,
-      "npc": 36001933
+      "npc": 36001933,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 2046380800,
@@ -14910,14 +15049,19 @@
         "slot": "leggings",
         "name": "Veiled Coastkeeper Greaves",
         "set": "Veiled Coastkeeper",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "flow",
+          "material": "lapis"
+        }
       },
       "actors": [
         2046380800
       ],
       "map": 1026434560,
       "model": 0,
-      "npc": 524220083
+      "npc": 524220083,
+      "ward": "frost_ward"
     },
     {
       "flag": 2046400800,
@@ -14928,14 +15072,19 @@
         "slot": "helmet",
         "name": "Veiled Coastkeeper Helm",
         "set": "Veiled Coastkeeper",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "flow",
+          "material": "lapis"
+        }
       },
       "actors": [
         2046400800
       ],
       "map": 1026435072,
       "model": 5730,
-      "npc": 57300083
+      "npc": 57300083,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 2048380850,
@@ -14943,9 +15092,10 @@
       "region": "Cerulean Coast",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Ghostflame Dragon's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Ghostflame Dragon's Cleaver",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         2048380850,
@@ -14961,7 +15111,8 @@
       ],
       "map": 1026565632,
       "model": 5360,
-      "npc": 53609383
+      "npc": 53609383,
+      "ward": "frost_ward"
     },
     {
       "flag": 22000800,
@@ -14972,7 +15123,11 @@
         "slot": "chestplate",
         "name": "Veiled Coastkeeper Raiment",
         "set": "Veiled Coastkeeper",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "flow",
+          "material": "lapis"
+        }
       },
       "actors": [
         22000800,
@@ -14980,7 +15135,8 @@
       ],
       "map": 369098752,
       "model": 5020,
-      "npc": 50200087
+      "npc": 50200087,
+      "ward": "frost_ward"
     },
     {
       "flag": 2047390800,
@@ -14991,14 +15147,19 @@
         "slot": "boots",
         "name": "Veiled Coastkeeper Boots",
         "set": "Veiled Coastkeeper",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "flow",
+          "material": "lapis"
+        }
       },
       "actors": [
         2047390800
       ],
       "map": 1026500352,
       "model": 6260,
-      "npc": 62601084
+      "npc": 62601084,
+      "ward": "frost_ward"
     },
     {
       "flag": 41020800,
@@ -15006,9 +15167,13 @@
       "region": "Charo's Hidden Grave",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Lamenter's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Lamenter's Maul",
+        "theme": "general",
+        "signature": "wind_burst",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         41020800,
@@ -15031,9 +15196,10 @@
       "region": "Consecrated Snowfield",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Astel, Stars of Darkness's Blade",
-        "theme": "general"
+        "slot": "bow",
+        "name": "Astel, Stars of Darkness's Longbow",
+        "theme": "general",
+        "signature": "infinity"
       },
       "actors": [
         32110800,
@@ -15049,7 +15215,8 @@
       ],
       "map": 537591808,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1048570800,
@@ -15057,16 +15224,18 @@
       "region": "Consecrated Snowfield",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Death Rite Bird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Death Rite Bird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1048570800
       ],
       "map": 1009793280,
       "model": 4980,
-      "npc": 49801052
+      "npc": 49801052,
+      "ward": "frost_ward"
     },
     {
       "flag": 1050560800,
@@ -15077,14 +15246,19 @@
         "slot": "boots",
         "name": "Winterbound Sentinel Boots",
         "set": "Winterbound Sentinel",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "ward",
+          "material": "quartz"
+        }
       },
       "actors": [
         1050560800
       ],
       "map": 1009924096,
       "model": 4911,
-      "npc": 49110052
+      "npc": 49110052,
+      "ward": "flame_ward"
     },
     {
       "flag": 31120800,
@@ -15094,14 +15268,16 @@
       "reward": {
         "slot": "sword",
         "name": "Misbegotten Crusader's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         31120800
       ],
       "map": 520880128,
       "model": 3460,
-      "npc": 34601952
+      "npc": 34601952,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1248550800,
@@ -15109,9 +15285,10 @@
       "region": "Consecrated Snowfield",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1248550800,
@@ -15132,14 +15309,19 @@
         "slot": "leggings",
         "name": "Bloodroot Sovereign Greaves",
         "set": "Bloodroot Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "vex",
+          "material": "redstone"
+        }
       },
       "actors": [
         1050570850
       ],
       "map": 1009924352,
       "model": 4811,
-      "npc": 48110052
+      "npc": 48110052,
+      "ward": "rot_ward"
     },
     {
       "flag": 30190800,
@@ -15150,14 +15332,19 @@
         "slot": "boots",
         "name": "Bloodroot Sovereign Boots",
         "set": "Bloodroot Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "vex",
+          "material": "redstone"
+        }
       },
       "actors": [
         30190800
       ],
       "map": 504561664,
       "model": 3400,
-      "npc": 34000952
+      "npc": 34000952,
+      "ward": "rot_ward"
     },
     {
       "flag": 30200800,
@@ -15165,9 +15352,10 @@
       "region": "Consecrated Snowfield",
       "tier": 5,
       "reward": {
-        "slot": "axe",
-        "name": "Stray Mimic Tear's Cleaver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Stray Mimic Tear's Blade",
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         30200800,
@@ -15186,7 +15374,11 @@
         "slot": "leggings",
         "name": "Last Age Champion Greaves",
         "set": "Last Age Champion",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "bolt",
+          "material": "emerald"
+        }
       },
       "actors": [
         13000830,
@@ -15197,7 +15389,8 @@
       ],
       "map": 218103808,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "storm_ward"
     },
     {
       "flag": 13000850,
@@ -15208,7 +15401,11 @@
         "slot": "helmet",
         "name": "Last Age Champion Helm",
         "set": "Last Age Champion",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "bolt",
+          "material": "emerald"
+        }
       },
       "actors": [
         13000850,
@@ -15219,7 +15416,8 @@
       ],
       "map": 218103808,
       "model": 3560,
-      "npc": 35600172
+      "npc": 35600172,
+      "ward": "flame_ward"
     },
     {
       "flag": 13000800,
@@ -15230,7 +15428,11 @@
         "slot": "chestplate",
         "name": "Last Age Champion Raiment",
         "set": "Last Age Champion",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "bolt",
+          "material": "emerald"
+        }
       },
       "actors": [
         13000800,
@@ -15240,7 +15442,8 @@
       ],
       "map": 218103808,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "sacred_ward"
     },
     {
       "flag": 20010800,
@@ -15251,7 +15454,11 @@
         "slot": "chestplate",
         "name": "Eclipse Sovereign Raiment",
         "set": "Eclipse Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "spire",
+          "material": "gold"
+        }
       },
       "actors": [
         20010800,
@@ -15264,7 +15471,9 @@
       ],
       "map": 335609856,
       "model": 0,
-      "npc": 10003000
+      "npc": 10003000,
+      "ward": "sacred_ward",
+      "ward_seven": true
     },
     {
       "flag": 30170800,
@@ -15274,14 +15483,16 @@
       "reward": {
         "slot": "sword",
         "name": "Ancient Hero of Zamor's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         30170800
       ],
       "map": 504430592,
       "model": 7100,
-      "npc": 71000950
+      "npc": 71000950,
+      "ward": "frost_ward"
     },
     {
       "flag": 1252520800,
@@ -15292,7 +15503,11 @@
         "slot": "chestplate",
         "name": "Winterbound Sentinel Raiment",
         "set": "Winterbound Sentinel",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "ward",
+          "material": "quartz"
+        }
       },
       "actors": [
         1052520800,
@@ -15300,7 +15515,8 @@
       ],
       "map": 1010054144,
       "model": 4760,
-      "npc": 47600050
+      "npc": 47600050,
+      "ward": "flame_ward"
     },
     {
       "flag": 1049520800,
@@ -15308,9 +15524,10 @@
       "region": "Forbidden Lands",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Black Blade Kindred's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Black Blade Kindred's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1049520800
@@ -15325,9 +15542,10 @@
       "region": "Forbidden Lands",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1048510800,
@@ -15343,9 +15561,10 @@
       "region": "Gravesite Plain",
       "tier": 6,
       "reward": {
-        "slot": "axe",
-        "name": "Ancient Dragon-Man's Cleaver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Ancient Dragon-Man's Blade",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         43010800
@@ -15363,14 +15582,20 @@
         "slot": "boots",
         "name": "Nameless Oath Boots",
         "set": "Nameless Oath",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "silence",
+          "material": "iron"
+        }
       },
       "actors": [
         43000800
       ],
       "map": 721420288,
       "model": 5081,
-      "npc": 50810990
+      "npc": 50810990,
+      "ward": "bleed_ward",
+      "ward_seven": true
     },
     {
       "flag": 40000800,
@@ -15378,16 +15603,18 @@
       "region": "Gravesite Plain",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Death Knight's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Death Knight's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         40000800
       ],
       "map": 671088640,
       "model": 5070,
-      "npc": 50700081
+      "npc": 50700081,
+      "ward": "storm_ward"
     },
     {
       "flag": 41000800,
@@ -15398,7 +15625,11 @@
         "slot": "leggings",
         "name": "Nameless Oath Greaves",
         "set": "Nameless Oath",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "silence",
+          "material": "iron"
+        }
       },
       "actors": [
         41000800
@@ -15413,16 +15644,18 @@
       "region": "Gravesite Plain",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Divine Beast Dancing Lion's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Divine Beast Dancing Lion's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         20000800
       ],
       "map": 335544320,
       "model": 5210,
-      "npc": 52100088
+      "npc": 52100088,
+      "ward": "frost_ward"
     },
     {
       "flag": 2045440800,
@@ -15432,14 +15665,19 @@
       "reward": {
         "slot": "axe",
         "name": "Ghostflame Dragon's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         2045440800
       ],
       "map": 1026370560,
       "model": 5860,
-      "npc": 58600080
+      "npc": 58600080,
+      "ward": "frost_ward"
     },
     {
       "flag": 2046410800,
@@ -15450,7 +15688,11 @@
         "slot": "helmet",
         "name": "Nameless Oath Helm",
         "set": "Nameless Oath",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "silence",
+          "material": "iron"
+        }
       },
       "actors": [
         2046410800
@@ -15467,7 +15709,11 @@
       "reward": {
         "slot": "axe",
         "name": "Red Bear's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         2046450800
@@ -15485,14 +15731,20 @@
         "slot": "chestplate",
         "name": "Nameless Oath Raiment",
         "set": "Nameless Oath",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "silence",
+          "material": "iron"
+        }
       },
       "actors": [
         2048440800
       ],
       "map": 1026567168,
       "model": 5300,
-      "npc": 53000082
+      "npc": 53000082,
+      "ward": "glintstone_ward",
+      "ward_seven": true
     },
     {
       "flag": 1049390850,
@@ -15503,7 +15755,11 @@
         "slot": "helmet",
         "name": "Redmane Exile Helm",
         "set": "Redmane Exile",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "dune",
+          "material": "redstone"
+        }
       },
       "actors": [
         1049390850,
@@ -15511,7 +15767,8 @@
       ],
       "map": 1009854208,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 31100800,
@@ -15521,7 +15778,8 @@
       "reward": {
         "slot": "sword",
         "name": "Beastman of Farum Azula's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         31100800,
@@ -15539,7 +15797,8 @@
       "reward": {
         "slot": "axe",
         "name": "Bell Bearing Hunter's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1048410800
@@ -15554,9 +15813,13 @@
       "region": "Greyoll's Dragonbarrow",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Black Blade Kindred's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Black Blade Kindred's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         1051430800
@@ -15574,7 +15837,11 @@
         "slot": "leggings",
         "name": "Redmane Exile Greaves",
         "set": "Redmane Exile",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "dune",
+          "material": "redstone"
+        }
       },
       "actors": [
         31200800,
@@ -15582,7 +15849,8 @@
       ],
       "map": 521404416,
       "model": 3800,
-      "npc": 38000940
+      "npc": 38000940,
+      "ward": "rot_ward"
     },
     {
       "flag": 1050400800,
@@ -15590,16 +15858,18 @@
       "region": "Greyoll's Dragonbarrow",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Elder Dragon Greyoll's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Elder Dragon Greyoll's Cleaver",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         1050400800
       ],
       "map": 1009920000,
       "model": 4504,
-      "npc": 45040042
+      "npc": 45040042,
+      "ward": "flame_ward"
     },
     {
       "flag": 1052410800,
@@ -15609,14 +15879,19 @@
       "reward": {
         "slot": "axe",
         "name": "Flying Dragon Greyll's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "fire_aspect",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         1052410800
       ],
       "map": 1010051328,
       "model": 4500,
-      "npc": 45000042
+      "npc": 45000042,
+      "ward": "flame_ward"
     },
     {
       "flag": 34130800,
@@ -15624,16 +15899,18 @@
       "region": "Greyoll's Dragonbarrow",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Godskin Apostle's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Godskin Apostle's Lance",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         34130800
       ],
       "map": 571277312,
       "model": 3560,
-      "npc": 35600042
+      "npc": 35600042,
+      "ward": "flame_ward"
     },
     {
       "flag": 1052410850,
@@ -15641,9 +15918,13 @@
       "region": "Greyoll's Dragonbarrow",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         1052410850,
@@ -15659,16 +15940,18 @@
       "region": "Greyoll's Dragonbarrow",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Putrid Avatar's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Putrid Avatar's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1051400800
       ],
       "map": 1009985536,
       "model": 4811,
-      "npc": 48110042
+      "npc": 48110042,
+      "ward": "rot_ward"
     },
     {
       "flag": 2054390850,
@@ -15676,16 +15959,18 @@
       "region": "Jagged Peak",
       "tier": 7,
       "reward": {
-        "slot": "axe",
-        "name": "Ancient Dragon Senessax's Cleaver",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Ancient Dragon Senessax's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         2054390850
       ],
       "map": 1026959104,
       "model": 5370,
-      "npc": 53701185
+      "npc": 53701185,
+      "ward": "storm_ward"
     },
     {
       "flag": 2054390800,
@@ -15696,14 +15981,20 @@
         "slot": "boots",
         "name": "Eclipse Sovereign Boots",
         "set": "Eclipse Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "spire",
+          "material": "gold"
+        }
       },
       "actors": [
         2054390800
       ],
       "map": 1026959104,
       "model": 5120,
-      "npc": 51200085
+      "npc": 51200085,
+      "ward": "storm_ward",
+      "ward_seven": true
     },
     {
       "flag": 2049410800,
@@ -15711,16 +16002,18 @@
       "region": "Jagged Peak",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Jagged Peak Drake's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Jagged Peak Drake's Cleaver",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         2049410800
       ],
       "map": 1026631936,
       "model": 5580,
-      "npc": 55800084
+      "npc": 55800084,
+      "ward": "flame_ward"
     },
     {
       "flag": 2052400800,
@@ -15728,9 +16021,13 @@
       "region": "Jagged Peak",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Jagged Peak Drake Duo's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Jagged Peak Drake Duo's Cleaver",
+        "theme": "general",
+        "signature": "fire_aspect",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         2052400800,
@@ -15738,7 +16035,8 @@
       ],
       "map": 1026828288,
       "model": 5340,
-      "npc": 53400000
+      "npc": 53400000,
+      "ward": "flame_ward"
     },
     {
       "flag": 19000800,
@@ -15749,7 +16047,11 @@
         "slot": "boots",
         "name": "Last Age Champion Boots",
         "set": "Last Age Champion",
-        "theme": "blast"
+        "theme": "general",
+        "trim": {
+          "pattern": "bolt",
+          "material": "emerald"
+        }
       },
       "actors": [
         19000800,
@@ -15757,7 +16059,8 @@
       ],
       "map": 318767104,
       "model": 2190,
-      "npc": 21900078
+      "npc": 21900078,
+      "ward": "sacred_ward"
     },
     {
       "flag": 11050800,
@@ -15765,9 +16068,13 @@
       "region": "Leyndell, Capital of Ash",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Hoarah Loux, Warrior's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Hoarah Loux, Warrior's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         11050800,
@@ -15783,9 +16090,13 @@
       "region": "Leyndell, Capital of Ash",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Sir Gideon Ofnir, the All-Knowing's Blade",
-        "theme": "general"
+        "slot": "bow",
+        "name": "Sir Gideon Ofnir, the All-Knowing's Longbow",
+        "theme": "general",
+        "signature": "infinity",
+        "flair": [
+          "flame"
+        ]
       },
       "actors": [
         11050850,
@@ -15799,7 +16110,8 @@
       ],
       "map": 184877056,
       "model": 0,
-      "npc": 523240070
+      "npc": 523240070,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 35000850,
@@ -15809,14 +16121,16 @@
       "reward": {
         "slot": "sword",
         "name": "Esgar, Priest of Blood's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         35000850
       ],
       "map": 587202560,
       "model": 0,
-      "npc": 523860000
+      "npc": 523860000,
+      "ward": "bleed_ward"
     },
     {
       "flag": 11000850,
@@ -15827,14 +16141,19 @@
         "slot": "helmet",
         "name": "Gilded Omenward Helm",
         "set": "Gilded Omenward",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "host",
+          "material": "gold"
+        }
       },
       "actors": [
         11000850
       ],
       "map": 184549376,
       "model": 4720,
-      "npc": 47200134
+      "npc": 47200134,
+      "ward": "sacred_ward"
     },
     {
       "flag": 35000800,
@@ -15845,14 +16164,19 @@
         "slot": "leggings",
         "name": "Gilded Omenward Greaves",
         "set": "Gilded Omenward",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "host",
+          "material": "gold"
+        }
       },
       "actors": [
         35000800
       ],
       "map": 587202560,
       "model": 4800,
-      "npc": 48001935
+      "npc": 48001935,
+      "ward": "bleed_ward"
     },
     {
       "flag": 11000800,
@@ -15863,14 +16187,19 @@
         "slot": "chestplate",
         "name": "Gilded Omenward Raiment",
         "set": "Gilded Omenward",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "host",
+          "material": "gold"
+        }
       },
       "actors": [
         11000800
       ],
       "map": 184549376,
       "model": 2130,
-      "npc": 21300534
+      "npc": 21300534,
+      "ward": "sacred_ward"
     },
     {
       "flag": 31030800,
@@ -15881,7 +16210,11 @@
         "slot": "helmet",
         "name": "Wayfarer's Hide Helm",
         "set": "Wayfarer's Hide",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wild",
+          "material": "copper"
+        }
       },
       "actors": [
         31030800
@@ -15898,7 +16231,8 @@
       "reward": {
         "slot": "sword",
         "name": "Bloodhound Knight Darriwil's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         1044350800,
@@ -15906,7 +16240,8 @@
       ],
       "map": 1009525248,
       "model": 6001,
-      "npc": 60010010
+      "npc": 60010010,
+      "ward": "bleed_ward"
     },
     {
       "flag": 31150800,
@@ -15917,7 +16252,11 @@
         "slot": "chestplate",
         "name": "Wayfarer's Hide Raiment",
         "set": "Wayfarer's Hide",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wild",
+          "material": "copper"
+        }
       },
       "actors": [
         31150200,
@@ -15943,14 +16282,19 @@
         "slot": "leggings",
         "name": "Wayfarer's Hide Greaves",
         "set": "Wayfarer's Hide",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wild",
+          "material": "copper"
+        }
       },
       "actors": [
         30020800
       ],
       "map": 503447552,
       "model": 4260,
-      "npc": 42600110
+      "npc": 42600110,
+      "ward": "flame_ward"
     },
     {
       "flag": 1043360800,
@@ -15960,14 +16304,16 @@
       "reward": {
         "slot": "axe",
         "name": "Flying Dragon Agheel's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         1043360800
       ],
       "map": 1009460224,
       "model": 4500,
-      "npc": 45000010
+      "npc": 45000010,
+      "ward": "flame_ward"
     },
     {
       "flag": 30040800,
@@ -15975,9 +16321,13 @@
       "region": "Limgrave",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Grave Warden Duelist's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Grave Warden Duelist's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         30040800
@@ -15995,7 +16345,11 @@
         "slot": "boots",
         "name": "Wayfarer's Hide Boots",
         "set": "Wayfarer's Hide",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wild",
+          "material": "copper"
+        }
       },
       "actors": [
         31170800
@@ -16010,9 +16364,10 @@
       "region": "Limgrave",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Mad Pumpkin Head's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Mad Pumpkin Head's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1044360800
@@ -16027,9 +16382,10 @@
       "region": "Limgrave",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1043370340
@@ -16046,7 +16402,8 @@
       "reward": {
         "slot": "sword",
         "name": "Soldier of Godrick's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         18000850
@@ -16061,9 +16418,13 @@
       "region": "Limgrave",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Stonedigger Troll's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Stonedigger Troll's Maul",
+        "theme": "general",
+        "signature": "wind_burst",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         32010800
@@ -16078,16 +16439,18 @@
       "region": "Limgrave",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Tibia Mariner's Blade",
-        "theme": "general"
+        "slot": "trident",
+        "name": "Tibia Mariner's Trident",
+        "theme": "general",
+        "signature": "loyalty"
       },
       "actors": [
         1045390800
       ],
       "map": 1009592064,
       "model": 4950,
-      "npc": 49500010
+      "npc": 49500010,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1042360800,
@@ -16098,14 +16461,19 @@
         "slot": "boots",
         "name": "Stormgate Vanguard Boots",
         "set": "Stormgate Vanguard",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "sentry",
+          "material": "iron"
+        }
       },
       "actors": [
         1042360800
       ],
       "map": 1009394688,
       "model": 3251,
-      "npc": 32510010
+      "npc": 32510010,
+      "ward": "sacred_ward"
     },
     {
       "flag": 18000800,
@@ -16115,14 +16483,19 @@
       "reward": {
         "slot": "axe",
         "name": "Ulcerated Tree Spirit's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "fire_aspect",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         18000800
       ],
       "map": 301989888,
       "model": 4640,
-      "npc": 46400007
+      "npc": 46400007,
+      "ward": "flame_ward"
     },
     {
       "flag": 1038410800,
@@ -16130,9 +16503,10 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Adan, Thief of Fire's Blade",
-        "theme": "general"
+        "slot": "crossbow",
+        "name": "Adan, Thief of Fire's Arbalest",
+        "theme": "general",
+        "signature": "multishot"
       },
       "actors": [
         1038410800,
@@ -16140,7 +16514,8 @@
       ],
       "map": 1009133824,
       "model": 0,
-      "npc": 523560020
+      "npc": 523560020,
+      "ward": "flame_ward"
     },
     {
       "flag": 1037460800,
@@ -16150,7 +16525,8 @@
       "reward": {
         "slot": "axe",
         "name": "Bell Bearing Hunter's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1037460800
@@ -16167,14 +16543,16 @@
       "reward": {
         "slot": "sword",
         "name": "Bloodhound Knight's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         31050800
       ],
       "map": 520421376,
       "model": 4290,
-      "npc": 42900920
+      "npc": 42900920,
+      "ward": "bleed_ward"
     },
     {
       "flag": 1033450800,
@@ -16184,7 +16562,8 @@
       "reward": {
         "slot": "sword",
         "name": "Bols, Carian Knight's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         1033450800,
@@ -16192,7 +16571,8 @@
       ],
       "map": 1008807168,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 31040800,
@@ -16200,16 +16580,18 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "axe",
-        "name": "Cleanrot Knight's Cleaver",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Cleanrot Knight's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         31040800
       ],
       "map": 520355840,
       "model": 3800,
-      "npc": 38000920
+      "npc": 38000920,
+      "ward": "rot_ward"
     },
     {
       "flag": 32020800,
@@ -16220,14 +16602,19 @@
         "slot": "boots",
         "name": "Carian Lakeguard Boots",
         "set": "Carian Lakeguard",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "tide",
+          "material": "lapis"
+        }
       },
       "actors": [
         32020800
       ],
       "map": 537001984,
       "model": 3350,
-      "npc": 33500920
+      "npc": 33500920,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 31060800,
@@ -16235,9 +16622,10 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "pickaxe",
-        "name": "Crystalian Duo's Delver",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Crystalian Duo's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         31060800,
@@ -16245,7 +16633,8 @@
       ],
       "map": 520486912,
       "model": 3350,
-      "npc": 33502920
+      "npc": 33502920,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1036450800,
@@ -16253,16 +16642,18 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Death Rite Bird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Death Rite Bird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1036450340
       ],
       "map": 1009003776,
       "model": 4980,
-      "npc": 49801020
+      "npc": 49801020,
+      "ward": "frost_ward"
     },
     {
       "flag": 1037420800,
@@ -16270,9 +16661,10 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Deathbird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Deathbird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1037420340
@@ -16287,16 +16679,18 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Erdtree Avatar's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Erdtree Avatar's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1038480800
       ],
       "map": 1009135616,
       "model": 4810,
-      "npc": 48100020
+      "npc": 48100020,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1033430800,
@@ -16304,16 +16698,18 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Erdtree Avatar's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Erdtree Avatar's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1033430800
       ],
       "map": 1008806656,
       "model": 4810,
-      "npc": 48100920
+      "npc": 48100920,
+      "ward": "sacred_ward"
     },
     {
       "flag": 30060800,
@@ -16321,16 +16717,18 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "pickaxe",
-        "name": "Erdtree Burial Watchdog's Delver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Erdtree Burial Watchdog's Blade",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         30060800
       ],
       "map": 503709696,
       "model": 4260,
-      "npc": 42601920
+      "npc": 42601920,
+      "ward": "flame_ward"
     },
     {
       "flag": 1034450800,
@@ -16340,14 +16738,16 @@
       "reward": {
         "slot": "axe",
         "name": "Glintstone Dragon Smarag's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1034450800
       ],
       "map": 1008872704,
       "model": 4502,
-      "npc": 45020920
+      "npc": 45020920,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 39200800,
@@ -16355,16 +16755,21 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "axe",
-        "name": "Magma Wyrm Makar's Cleaver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Magma Wyrm Makar's Blade",
+        "theme": "general",
+        "signature": "fire_aspect",
+        "flair": [
+          "sweeping_edge"
+        ]
       },
       "actors": [
         39200800
       ],
       "map": 655622144,
       "model": 4910,
-      "npc": 49100026
+      "npc": 49100026,
+      "ward": "flame_ward"
     },
     {
       "flag": 1039430800,
@@ -16372,9 +16777,10 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1039430340
@@ -16389,9 +16795,13 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Omenkiller's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Omenkiller's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         1035420800
@@ -16408,7 +16818,11 @@
       "reward": {
         "slot": "sword",
         "name": "Onyx Lord's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         1036500800,
@@ -16416,7 +16830,8 @@
       ],
       "map": 1009005056,
       "model": 100,
-      "npc": 1000000
+      "npc": 1000000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1035500800,
@@ -16427,14 +16842,19 @@
         "slot": "leggings",
         "name": "Carian Lakeguard Greaves",
         "set": "Carian Lakeguard",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "tide",
+          "material": "lapis"
+        }
       },
       "actors": [
         1035500800
       ],
       "map": 1008939520,
       "model": 3252,
-      "npc": 32520921
+      "npc": 32520921,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1034480800,
@@ -16444,7 +16864,8 @@
       "reward": {
         "slot": "axe",
         "name": "Royal Revenant's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1034480800
@@ -16459,9 +16880,10 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Spirit-Caller Snail's Blade",
-        "theme": "general"
+        "slot": "trident",
+        "name": "Spirit-Caller Snail's Trident",
+        "theme": "general",
+        "signature": "loyalty"
       },
       "actors": [
         30030800,
@@ -16486,16 +16908,21 @@
       "region": "Liurnia of the Lakes",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Tibia Mariner's Blade",
-        "theme": "general"
+        "slot": "trident",
+        "name": "Tibia Mariner's Trident",
+        "theme": "general",
+        "signature": "loyalty",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         1039440800
       ],
       "map": 1009200128,
       "model": 4950,
-      "npc": 49500020
+      "npc": 49500020,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 15000850,
@@ -16506,14 +16933,19 @@
         "slot": "leggings",
         "name": "Winterbound Sentinel Greaves",
         "set": "Winterbound Sentinel",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "ward",
+          "material": "quartz"
+        }
       },
       "actors": [
         15000850
       ],
       "map": 251658240,
       "model": 3252,
-      "npc": 32520054
+      "npc": 32520054,
+      "ward": "sacred_ward"
     },
     {
       "flag": 15000800,
@@ -16524,7 +16956,11 @@
         "slot": "chestplate",
         "name": "Bloodroot Sovereign Raiment",
         "set": "Bloodroot Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "vex",
+          "material": "redstone"
+        }
       },
       "actors": [
         15000800,
@@ -16536,7 +16972,8 @@
       ],
       "map": 251658240,
       "model": 2120,
-      "npc": 21200056
+      "npc": 21200056,
+      "ward": "rot_ward"
     },
     {
       "flag": 1033420800,
@@ -16547,7 +16984,11 @@
         "slot": "leggings",
         "name": "Duskbound Seeker Greaves",
         "set": "Duskbound Seeker",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "eye",
+          "material": "diamond"
+        }
       },
       "actors": [
         1033420800,
@@ -16555,7 +16996,8 @@
       ],
       "map": 1008806400,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1034420800,
@@ -16566,14 +17008,19 @@
         "slot": "boots",
         "name": "Duskbound Seeker Boots",
         "set": "Duskbound Seeker",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "eye",
+          "material": "diamond"
+        }
       },
       "actors": [
         1034420800
       ],
       "map": 1008871936,
       "model": 4502,
-      "npc": 45021922
+      "npc": 45021922,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1254560800,
@@ -16581,16 +17028,18 @@
       "region": "Mountaintops of the Giants",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Borealis the Freezing Fog's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Borealis the Freezing Fog's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1054560800
       ],
       "map": 1010186240,
       "model": 4503,
-      "npc": 45030050
+      "npc": 45030050,
+      "ward": "frost_ward"
     },
     {
       "flag": 1051570800,
@@ -16601,7 +17050,11 @@
         "slot": "helmet",
         "name": "Winterbound Sentinel Helm",
         "set": "Winterbound Sentinel",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "ward",
+          "material": "quartz"
+        }
       },
       "actors": [
         1051570800,
@@ -16610,7 +17063,8 @@
       ],
       "map": 1009989888,
       "model": 3010,
-      "npc": 30106051
+      "npc": 30106051,
+      "ward": "frost_ward"
     },
     {
       "flag": 1050570800,
@@ -16618,16 +17072,18 @@
       "region": "Mountaintops of the Giants",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Death Rite Bird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Death Rite Bird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1050570800
       ],
       "map": 1009924352,
       "model": 4980,
-      "npc": 49801050
+      "npc": 49801050,
+      "ward": "frost_ward"
     },
     {
       "flag": 1052560800,
@@ -16635,9 +17091,10 @@
       "region": "Mountaintops of the Giants",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Erdtree Avatar's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Erdtree Avatar's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1052560800,
@@ -16647,7 +17104,8 @@
       ],
       "map": 1010055168,
       "model": 4810,
-      "npc": 48100150
+      "npc": 48100150,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1053560800,
@@ -16655,9 +17113,10 @@
       "region": "Mountaintops of the Giants",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Roundtable Knight Vyke's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Roundtable Knight Vyke's Lance",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         1053560800,
@@ -16665,7 +17124,8 @@
       ],
       "map": 1010120704,
       "model": 0,
-      "npc": 523040050
+      "npc": 523040050,
+      "ward": "flame_ward"
     },
     {
       "flag": 31220800,
@@ -16673,9 +17133,10 @@
       "region": "Mountaintops of the Giants",
       "tier": 5,
       "reward": {
-        "slot": "sword",
-        "name": "Spirit-Caller Snail's Blade",
-        "theme": "general"
+        "slot": "trident",
+        "name": "Spirit-Caller Snail's Trident",
+        "theme": "general",
+        "signature": "loyalty"
       },
       "actors": [
         31220800,
@@ -16694,14 +17155,16 @@
       "reward": {
         "slot": "axe",
         "name": "Ulcerated Tree Spirit's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         30180800
       ],
       "map": 504496128,
       "model": 4640,
-      "npc": 46400950
+      "npc": 46400950,
+      "ward": "flame_ward"
     },
     {
       "flag": 1037530800,
@@ -16712,14 +17175,19 @@
         "slot": "helmet",
         "name": "Cinder Pilgrim Helm",
         "set": "Cinder Pilgrim",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "snout",
+          "material": "netherite"
+        }
       },
       "actors": [
         1037530800
       ],
       "map": 1009071360,
       "model": 4130,
-      "npc": 41300032
+      "npc": 41300032,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 31090800,
@@ -16727,16 +17195,18 @@
       "region": "Mt. Gelmir",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Demi-Human Queen Margot's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Demi-Human Queen Margot's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         31090800
       ],
       "map": 520683520,
       "model": 4130,
-      "npc": 41301932
+      "npc": 41301932,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1036540800,
@@ -16747,14 +17217,19 @@
         "slot": "boots",
         "name": "Cinder Pilgrim Boots",
         "set": "Cinder Pilgrim",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "snout",
+          "material": "netherite"
+        }
       },
       "actors": [
         1036540800
       ],
       "map": 1009006080,
       "model": 4680,
-      "npc": 46800032
+      "npc": 46800032,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 31070800,
@@ -16762,9 +17237,10 @@
       "region": "Mt. Gelmir",
       "tier": 4,
       "reward": {
-        "slot": "axe",
-        "name": "Kindred of Rot Duo's Cleaver",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Kindred of Rot Duo's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         31070800,
@@ -16772,7 +17248,8 @@
       ],
       "map": 520552448,
       "model": 3810,
-      "npc": 38100932
+      "npc": 38100932,
+      "ward": "venom_ward"
     },
     {
       "flag": 1035530800,
@@ -16780,16 +17257,18 @@
       "region": "Mt. Gelmir",
       "tier": 4,
       "reward": {
-        "slot": "axe",
-        "name": "Magma Wyrm's Cleaver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Magma Wyrm's Blade",
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         1035530800
       ],
       "map": 1008940288,
       "model": 4910,
-      "npc": 49100032
+      "npc": 49100032,
+      "ward": "flame_ward"
     },
     {
       "flag": 30090800,
@@ -16797,16 +17276,18 @@
       "region": "Mt. Gelmir",
       "tier": 4,
       "reward": {
-        "slot": "axe",
-        "name": "Red Wolf of the Champion's Cleaver",
-        "theme": "general"
+        "slot": "sword",
+        "name": "Red Wolf of the Champion's Blade",
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         30090800
       ],
       "map": 503906304,
       "model": 3181,
-      "npc": 31811032
+      "npc": 31811032,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 1037540810,
@@ -16814,16 +17295,21 @@
       "region": "Mt. Gelmir",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Ulcerated Tree Spirit's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Ulcerated Tree Spirit's Cleaver",
+        "theme": "general",
+        "signature": "fire_aspect",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         1037540810
       ],
       "map": 1009071616,
       "model": 3850,
-      "npc": 38500032
+      "npc": 38500032,
+      "ward": "flame_ward"
     },
     {
       "flag": 40010800,
@@ -16831,16 +17317,18 @@
       "region": "Rauh Base",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Death Knight's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Death Knight's Cleaver",
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         40010800
       ],
       "map": 671154176,
       "model": 5070,
-      "npc": 50701095
+      "npc": 50701095,
+      "ward": "storm_ward"
     },
     {
       "flag": 2044470800,
@@ -16850,7 +17338,11 @@
       "reward": {
         "slot": "axe",
         "name": "Rugalea the Great Red Bear's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "smite"
+        ]
       },
       "actors": [
         2044470800
@@ -16867,7 +17359,11 @@
       "reward": {
         "slot": "sword",
         "name": "Crucible Knight & Misbegotten Warrior's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "sweeping_edge"
+        ]
       },
       "actors": [
         1051360800,
@@ -16885,14 +17381,19 @@
       "reward": {
         "slot": "axe",
         "name": "Putrid Tree Spirit's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         30160800
       ],
       "map": 504365056,
       "model": 4640,
-      "npc": 46400942
+      "npc": 46400942,
+      "ward": "rot_ward"
     },
     {
       "flag": 1252380800,
@@ -16902,14 +17403,16 @@
       "reward": {
         "slot": "sword",
         "name": "Starscourge Radahn's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1052380800
       ],
       "map": 1010050560,
       "model": 4730,
-      "npc": 47300040
+      "npc": 47300040,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 2049430850,
@@ -16919,14 +17422,16 @@
       "reward": {
         "slot": "sword",
         "name": "Black Knight Edreed's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         2049430850
       ],
       "map": 1026632448,
       "model": 5840,
-      "npc": 58400690
+      "npc": 58400690,
+      "ward": "sacred_ward"
     },
     {
       "flag": 2047450800,
@@ -16934,16 +17439,18 @@
       "region": "Scadu Altus",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Black Knight Garrew's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Black Knight Garrew's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         2047450800
       ],
       "map": 1026501888,
       "model": 5840,
-      "npc": 58400590
+      "npc": 58400590,
+      "ward": "sacred_ward"
     },
     {
       "flag": 2051450800,
@@ -16951,9 +17458,10 @@
       "region": "Scadu Altus",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Count Ymir, Mother of Fingers's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Count Ymir, Mother of Fingers's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         2051450701,
@@ -16961,7 +17469,8 @@
       ],
       "map": 1026764032,
       "model": 0,
-      "npc": 524090190
+      "npc": 524090190,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 41010800,
@@ -16971,14 +17480,16 @@
       "reward": {
         "slot": "sword",
         "name": "Curseblade Labirith's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         41010800
       ],
       "map": 687931392,
       "model": 5040,
-      "npc": 50400190
+      "npc": 50400190,
+      "ward": "bleed_ward"
     },
     {
       "flag": 2049440800,
@@ -16986,9 +17497,10 @@
       "region": "Scadu Altus",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Dryleaf Dane's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Dryleaf Dane's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         2049440810,
@@ -17011,9 +17523,13 @@
       "region": "Scadu Altus",
       "tier": 6,
       "reward": {
-        "slot": "sword",
-        "name": "Ghostflame Dragon's Blade",
-        "theme": "general"
+        "slot": "axe",
+        "name": "Ghostflame Dragon's Cleaver",
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "efficiency"
+        ]
       },
       "actors": [
         2049430800,
@@ -17026,7 +17542,8 @@
       ],
       "map": 1026632448,
       "model": 5340,
-      "npc": 53400000
+      "npc": 53400000,
+      "ward": "frost_ward"
     },
     {
       "flag": 25000800,
@@ -17037,7 +17554,11 @@
         "slot": "leggings",
         "name": "Eclipse Sovereign Greaves",
         "set": "Eclipse Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "spire",
+          "material": "gold"
+        }
       },
       "actors": [
         25000800,
@@ -17059,7 +17580,8 @@
       ],
       "map": 419430400,
       "model": 5200,
-      "npc": 52000097
+      "npc": 52000097,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 2051440800,
@@ -17069,14 +17591,16 @@
       "reward": {
         "slot": "sword",
         "name": "Rakshasa's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         2051440800
       ],
       "map": 1026763776,
       "model": 0,
-      "npc": 524230091
+      "npc": 524230091,
+      "ward": "flame_ward"
     },
     {
       "flag": 2049450800,
@@ -17086,7 +17610,8 @@
       "reward": {
         "slot": "axe",
         "name": "Ralva the Great Red Bear's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         2049450800
@@ -17104,14 +17629,19 @@
         "slot": "helmet",
         "name": "Ashen Crucible Helm",
         "set": "Ashen Crucible",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "rib",
+          "material": "resin"
+        }
       },
       "actors": [
         2049480800
       ],
       "map": 1026633728,
       "model": 5000,
-      "npc": 50000092
+      "npc": 50000092,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 2052480800,
@@ -17128,7 +17658,8 @@
       ],
       "map": 1026830336,
       "model": 6310,
-      "npc": 63101093
+      "npc": 63101093,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 2050470800,
@@ -17136,16 +17667,18 @@
       "region": "Scaduview",
       "tier": 7,
       "reward": {
-        "slot": "sword",
-        "name": "Tree Sentinel's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Tree Sentinel's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         2050470800
       ],
       "map": 1026699008,
       "model": 6251,
-      "npc": 62511093
+      "npc": 62511093,
+      "ward": "sacred_ward"
     },
     {
       "flag": 2050480860,
@@ -17153,16 +17686,18 @@
       "region": "Scaduview",
       "tier": 7,
       "reward": {
-        "slot": "sword",
-        "name": "Tree Sentinel's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Tree Sentinel's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         2050480860
       ],
       "map": 1026699264,
       "model": 6251,
-      "npc": 62510093
+      "npc": 62510093,
+      "ward": "sacred_ward"
     },
     {
       "flag": 21000850,
@@ -17170,9 +17705,10 @@
       "region": "Shadow Keep",
       "tier": 7,
       "reward": {
-        "slot": "axe",
-        "name": "Golden Hippopotamus's Cleaver",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Golden Hippopotamus's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         21000850
@@ -17190,7 +17726,11 @@
         "slot": "chestplate",
         "name": "Ashen Crucible Raiment",
         "set": "Ashen Crucible",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "rib",
+          "material": "resin"
+        }
       },
       "actors": [
         21010800,
@@ -17207,7 +17747,9 @@
       ],
       "map": 352387072,
       "model": 5130,
-      "npc": 51300099
+      "npc": 51300099,
+      "ward": "flame_ward",
+      "ward_seven": true
     },
     {
       "flag": 2050480800,
@@ -17218,7 +17760,11 @@
         "slot": "boots",
         "name": "Ashen Crucible Boots",
         "set": "Ashen Crucible",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "rib",
+          "material": "resin"
+        }
       },
       "actors": [
         2050480800,
@@ -17230,7 +17776,8 @@
       ],
       "map": 1026699264,
       "model": 5230,
-      "npc": 52300396
+      "npc": 52300396,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1042380850,
@@ -17240,7 +17787,8 @@
       "reward": {
         "slot": "axe",
         "name": "Bell Bearing Hunter's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         1042380850
@@ -17257,14 +17805,16 @@
       "reward": {
         "slot": "sword",
         "name": "Black Knife Assassin's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         30110800
       ],
       "map": 504037376,
       "model": 2100,
-      "npc": 21001010
+      "npc": 21001010,
+      "ward": "sacred_ward"
     },
     {
       "flag": 1042370800,
@@ -17275,7 +17825,11 @@
         "slot": "leggings",
         "name": "Stormgate Vanguard Greaves",
         "set": "Stormgate Vanguard",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "sentry",
+          "material": "iron"
+        }
       },
       "actors": [
         1042370800,
@@ -17291,9 +17845,10 @@
       "region": "Stormhill",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Deathbird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Deathbird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1042380800
@@ -17311,14 +17866,19 @@
         "slot": "helmet",
         "name": "Stormgate Vanguard Helm",
         "set": "Stormgate Vanguard",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "sentry",
+          "material": "iron"
+        }
       },
       "actors": [
         10000850
       ],
       "map": 167772160,
       "model": 2130,
-      "npc": 21300014
+      "npc": 21300014,
+      "ward": "sacred_ward"
     },
     {
       "flag": 10000800,
@@ -17329,14 +17889,19 @@
         "slot": "chestplate",
         "name": "Stormgate Vanguard Raiment",
         "set": "Stormgate Vanguard",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "sentry",
+          "material": "iron"
+        }
       },
       "actors": [
         10000800
       ],
       "map": 167772160,
       "model": 4750,
-      "npc": 47500014
+      "npc": 47500014,
+      "ward": "flame_ward"
     },
     {
       "flag": 10010800,
@@ -17346,7 +17911,8 @@
       "reward": {
         "slot": "sword",
         "name": "Grafted Scion's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         10010800
@@ -17361,16 +17927,18 @@
       "region": "Underground",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Ancestor Spirit's Blade",
-        "theme": "general"
+        "slot": "trident",
+        "name": "Ancestor Spirit's Trident",
+        "theme": "general",
+        "signature": "loyalty"
       },
       "actors": [
         12080800
       ],
       "map": 201850880,
       "model": 4670,
-      "npc": 46700964
+      "npc": 46700964,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 12040800,
@@ -17381,7 +17949,11 @@
         "slot": "chestplate",
         "name": "Duskbound Seeker Raiment",
         "set": "Duskbound Seeker",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "eye",
+          "material": "diamond"
+        }
       },
       "actors": [
         12040800,
@@ -17389,7 +17961,8 @@
       ],
       "map": 201588736,
       "model": 1000,
-      "npc": 10000000
+      "npc": 10000000,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 12030390,
@@ -17397,9 +17970,10 @@
       "region": "Underground",
       "tier": 4,
       "reward": {
-        "slot": "sword",
-        "name": "Crucible Knight Siluria's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Crucible Knight Siluria's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         12030390,
@@ -17416,16 +17990,18 @@
       "region": "Underground",
       "tier": 4,
       "reward": {
-        "slot": "axe",
-        "name": "Dragonkin Soldier's Cleaver",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Dragonkin Soldier's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         12010850
       ],
       "map": 201392128,
       "model": 4650,
-      "npc": 46500262
+      "npc": 46500262,
+      "ward": "frost_ward"
     },
     {
       "flag": 12020830,
@@ -17433,9 +18009,10 @@
       "region": "Underground",
       "tier": 2,
       "reward": {
-        "slot": "sword",
-        "name": "Dragonkin Soldier's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Dragonkin Soldier's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         12020830,
@@ -17444,7 +18021,8 @@
       ],
       "map": 201457664,
       "model": 0,
-      "npc": 526100965
+      "npc": 526100965,
+      "ward": "frost_ward"
     },
     {
       "flag": 12010800,
@@ -17455,7 +18033,11 @@
         "slot": "boots",
         "name": "Eternal Pathfinder Boots",
         "set": "Eternal Pathfinder",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wayfinder",
+          "material": "amethyst"
+        }
       },
       "actors": [
         12010800,
@@ -17464,7 +18046,8 @@
       ],
       "map": 201392128,
       "model": 4650,
-      "npc": 46500960
+      "npc": 46500960,
+      "ward": "storm_ward"
     },
     {
       "flag": 12030800,
@@ -17474,7 +18057,8 @@
       "reward": {
         "slot": "sword",
         "name": "Fia's Champions's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "sweeping_edge"
       },
       "actors": [
         12030800,
@@ -17497,14 +18081,19 @@
         "slot": "helmet",
         "name": "Duskbound Seeker Helm",
         "set": "Duskbound Seeker",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "eye",
+          "material": "diamond"
+        }
       },
       "actors": [
         12030850
       ],
       "map": 201523200,
       "model": 4511,
-      "npc": 45110066
+      "npc": 45110066,
+      "ward": "storm_ward"
     },
     {
       "flag": 12020850,
@@ -17515,7 +18104,11 @@
         "slot": "helmet",
         "name": "Eternal Pathfinder Helm",
         "set": "Eternal Pathfinder",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wayfinder",
+          "material": "amethyst"
+        }
       },
       "actors": [
         12020850,
@@ -17534,14 +18127,19 @@
         "slot": "helmet",
         "name": "Bloodroot Sovereign Helm",
         "set": "Bloodroot Sovereign",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "vex",
+          "material": "redstone"
+        }
       },
       "actors": [
         12050800
       ],
       "map": 201654272,
       "model": 4800,
-      "npc": 48000068
+      "npc": 48000068,
+      "ward": "bleed_ward"
     },
     {
       "flag": 12090800,
@@ -17552,14 +18150,19 @@
         "slot": "chestplate",
         "name": "Eternal Pathfinder Raiment",
         "set": "Eternal Pathfinder",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wayfinder",
+          "material": "amethyst"
+        }
       },
       "actors": [
         12090800
       ],
       "map": 201916416,
       "model": 4670,
-      "npc": 46700065
+      "npc": 46700065,
+      "ward": "glintstone_ward"
     },
     {
       "flag": 12020800,
@@ -17570,7 +18173,11 @@
         "slot": "leggings",
         "name": "Eternal Pathfinder Greaves",
         "set": "Eternal Pathfinder",
-        "theme": "general"
+        "theme": "general",
+        "trim": {
+          "pattern": "wayfinder",
+          "material": "amethyst"
+        }
       },
       "actors": [
         12020800,
@@ -17579,7 +18186,8 @@
       ],
       "map": 201457664,
       "model": 4650,
-      "npc": 46500265
+      "npc": 46500265,
+      "ward": "venom_ward"
     },
     {
       "flag": 16000860,
@@ -17608,7 +18216,11 @@
         "slot": "leggings",
         "name": "Cinder Pilgrim Greaves",
         "set": "Cinder Pilgrim",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "snout",
+          "material": "netherite"
+        }
       },
       "actors": [
         16000850,
@@ -17617,7 +18229,8 @@
       ],
       "map": 268435456,
       "model": 3570,
-      "npc": 35700038
+      "npc": 35700038,
+      "ward": "flame_ward"
     },
     {
       "flag": 16000800,
@@ -17628,7 +18241,11 @@
         "slot": "chestplate",
         "name": "Cinder Pilgrim Raiment",
         "set": "Cinder Pilgrim",
-        "theme": "fire"
+        "theme": "general",
+        "trim": {
+          "pattern": "snout",
+          "material": "netherite"
+        }
       },
       "actors": [
         16000800,
@@ -17636,7 +18253,8 @@
       ],
       "map": 268435456,
       "model": 4710,
-      "npc": 47101038
+      "npc": 47101038,
+      "ward": "flame_ward"
     },
     {
       "flag": 1042330800,
@@ -17647,7 +18265,11 @@
         "slot": "boots",
         "name": "Morne Wanderer Boots",
         "set": "Morne Wanderer",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "coast",
+          "material": "emerald"
+        }
       },
       "actors": [
         1042330400,
@@ -17656,7 +18278,8 @@
       ],
       "map": 1009393920,
       "model": 4450,
-      "npc": 44500012
+      "npc": 44500012,
+      "ward": "frost_ward"
     },
     {
       "flag": 30000800,
@@ -17667,7 +18290,11 @@
         "slot": "helmet",
         "name": "Morne Wanderer Helm",
         "set": "Morne Wanderer",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "coast",
+          "material": "emerald"
+        }
       },
       "actors": [
         30000800
@@ -17682,9 +18309,10 @@
       "region": "Weeping Peninsula",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Deathbird's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Deathbird's Maul",
+        "theme": "general",
+        "signature": "smite"
       },
       "actors": [
         1044320340
@@ -17699,16 +18327,18 @@
       "region": "Weeping Peninsula",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Erdtree Avatar's Blade",
-        "theme": "general"
+        "slot": "mace",
+        "name": "Erdtree Avatar's Maul",
+        "theme": "general",
+        "signature": "wind_burst"
       },
       "actors": [
         1043330800
       ],
       "map": 1009459456,
       "model": 4810,
-      "npc": 48100012
+      "npc": 48100012,
+      "ward": "sacred_ward"
     },
     {
       "flag": 30010800,
@@ -17718,7 +18348,8 @@
       "reward": {
         "slot": "sword",
         "name": "Erdtree Burial Watchdog's Blade",
-        "theme": "general"
+        "theme": "general",
+        "signature": "fire_aspect"
       },
       "actors": [
         30010800,
@@ -17729,7 +18360,8 @@
       ],
       "map": 503382016,
       "model": 3080,
-      "npc": 30800912
+      "npc": 30800912,
+      "ward": "flame_ward"
     },
     {
       "flag": 1043300800,
@@ -17740,7 +18372,11 @@
         "slot": "chestplate",
         "name": "Morne Wanderer Raiment",
         "set": "Morne Wanderer",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "coast",
+          "material": "emerald"
+        }
       },
       "actors": [
         1043300800
@@ -17757,14 +18393,16 @@
       "reward": {
         "slot": "axe",
         "name": "Miranda the Blighted Bloom's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback"
       },
       "actors": [
         31020800
       ],
       "map": 520224768,
       "model": 4480,
-      "npc": 44800912
+      "npc": 44800912,
+      "ward": "venom_ward"
     },
     {
       "flag": 1044320850,
@@ -17772,9 +18410,10 @@
       "region": "Weeping Peninsula",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Night's Cavalry's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Night's Cavalry's Lance",
+        "theme": "general",
+        "signature": "lunge"
       },
       "actors": [
         1044320342
@@ -17791,7 +18430,11 @@
       "reward": {
         "slot": "axe",
         "name": "Runebear's Cleaver",
-        "theme": "general"
+        "theme": "general",
+        "signature": "knockback",
+        "flair": [
+          "smite"
+        ]
       },
       "actors": [
         31010800
@@ -17809,7 +18452,11 @@
         "slot": "leggings",
         "name": "Morne Wanderer Greaves",
         "set": "Morne Wanderer",
-        "theme": "projectile"
+        "theme": "projectile",
+        "trim": {
+          "pattern": "coast",
+          "material": "emerald"
+        }
       },
       "actors": [
         32000800
@@ -17824,9 +18471,13 @@
       "region": "Limgrave",
       "tier": 1,
       "reward": {
-        "slot": "sword",
-        "name": "Patches's Blade",
-        "theme": "general"
+        "slot": "spear",
+        "name": "Patches's Lance",
+        "theme": "general",
+        "signature": "lunge",
+        "flair": [
+          "knockback"
+        ]
       },
       "actors": [
         31000800

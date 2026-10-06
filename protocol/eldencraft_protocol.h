@@ -192,6 +192,8 @@ namespace eldencraft::proto
 		kInLootId = 13,      // a = map event entity ID (0: none), b = world ID, c = NpcParam ID
 		kInLootRegion = 15, // a = raw native map block, b = play region; precedes every death
 		kInGraceRest = 16, // Native grace rest; replenish gathering nodes.
+		kInHurtElements = 17, // precedes kInHurt in one batch, code 1 when its attack is known: a = magic, fire,
+		                      // lightning, holy percent (a byte each, low first), b = physical percent
 		kInEnemyDied = 14,   // code = EnemyDiedFlags, a = native max HP, b = character (model) ID, c = boss completion flag (0: ordinary/fallback)
 	};
 
@@ -230,7 +232,7 @@ namespace eldencraft::proto
 		float         width;       // blocks
 		float         height;      // blocks
 		float         healthFrac;  // 0..1
-		std::uint16_t level;
+		std::uint16_t level;       // EldenCraft: the enemy's maximum HP in Minecraft damage points (HP / 25), clamped; 0 = unknown
 		std::uint16_t pad;
 		char          name[24];    // display name, UTF-8, NUL-terminated (truncated)
 	};
@@ -264,7 +266,8 @@ namespace eldencraft::proto
 	struct NativeLife { std::uint32_t seq, epoch, worldId, flags; std::uint64_t updatedMs; };
 	struct PlayerVitals {
 		std::uint32_t seq, epoch, worldId, flags; std::uint64_t updatedMs;
-		float health, maxHealth, absorption; std::uint32_t pad;
+		float health, maxHealth, absorption;
+		std::uint32_t statusWards; // ward levels 0-7, a byte each, low first: poison, scarlet rot, blood loss, frostbite
 	};
 	static_assert(sizeof(NativeLife) == 24 && sizeof(PlayerVitals) == 40);
 	static_assert(kOffPlayerGround + sizeof(PlayerGround) <= kOffNativeLife);
@@ -294,6 +297,7 @@ namespace eldencraft::proto
 		kHitProjectile = 1u << 1,
 		kHitSweep = 1u << 2,
 		kHitFire = 1u << 3,
+		kHitStatus = 1u << 4,  // status damage over time or a status proc: applied straight to health, no stagger
 	};
 
 	// What landed a kEvHitActor (Skyrim plays that weapon class's impact effect and sounds).

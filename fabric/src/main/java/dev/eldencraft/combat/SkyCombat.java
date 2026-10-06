@@ -116,6 +116,25 @@ public final class SkyCombat {
 				);
 				EldenCraft.LOG.info("EldenCraft: hit {} for {} (knockback {})", proxy.getName().getString(), hit[0], hit[3]);
 			}
+			// Poison, rot and the burst of a hemorrhage or frostbite: straight to health, no stagger.
+			float status = proxy.takeStatus();
+			if (status > 0.0F) {
+				SkyLink.pushEvent(Proto.EV_HIT_ACTOR, proxy.formId(), status, 0.0F, 0.0F, 0.0F, Proto.HIT_STATUS, 0);
+				EldenCraft.LOG.info("EldenCraft: status damage {} on {}", status, proxy.getName().getString());
+			}
+		}
+	}
+
+	/** The Elden Ring model number in an enemy's name ("Enemy c4070"), or 0. */
+	static int modelOf(String name) {
+		int c = name.lastIndexOf('c');
+		if (c < 0) return 0;
+		int end = c + 1;
+		while (end < name.length() && Character.isDigit(name.charAt(end))) end++;
+		try {
+			return end > c + 1 ? Integer.parseInt(name.substring(c + 1, end)) : 0;
+		} catch (NumberFormatException e) {
+			return 0;
 		}
 	}
 
@@ -140,6 +159,7 @@ public final class SkyCombat {
 			if (proxy == null) {
 				proxy = new SkyrimActorEntity(SKYRIM_ACTOR, level);
 				proxy.setFormId(a.formId());
+				proxy.setProfile(a.level(), a.name().startsWith("Boss"), LootRules.familyOfModel(modelOf(a.name())));
 				proxy.setSize(a.width(), a.height());
 				proxy.snapTo(a.x(), a.y(), a.z(), a.yaw(), 0.0F);
 				if (!a.name().isEmpty()) {
@@ -151,6 +171,7 @@ public final class SkyCombat {
 				PROXIES.put(a.formId(), proxy);
 				continue;
 			}
+			proxy.setProfile(a.level(), a.name().startsWith("Boss"), proxy.family());
 			proxy.setSize(a.width(), a.height());
 			proxy.setPos(a.x(), a.y(), a.z());
 			proxy.setYRot(a.yaw());
@@ -211,7 +232,7 @@ public final class SkyCombat {
 	public record NativeHurt(float blocked, net.minecraft.world.InteractionHand hand) {}
 
 	public static NativeHurt hurtNativePlayer(ServerPlayer player, int kind, float damage, int attackerId,
-		int epoch, net.minecraft.world.phys.Vec3 origin) {
+		int epoch, net.minecraft.world.phys.Vec3 origin, float[] shares) {
 		SkyLink.NativeLife life = SkyLink.readNativeLife();
 		if (!dev.eldencraft.net.SkyNet.isHost(player) || life == null || !life.active() || life.epoch() != epoch || !player.isAlive()
 			|| !Float.isFinite(damage) || damage <= 0.0F || damage > 1000.0F) return new NativeHurt(0, net.minecraft.world.InteractionHand.OFF_HAND);
@@ -227,9 +248,17 @@ public final class SkyCombat {
 		// Keep the captured source position AND its proxy attribution. Vanilla uses both for
 		// directional shield checks, guard reactions, sounds and shield durability.
 		if (origin != null && (!Double.isFinite(origin.x) || !Double.isFinite(origin.y) || !Double.isFinite(origin.z))) origin = null;
-		var type = kind == Proto.HURT_MELEE && origin != null ? sources.mobAttack(player).typeHolder() : source.typeHolder();
+		// A projectile (arrow, spell, thrown object; known to the DLL from its attack) is Minecraft projectile
+		// damage even when the shooter is not published, so Projectile Protection meets it.
+		var type = kind == Proto.HURT_MELEE && origin != null ? sources.mobAttack(player).typeHolder()
+			: kind == Proto.HURT_PROJECTILE ? level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+				.getOrThrow(net.minecraft.world.damagesource.DamageTypes.MOB_PROJECTILE)
+			: source.typeHolder();
 		NativeDamageSource nativeSource = new NativeDamageSource(type, source.getDirectEntity(), source.getEntity(), origin);
 		source = nativeSource;
+		// Element wards cut their element's share of the hit, before Minecraft's own armour.
+		float unwarded = damage;
+		damage = Wards.reduce(player, damage, shares);
 		player.setYHeadRot(player.getYRot());
 		float before = player.getHealth();
 		boolean blocking = player.isBlocking();
@@ -237,9 +266,11 @@ public final class SkyCombat {
 		boolean hurt = player.hurtServer(level, source, damage);
 		SkyLink.writePlayerVitals(life, player);
 		double angle = direction(player, source.getSourcePosition());
-		EldenCraft.LOG.info("EldenCraft: ER hit {} MC damage from actor {}: hearts HP {} -> {} (shield raised {}, blocked {}, angle {}, source {}, origin {}, accepted {})",
+		EldenCraft.LOG.info("EldenCraft: ER hit {} MC damage from actor {}: hearts HP {} -> {} (shield raised {}, blocked {}, angle {}, source {}, origin {}, accepted {}){}",
 			damage, attackerId, before, player.getHealth(), blocking, nativeSource.blocked(), angle,
-			source.getMsgId(), source.getSourcePosition(), hurt);
+			source.getMsgId(), source.getSourcePosition(), hurt, shares == null ? "" : String.format(
+				" [physical %.0f%% magic %.0f%% fire %.0f%% lightning %.0f%% holy %.0f%%, wards cut %.2f of %.2f]",
+				shares[0] * 100, shares[1] * 100, shares[2] * 100, shares[3] * 100, shares[4] * 100, unwarded - damage, unwarded));
 		return new NativeHurt(nativeSource.blocked(), shieldHand);
 	}
 
@@ -255,7 +286,7 @@ public final class SkyCombat {
 	/** Existing guest transport; the local bridge supplies damage already scaled to MC points. */
 	public static void hurtPlayer(ServerPlayer player, int kind, float damage, int attackerId, int epoch) {
 		SkyrimActorEntity actor = PROXIES.get(attackerId);
-		hurtNativePlayer(player, kind, damage, attackerId, epoch, actor == null ? null : actor.position());
+		hurtNativePlayer(player, kind, damage, attackerId, epoch, actor == null ? null : actor.position(), null);
 	}
 
 	/**

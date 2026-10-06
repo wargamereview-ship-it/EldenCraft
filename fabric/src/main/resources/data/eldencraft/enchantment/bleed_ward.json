@@ -1,0 +1,23 @@
+{
+  "description": {
+    "translate": "enchantment.eldencraft.bleed_ward"
+  },
+  "supported_items": "#minecraft:enchantable/armor",
+  "primary_items": "#minecraft:enchantable/armor",
+  "weight": 1,
+  "max_level": 7,
+  "min_cost": {
+    "base": 15,
+    "per_level_above_first": 8
+  },
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 8
+  },
+  "anvil_cost": 4,
+  "slots": [
+    "armor"
+  ],
+  "exclusive_set": "#eldencraft:exclusive_set/ward",
+  "effects": {}
+}

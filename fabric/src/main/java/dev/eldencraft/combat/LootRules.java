@@ -79,6 +79,12 @@ public final class LootRules {
 		var model = data.getAsJsonObject("models").get(Integer.toString(death.characterId()));
 		return model == null ? "unknown" : model.getAsJsonObject().get("family").getAsString();
 	}
+	/** The family of an enemy model (the number in its "c4070" name), or "unknown". */
+	public static String familyOfModel(int characterId) {
+		if (data == null) return "unknown";
+		var model = data.getAsJsonObject("models").get(Integer.toString(characterId));
+		return model == null ? "unknown" : model.getAsJsonObject().get("family").getAsString();
+	}
 	public static String role(SkyLoot.Death death, String family) {
 		// Only armed skeletal models receive gear; corpses, shades and birds do not.
 		if (family.equals("undead") && death.characterId() != 3500 && death.characterId() != 3510
