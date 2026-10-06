@@ -11,13 +11,14 @@ pub struct Statuses {
     pub remaining: [f32; 7], pub duration: [f32; 7],
 }
 
-/// Reject corrupt gauges independently, and normalize ER's inactive/death sentinels.
+/// Turn ER's remaining-resistance gauges into buildup. Reject corrupt gauges independently, and normalize ER's inactive/death sentinels.
 pub fn snapshot(buildup: [u32; 7], maximum: [u32; 7], timers: [f32; 7], duration: [f32; 7]) -> Statuses {
     let mut out = Statuses::default();
     for i in 0..7 {
         if maximum[i] > 0 && maximum[i] <= 100_000 && buildup[i] <= 100_000 {
             out.maximum[i] = maximum[i];
-            out.buildup[i] = buildup[i].min(maximum[i]);
+            // ER's gauge is the resistance left: full when idle, draining towards zero as buildup lands.
+            out.buildup[i] = maximum[i] - buildup[i].min(maximum[i]);
         }
         if timers[i].is_finite() && timers[i] > 0.0 && timers[i] <= 36_000.0 {
             if i == 3 && timers[i] == 999.0 && duration[i] == 1000.0 {
