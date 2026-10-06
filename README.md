@@ -1,5 +1,7 @@
 # EldenCraft
 
+![EldenCraft: Minecraft survival in the Lands Between](branding/banner.png)
+
 **Minecraft survival, combat and building inside Elden Ring’s actual world.**
 
 Explore the Lands Between with Minecraft movement, hearts, armour, tools and inventory. Gather wood and ore, craft equipment, place blocks among Elden Ring’s ruins, and fight its enemies with Minecraft weapons. Elden Ring keeps running the world, bosses, quests, interactions and grace respawns.
