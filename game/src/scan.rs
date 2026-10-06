@@ -404,7 +404,7 @@ impl Scanner {
 		let world = unsafe { CSHavokMan::instance() }.ok().map(|h| &*h.phys_world)?;
 		let mut rays = Rays { world, player, space, filter: self.filter?, count: 0, bodies: bodies(player, space) };
 		let radius = 0.4;
-		let mut heights = [0.0; 5];
+		let mut found_at: [Option<f64>; 5] = [None; 5];
 		for (i, [dx, dz]) in [[0.0, 0.0], [-radius, -radius], [radius, -radius], [radius, radius], [-radius, radius]].into_iter().enumerate() {
 			let (x, z) = (feet[0] + dx, feet[2] + dz);
 			let bottom = feet[1] - 1.5;
@@ -413,8 +413,8 @@ impl Scanner {
 			if found.is_some() { y = bottom; }
 			for _ in 0..8 {
 				if y <= bottom { break; }
-				let hit = rays.cast([x, y, z], [0.0, bottom - y, 0.0])?;
-				if !hit[1].is_finite() || hit[1] > y + 0.01 || hit[1] < bottom - 0.01 { return None; }
+				let Some(hit) = rays.cast([x, y, z], [0.0, bottom - y, 0.0]) else { break };
+				if !hit[1].is_finite() || hit[1] > y + 0.01 || hit[1] < bottom - 0.01 { break; }
 				if let Some(body) = rays.bodies.iter().find(|b| (x - b[0]).hypot(z - b[2]) < BODY_RADIUS
 					&& hit[1] > b[1] + 0.5 && hit[1] < b[1] + 3.0) {
 					y = (hit[1] - PAST_HIT).min(body[1] + 0.05);
@@ -423,11 +423,16 @@ impl Scanner {
 				found = Some(hit[1]);
 				break;
 			}
-			heights[i] = found?;
+			found_at[i] = found;
 		}
-		let lo = heights.iter().copied().fold(f64::INFINITY, f64::min);
-		let hi = heights.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-		if hi - lo > 0.8 { return None; } // A cliff/ledge is not a continuous floor patch.
+		// Uneven rock gives a probe no hit or a very different one. The centre is the floor under the
+		// feet: let the other probes follow it, within 0.4, instead of losing the whole patch (which
+		// left the player with no live floor on rubble and sinking into the scan).
+		let centre = found_at[0]?;
+		let mut heights = [centre; 5];
+		for i in 1..5 {
+			if let Some(h) = found_at[i] { heights[i] = h.clamp(centre - 0.4, centre + 0.4); }
+		}
 		Some(([feet[0], feet[2]], radius, heights))
 	}
 
