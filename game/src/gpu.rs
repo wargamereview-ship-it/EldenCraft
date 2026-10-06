@@ -35,6 +35,19 @@ static LINK: OnceLock<Link> = OnceLock::new();
 static RENDERER: Mutex<Option<Renderer>> = Mutex::new(None);
 /// Renderer failures so far; after a few it stays off rather than failing every frame.
 static FAILURES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+/// Set by the first failed frame: the restarted renderer then leaves out what reaches into the game's own GPU work
+/// (its scene depth and its finished picture), so a driver that rejects them cannot take the game down with it.
+static SAFE_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Says which step of a frame failed: a bare HRESULT does not.
+trait Step<T> {
+	fn step(self, what: &str) -> Result<T>;
+}
+impl<T> Step<T> for Result<T> {
+	fn step(self, what: &str) -> Result<T> {
+		self.map_err(|e| hudhook::windows::core::Error::new(e.code(), format!("{what}: {}", e.message())))
+	}
+}
 const MAX_FAILURES: u32 = 3;
 
 /// Hooks the renderer into the game's present (through hudhook).
@@ -67,6 +80,9 @@ pub fn install(link: Link) {
 		if let Some(r) = guard.as_mut() {
 			if let Err(e) = unsafe { r.frame(queue, back_buffer) } {
 				log::line(&format!("gpu: frame failed: {e}; starting over"));
+				if !SAFE_MODE.swap(true, Relaxed) {
+					log::line("gpu: safe mode: no game-depth occlusion or picture lighting from here on");
+				}
 				*guard = None;
 				if FAILURES.fetch_add(1, Relaxed) + 1 >= MAX_FAILURES {
 					log::line("gpu: giving up; no Minecraft blocks or HUD this session");
@@ -1107,7 +1123,7 @@ impl Renderer {
 		unsafe {
 			// One frame in flight: what the last one used can be reused or freed now.
 			if let Some(v) = self.in_flight.take() {
-				self.fence.wait_for_value(v)?;
+				self.fence.wait_for_value(v).step("waiting for the last frame")?;
 			}
 			self.garbage.clear();
 
@@ -1116,19 +1132,20 @@ impl Renderer {
 			crate::hud::set_viewport(width, height);
 
 			let (view, aspect, hud, atlas, entities, textures, avatar, light, game_light, depth_on, probe, planes) = scene::with(|s| -> Result<_> {
-				self.sync_buffers(s)?;
+				self.sync_buffers(s).step("uploading the world's buffers")?;
 				let avatar = s.avatar.clone().zip(s.avatar_at).map(|(a, at)| (a, at));
 				Ok((s.view, s.aspect, s.hud, s.atlas.clone(), s.entities.clone(), s.textures.clone(), avatar, s.light, s.game_light,
 					s.depth_occlusion, s.depth_probe, s.camera_planes))
 			})?;
 			// Blocks hidden by the game's real scene depth, when asked for and when it can be found and understood.
+			let depth_on = depth_on && !SAFE_MODE.load(std::sync::atomic::Ordering::Relaxed);
 			crate::depth::ACTIVE.store(depth_on, std::sync::atomic::Ordering::Relaxed);
 			crate::depth::note_back_buffer(back_buffer);
 			if !depth_on && self.depth_mode == 9 {
 				self.depth_mode = 0; // switching it off and on again tries afresh
 				self.depth_attempts = 0;
 			}
-			if depth_on && self.depth_mode != 9 {
+			if depth_on && self.depth_mode != 9 && !SAFE_MODE.load(std::sync::atomic::Ordering::Relaxed) {
 				if !crate::depth::install(&self.device) {
 					self.depth_mode = 9;
 				} else {
@@ -1162,7 +1179,7 @@ impl Renderer {
 				));
 			}
 			// Blocks take their light from the game's picture when this works; never at the cost of drawing.
-			let sampling = game_light && !self.frame_failed && match self.ensure_frame_copy(&desc) {
+			let sampling = game_light && !self.frame_failed && !SAFE_MODE.load(std::sync::atomic::Ordering::Relaxed) && match self.ensure_frame_copy(&desc) {
 				Ok(ok) => ok,
 				Err(e) => {
 					log::line(&format!("gpu: cannot copy the game's picture, blocks keep the clock's light: {e}"));
@@ -1171,13 +1188,13 @@ impl Renderer {
 				}
 			};
 
-			self.allocator.Reset()?;
-			self.list.Reset(&self.allocator, None)?;
+			self.allocator.Reset().step("resetting the allocator")?;
+			self.list.Reset(&self.allocator, None).step("resetting the command list")?;
 
 			// Textures: the atlas once (and whenever Minecraft sends a new one), the GUI every frame it changes.
 			if let Some(a) = atlas.filter(|a| self.atlas.as_ref().is_none_or(|(_, have)| !Arc::ptr_eq(have, a))) {
-				let mut t = self.texture(a.width, a.height, 0)?;
-				self.upload(&mut t, &a.pixels)?;
+				let mut t = self.texture(a.width, a.height, 0).step("creating the block atlas")?;
+				self.upload(&mut t, &a.pixels).step("uploading the block atlas")?;
 				if let Some((old, _)) = self.atlas.replace((t, a)) {
 					self.garbage.push(old.resource);
 					self.garbage.push(old.upload);
@@ -1188,8 +1205,8 @@ impl Renderer {
 				if self.entity_textures.get(id).is_some_and(|(_, have)| Arc::ptr_eq(have, tex)) {
 					continue;
 				}
-				let mut t = self.texture(tex.width, tex.height, slot)?;
-				self.upload(&mut t, &tex.pixels)?;
+				let mut t = self.texture(tex.width, tex.height, slot).step("creating an entity texture")?;
+				self.upload(&mut t, &tex.pixels).step("uploading an entity texture")?;
 				if let Some((old, _)) = self.entity_textures.insert(*id, (t, tex.clone())) {
 					self.garbage.push(old.resource);
 					self.garbage.push(old.upload);
@@ -1200,7 +1217,7 @@ impl Renderer {
 					self.overlay_front = front;
 					self.overlay_flip = bottom_up;
 					if self.overlay.as_ref().is_none_or(|t| t.width != w || t.height != h) {
-						let t = self.texture(w, h, 1)?;
+						let t = self.texture(w, h, 1).step("creating the HUD overlay")?;
 						if let Some(old) = self.overlay.replace(t) {
 							self.garbage.push(old.resource);
 							self.garbage.push(old.upload);
@@ -1209,7 +1226,7 @@ impl Renderer {
 					let mut t = self.overlay.take().unwrap();
 					let result = self.upload(&mut t, link.overlay_pixels(front, w, h));
 					self.overlay = Some(t);
-					result?;
+					result.step("uploading the HUD overlay")?;
 				}
 			}
 
@@ -1230,7 +1247,7 @@ impl Renderer {
 			}
 			let rtv = self.rtv_heap.GetCPUDescriptorHandleForHeapStart();
 			self.device.CreateRenderTargetView(back_buffer, None, rtv);
-			self.ensure_depth(width, height)?;
+			self.ensure_depth(width, height).step("creating the depth buffer")?;
 			let dsv = self.dsv_heap.GetCPUDescriptorHandleForHeapStart();
 			self.list.OMSetRenderTargets(1, Some(&rtv), false, Some(&dsv));
 			self.list.ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0, 0, None);
@@ -1249,7 +1266,7 @@ impl Renderer {
 				let (things, selection) = LINK.get().and_then(|l| l.read_world_entities()).unwrap_or_default();
 				// The player's model sits at its feet; only drawn when the camera is away from the eye.
 				let avatar = avatar.map(|(a, at)| scene::Entities { origin: at, batches: a.batches.clone(), verts: a.verts.clone() });
-				let dynamic = self.build_dynamic(&things, selection, entities.as_deref(), avatar.as_ref(), origin)?;
+				let dynamic = self.build_dynamic(&things, selection, entities.as_deref(), avatar.as_ref(), origin).step("building entity geometry")?;
 				self.draw_world(view, aspect, width, height, self.srv(0), &dynamic, entities.as_deref(), avatar.as_ref(), light, sampling,
 					depth_ready.then(|| (self.depth_mode, planes.0, planes.1)));
 			}
@@ -1291,10 +1308,10 @@ impl Renderer {
 				}
 			}
 			self.barrier(back_buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-			self.list.Close()?;
+			self.list.Close().step("closing the command list (a recorded command is invalid)")?;
 			queue.ExecuteCommandLists(&[Some(self.list.cast()?)]);
 			let value = self.fence.incr() + 1;
-			queue.Signal(self.fence.fence(), value)?;
+			queue.Signal(self.fence.fence(), value).step("signalling the fence")?;
 			self.in_flight = Some(value);
 		}
 		Ok(())
