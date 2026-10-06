@@ -214,6 +214,9 @@ struct Frame {
 	/// The game's HUD setting before Minecraft took over, to put back.
 	saved_hud: Option<HudType>,
 	menu_was: bool,
+	/// ER's cursor counts as a menu only once it has been seen hidden in this life: after a spawn it can
+	/// stay visible (Proton) for a long time with no menu open, which left Minecraft without controls.
+	cursor_armed: bool,
 	/// Minecraft moves the player (off: Elden Ring does, and Minecraft mirrors it).
 	drive: bool,
 	teleport_seq: u32,
@@ -286,6 +289,7 @@ impl Frame {
 			driving_was: false,
 			saved_hud: None,
 			menu_was: false,
+			cursor_armed: false,
 			drive: true, // Minecraft drives; it is never handed back to Elden Ring except while dead
 			teleport_seq: 0,
 			sent: None,
@@ -524,6 +528,8 @@ impl Frame {
 			self.loading_was = false;
 			self.scanner.reset_after_load();
 			self.resources.arrived();
+			self.cursor_armed = false;
+			self.look = None;
 			self.sent = None;
 			self.observed = None;
 			log::line("movement: load settled; refreshing collision and Minecraft handoff for this body");
@@ -729,7 +735,9 @@ impl Frame {
 			self.er_controls = !self.er_controls;
 			log::line(if self.er_controls { "controls: Elden Ring (F10)" } else { "controls: Minecraft (F10)" });
 		}
-		let menu = keys::cursor_visible();
+		let cursor = keys::cursor_visible();
+		if !cursor { self.cursor_armed = true; }
+		let menu = cursor && self.cursor_armed;
 		if menu != self.menu_was {
 			self.menu_was = menu;
 			log::line(if menu { "Elden Ring shows its cursor: controls go to the game" } else { "Elden Ring hid its cursor" });
@@ -768,7 +776,9 @@ impl Frame {
 		if minecraft_controls && !screen_open {
 			// Minecraft's own mouse look: its sensitivity curve, applied to the raw mouse.
 			if self.look.is_none() {
-				self.look = Some(self.aim(player, &space, eye).unwrap_or((0.0, 0.0)));
+				// Keep the direction ER's camera faces, but start level: its spawn camera can look
+				// steeply down at the body, which put Minecraft's view upside down and off the horizon.
+				self.look = Some(self.aim(player, &space, eye).map_or((0.0, 0.0), |(yaw, _)| (yaw, 0.0)));
 			}
 			let s = mc.as_ref().unwrap().sensitivity as f64 * 0.6 + 0.2;
 			let k = s * s * s * 8.0 * 0.15;
