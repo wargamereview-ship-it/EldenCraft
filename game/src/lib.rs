@@ -351,6 +351,7 @@ impl Frame {
 		self.driving_was = false;
 		self.look = None;
 		camera::set(None);
+		camera::set_ready(false);
 		scene::with(|s| {
 			s.view = None;
 			s.avatar_at = None;
@@ -542,6 +543,7 @@ impl Frame {
 			self.look = look;
 			return;
 		};
+		camera::set_ready(alive);
 		if self.loading_was {
 			self.loading_was = false;
 			self.scanner.reset_after_load();
