@@ -4,12 +4,16 @@ package dev.eldencraft.world;
 public final class SkyTri {
 	/** Surfaces at most ~45 degrees from flat can be walked on. */
 	public static final double WALKABLE_NY = 0.7;
+	/** Steep triangles smaller or narrower than this are ignored when pushing the player out of walls. */
+	static final double MIN_WALL_AREA = 0.02, MIN_WALL_WIDTH = 0.12;
 
 	public final double ax, ay, az, bx, by, bz, cx, cy, cz;
 	public final double nx, ny, nz; // unit normal (winding is not trusted; use |ny|)
 	public final double minX, minY, minZ, maxX, maxY, maxZ;
 	public final boolean stairHelper;
 	public final boolean walkable;
+	/** Surface area in square metres. */
+	public final double area;
 	/** Ground, rock, trees...: can be dug into. Its normal then faces out of the solid side. */
 	public final boolean diggable;
 	/** What it digs into (Proto.DIG_*). */
@@ -45,6 +49,7 @@ public final class SkyTri {
 		double wx = this.cx - this.ax, wy = this.cy - this.ay, wz = this.cz - this.az;
 		double qx = uy * wz - uz * wy, qy = uz * wx - ux * wz, qz = ux * wy - uy * wx;
 		double len = Math.sqrt(qx * qx + qy * qy + qz * qz);
+		this.area = len * 0.5;
 		if (len < 1e-12) {
 			this.nx = 0;
 			this.ny = 1;
@@ -62,6 +67,14 @@ public final class SkyTri {
 		this.maxZ = Math.max(this.az, Math.max(this.bz, this.cz));
 		this.stairHelper = stairHelper;
 		this.walkable = stairHelper || Math.abs(this.ny) >= WALKABLE_NY;
+	}
+
+	/**
+	 * A needle or speck of a steep surface: a scan artefact where neighbouring samples disagree, not
+	 * a wall. As a collider it acts as a post as wide as the player, which snags walking.
+	 */
+	public boolean sliver() {
+		return !this.walkable && (this.area < MIN_WALL_AREA || Math.max(this.maxX - this.minX, this.maxZ - this.minZ) < MIN_WALL_WIDTH);
 	}
 
 	public boolean degenerate() {
