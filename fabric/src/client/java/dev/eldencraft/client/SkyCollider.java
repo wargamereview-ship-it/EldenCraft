@@ -15,6 +15,10 @@ import net.minecraft.world.phys.Vec3;
 public final class SkyCollider {
 	private static long nextStreamReport;
 	private static long nextBlockedReport;
+	// Walking blocked this long in a row: a pit or rubble the scan made too steep. Climb out of it.
+	private static final long UNSTICK_AFTER_MS = 600;
+	private static final double UNSTICK_STEP = 1.3;
+	private static long blockedSince;
 	// Scanned floors are a snapshot: a lift moves its floor away (or up) afterwards. A scanned floor
 	// this far above what the live probes find under the feet is a leftover, not ground.
 	private static final double STALE_GROUND = 0.3;
@@ -48,8 +52,9 @@ public final class SkyCollider {
 		if (patch != null) {
 			dropStaleGround(tris, patch, box.minY);
 			double rise = patch.heights()[0] - box.minY;
-			if (rise > 0.02 && rise <= RISE_CARRY && flat(patch)) {
-				// A platform has come up under the feet: ride it rather than sink through it.
+			if (rise > 0.02 && rise <= RISE_CARRY && (rise <= step || flat(patch))) {
+				// A platform has come up under the feet, or the live floor is just a step above them
+				// (the scan can put it lower on rubble): ride it rather than sink through it.
 				step = Math.max(step, rise + 0.02);
 				onGround = true;
 			}
@@ -66,7 +71,25 @@ public final class SkyCollider {
 			return move;
 		}
 		// Asked to walk, allowed almost nowhere: say why, so a stuck player can be diagnosed from the log.
-		if (Math.hypot(move.x, move.z) > 0.02 && Math.hypot(r[0], r[2]) < 0.2 * Math.hypot(move.x, move.z)) {
+		boolean blocked = Math.hypot(move.x, move.z) > 0.02 && Math.hypot(r[0], r[2]) < 0.2 * Math.hypot(move.x, move.z);
+		if (!blocked) {
+			blockedSince = 0;
+		} else {
+			long now = System.currentTimeMillis();
+			if (blockedSince == 0) {
+				blockedSince = now;
+			} else if (now - blockedSince >= UNSTICK_AFTER_MS && onGround) {
+				// Held against the same geometry: allow a much higher step so a pit's rim can be climbed.
+				double[] up = TriCollider.resolve(
+					tris, (box.minX + box.maxX) * 0.5, box.minY, (box.minZ + box.maxZ) * 0.5, box.getXsize() * 0.5, box.getYsize(), UNSTICK_STEP, true,
+					move.x, move.y, move.z
+				);
+				if (Math.hypot(up[0], up[2]) > Math.hypot(r[0], r[2])) {
+					r = up;
+				}
+			}
+		}
+		if (blocked) {
 			long now = System.currentTimeMillis();
 			if (now >= nextBlockedReport) {
 				nextBlockedReport = now + 1000;

@@ -56,6 +56,16 @@ class TriColliderTest {
 	}
 
 	@Test
+	void aNeedleOfSteepSurfaceDoesNotSnagWalking() {
+		List<SkyTri> t = new ArrayList<>();
+		flat(t, -5, -5, 5, 5, 0);
+		// A tall, razor-thin spike across the path: a scan artefact, not a wall.
+		t.add(tri(1, 0, 0, 1.01, 0, 0, 1.005, 3, 0));
+		List<double[]> path = simulate(t, 0, 0, 0, 0.2, GRAVITY_TICK, 0, 12);
+		assertTrue(path.get(path.size() - 1)[0] > 2.0, "walked through the needle");
+	}
+
+	@Test
 	void unobstructedMovementIsReturnedBitForBit() {
 		List<SkyTri> t = new ArrayList<>();
 		flat(t, -50, -50, 50, 50, 0);

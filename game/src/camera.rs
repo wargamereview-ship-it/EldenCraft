@@ -49,6 +49,14 @@ struct Conventions {
 	logged: bool,
 }
 
+/// The world is settled around a living player. The game's camera is only a trustworthy teacher then:
+/// during a load it can be anywhere, and a wrong lesson sticks while Minecraft's view replaces it.
+static READY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_ready(ready: bool) {
+	READY.store(ready, std::sync::atomic::Ordering::Relaxed);
+}
+
 static VIEW: Mutex<Option<View>> = Mutex::new(None);
 static CONVENTIONS: Mutex<Conventions> = Mutex::new(Conventions { forward: 1.0, up: 1.0, hand: 1.0, logged: false });
 
@@ -86,16 +94,21 @@ pub fn apply() {
 	let mut conv = CONVENTIONS.lock().unwrap_or_else(|e| e.into_inner());
 	// Only the game's own camera can teach these signs. A Minecraft view (especially
 	// during a jump or F5 orbit) may point away from ER's body and invert the calibration.
-	if let Some(target) = player.filter(|_| view.is_none()) {
+	// An orbit is a few metres: a far camera is a stale space (havok re-centres after a spawn) or a cutscene.
+	if let Some(target) = player.filter(|_| view.is_none() && READY.load(std::sync::atomic::Ordering::Relaxed)) {
 		let to = [target[0] - m.3.0, target[1] - m.3.1, target[2] - m.3.2];
-		if dot(to, to) > 1.0 {
-			conv.forward = if dot(row(&m.2), to) < 0.0 { -1.0 } else { 1.0 };
-			conv.up = if m.1.1 < 0.0 { -1.0 } else { 1.0 };
-			conv.hand = if dot(row(&m.0), cross(row(&m.1), row(&m.2))) < 0.0 { -1.0 } else { 1.0 };
-			if !conv.logged {
+		if dot(to, to) > 1.0 && dot(to, to) < 15.0 * 15.0 {
+			let learned = (
+				if dot(row(&m.2), to) < 0.0 { -1.0 } else { 1.0 },
+				if m.1.1 < 0.0 { -1.0 } else { 1.0 },
+				if dot(row(&m.0), cross(row(&m.1), row(&m.2))) < 0.0 { -1.0 } else { 1.0 },
+			);
+			if !conv.logged || learned != (conv.forward, conv.up, conv.hand) {
 				conv.logged = true;
-				log::line(&format!("camera: forward row {:+}, up row {:+}, handedness {:+}, fov {:.3}", conv.forward, conv.up, conv.hand, cam.fov));
+				log::line(&format!("camera: forward row {:+}, up row {:+}, handedness {:+}, fov {:.3} (was {:+} {:+} {:+})",
+					learned.0, learned.1, learned.2, cam.fov, conv.forward, conv.up, conv.hand));
 			}
+			(conv.forward, conv.up, conv.hand) = learned;
 		}
 	}
 

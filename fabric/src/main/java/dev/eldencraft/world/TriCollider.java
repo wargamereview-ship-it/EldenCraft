@@ -145,7 +145,7 @@ public final class TriCollider {
 		for (int iter = 0; iter < 4; iter++) {
 			double bestPen = 0, bestDx = 0, bestDz = 0;
 			for (SkyTri t : tris) {
-				if (t.stairHelper) {
+				if (t.stairHelper || t.sliver()) {
 					continue;
 				}
 				double lo = y + (t.walkable ? step : wallFrom);

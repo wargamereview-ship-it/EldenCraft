@@ -1,6 +1,6 @@
 //! EldenCraft's Elden Ring side, loaded into the game by me3 (or ModEngine2).
 //!
-//! Elden Ring drives by default; F8 hands movement to Minecraft. Each frame publishes the
+//! Minecraft drives by default and F8 no longer hands movement back to Elden Ring. Each frame publishes the
 //! current body position, exports collision, and queues Minecraft's destination through the
 //! game's character controller while Minecraft drives.
 
@@ -214,6 +214,11 @@ struct Frame {
 	/// The game's HUD setting before Minecraft took over, to put back.
 	saved_hud: Option<HudType>,
 	menu_was: bool,
+	/// ER's cursor counts as a menu only once it has been seen hidden in this life: after a spawn it can
+	/// stay visible (Proton) for a long time with no menu open, which left Minecraft without controls.
+	cursor_armed: bool,
+	/// Throttle for explaining why Minecraft is being held in a loading state.
+	next_hold_log: Option<Instant>,
 	/// Minecraft moves the player (off: Elden Ring does, and Minecraft mirrors it).
 	drive: bool,
 	teleport_seq: u32,
@@ -286,7 +291,9 @@ impl Frame {
 			driving_was: false,
 			saved_hud: None,
 			menu_was: false,
-			drive: false, // Elden Ring drives until F8 hands it to Minecraft
+			cursor_armed: false,
+			next_hold_log: None,
+			drive: true, // Minecraft drives; it is never handed back to Elden Ring except while dead
 			teleport_seq: 0,
 			sent: None,
 			written: None,
@@ -344,6 +351,7 @@ impl Frame {
 		self.driving_was = false;
 		self.look = None;
 		camera::set(None);
+		camera::set_ready(false);
 		scene::with(|s| {
 			s.view = None;
 			s.avatar_at = None;
@@ -426,6 +434,13 @@ impl Frame {
 		}
 	}
 
+	/// Logs, at most every two seconds, why Minecraft is held in a loading state.
+	fn explain_hold(&mut self, why: &str) {
+		if self.next_hold_log.is_some_and(|t| Instant::now() < t) { return; }
+		self.next_hold_log = Some(Instant::now() + Duration::from_secs(2));
+		log::line(&format!("movement: holding Minecraft: {why}"));
+	}
+
 	fn teleport_minecraft(&mut self, to: [f64; 3]) {
 		self.teleport_seq = self.teleport_seq.wrapping_add(1);
 		self.sent = Some(to);
@@ -439,7 +454,7 @@ impl Frame {
 		// so handing control back cannot leave it below the floor and continue the fall.
 		movement::cancel(player, space, self.written);
 		self.teleport_minecraft(to);
-		match movement::request(player, space, to) {
+		match movement::request(player, space, to, None) {
 			movement::Request::Queued => self.written = Some(to),
 			movement::Request::Pending => log::line("collision: body recovery awaits the game's pending movement request"),
 			movement::Request::Invalid => log::line("collision: invalid body recovery destination"),
@@ -498,11 +513,12 @@ impl Frame {
 			self.space = None;
 			self.candidate = None;
 			self.prev_fresh = None;
-			self.drive = false;
+			self.drive = true;
 			log::line("movement: native respawn detected; relearning the mapping even when this body/map was reused");
 			return self.publish_loading(Some(player));
 		}
 		let Some(fresh) = Space::of(player) else {
+			self.explain_hold("the player's map position is unreadable");
 			self.player_id = (0, 0, 0);
 			self.publish_loading(Some(player));
 			self.space = None;
@@ -518,19 +534,29 @@ impl Frame {
 				movement::cancel(player, &old, self.written);
 			}
 			// Not steady yet (a load, a map change): Minecraft holds still until it is.
-			return self.publish_loading(Some(player));
+			self.explain_hold(&format!("the mapping is not steady (map {:08x}, havok {:.1} {:.1} {:.1})",
+				fresh.world_id, fresh.havok[0], fresh.havok[1], fresh.havok[2]));
+			// Only the coordinates are being renamed: the view direction is still right. Keeping it
+			// stops the camera snapping to Elden Ring's angle (and back) at every re-anchor.
+			let look = self.look;
+			self.publish_loading(Some(player));
+			self.look = look;
+			return;
 		};
+		camera::set_ready(alive);
 		if self.loading_was {
 			self.loading_was = false;
 			self.scanner.reset_after_load();
 			self.resources.arrived();
+			self.cursor_armed = false;
 			self.sent = None;
 			self.observed = None;
 			log::line("movement: load settled; refreshing collision and Minecraft handoff for this body");
 		}
 
-		if self.keys.pressed(keys::VK_F8) {
-			self.drive = !self.drive;
+		if self.keys.pressed(keys::VK_F8) && !self.drive {
+			// Only reachable if a death left Elden Ring in charge; F8 gives control back to Minecraft.
+			self.drive = true;
 			self.interact.cancel();
 			let handback = if !self.drive && player.chr_ins.modules.data.hp > 0 {
 				let p = player.chr_ins.modules.physics.position;
@@ -592,9 +618,8 @@ impl Frame {
 		let er_travel = previous_er.map_or(0.0, |old| dist(old, er));
 		let mc = self.minecraft_state();
 		if self.drive && self.mc_cache.as_ref().is_some_and(|(_, seen)| seen.elapsed() >= MOVEMENT_TIMEOUT) {
-			log::line("movement: Minecraft stopped publishing state for one second; returning to Elden Ring controls");
+			log::line("movement: Minecraft stopped publishing state for one second; holding the body until it returns");
 			movement::cancel(player, &space, self.written);
-			self.drive = false;
 			self.teleport_minecraft(er);
 		}
 		// An ER interaction animation owns the body until it ends; Minecraft follows meanwhile.
@@ -651,9 +676,10 @@ impl Frame {
 				let back = [m[0], floor + GROUND_CLEARANCE, m[2]];
 				if floor - m[1] > DEEP_RECOVERY_METERS && self.recovery.is_some_and(|(old, when)| when.elapsed() < RECOVERY_RETRY_WINDOW
 					&& (old[0] - back[0]).hypot(old[2] - back[2]) < 2.0) {
-					log::line("collision: the same terrain recovery failed again; returning to Elden Ring controls");
-					self.drive = false;
-					self.restore_above_floor(player, &space, back);
+					log::line("collision: the same terrain recovery failed again; lifting both players clear and staying in Minecraft mode");
+					let lifted = [back[0], back[1] + 0.5, back[2]];
+					self.recovery = None;
+					self.restore_above_floor(player, &space, lifted);
 				} else {
 					log::line(&format!("collision: Minecraft crossed a native floor by {:.2} m; recovering both players to ({:.2}, {:.2}, {:.2}) and refreshing nearby collision", floor - m[1], back[0], back[1], back[2]));
 					self.recovery = Some((back, Instant::now()));
@@ -671,18 +697,16 @@ impl Frame {
 					// A failed update must not cause an endless three-metre snap-back loop. Stop
 					// driving and return control safely, with evidence of what failed in the log.
 					let pending = player.chr_ins.chr_ctrl.chr_proxy_flags.position_sync_requested();
-					log::line(&format!("movement: body lag {body_lag:.2} m for one second (sync pending {pending}); returning to Elden Ring controls"));
+					log::line(&format!("movement: body lag {body_lag:.2} m for one second (sync pending {pending}); resyncing Minecraft to the body"));
 					movement::cancel(player, &space, self.written);
-					self.drive = false;
 					self.teleport_minecraft(er);
 				} else {
-					match movement::request(player, &space, m) {
+					match movement::request(player, &space, m, self.written) {
 						movement::Request::Queued => self.written = Some(m),
 						movement::Request::Pending => {},
 						movement::Request::Invalid => {
-							log::line("movement: invalid Minecraft destination; returning to Elden Ring controls");
+							log::line("movement: invalid Minecraft destination; resyncing Minecraft to the body");
 							movement::cancel(player, &space, self.written);
-							self.drive = false;
 							self.teleport_minecraft(er);
 						}
 					}
@@ -704,10 +728,10 @@ impl Frame {
 		if moving && !mc_ready {
 			let wait = self.handoff_wait.get_or_insert_with(|| (Instant::now(), false));
 			if wait.0.elapsed() >= HANDOFF_TIMEOUT {
-				log::line(&format!("movement: teleport {} was not acknowledged within eight seconds; returning to ER controls (MC ack {:?})",
+				log::line(&format!("movement: teleport {} was not acknowledged within eight seconds; retrying in Minecraft mode (MC ack {:?})",
 					self.teleport_seq, mc.as_ref().map(|m| m.teleport_ack)));
 				let back = self.recovery.map_or(er, |(at, _)| at);
-				self.drive = false;
+				self.handoff_wait = None;
 				self.restore_above_floor(player, &space, back);
 			} else if !wait.1 && wait.0.elapsed() >= HANDOFF_REFRESH {
 				wait.1 = true;
@@ -730,7 +754,9 @@ impl Frame {
 			self.er_controls = !self.er_controls;
 			log::line(if self.er_controls { "controls: Elden Ring (F10)" } else { "controls: Minecraft (F10)" });
 		}
-		let menu = keys::cursor_visible();
+		let cursor = keys::cursor_visible();
+		if !cursor { self.cursor_armed = true; }
+		let menu = cursor && self.cursor_armed;
 		if menu != self.menu_was {
 			self.menu_was = menu;
 			log::line(if menu { "Elden Ring shows its cursor: controls go to the game" } else { "Elden Ring hid its cursor" });
@@ -769,7 +795,9 @@ impl Frame {
 		if minecraft_controls && !screen_open {
 			// Minecraft's own mouse look: its sensitivity curve, applied to the raw mouse.
 			if self.look.is_none() {
-				self.look = Some(self.aim(player, &space, eye).unwrap_or((0.0, 0.0)));
+				// Keep the direction ER's camera faces, but start level: its spawn camera can look
+				// steeply down at the body, which put Minecraft's view upside down and off the horizon.
+				self.look = Some(self.aim(player, &space, eye).map_or((0.0, 0.0), |(yaw, _)| (yaw, 0.0)));
 			}
 			let s = mc.as_ref().unwrap().sensitivity as f64 * 0.6 + 0.2;
 			let k = s * s * s * 8.0 * 0.15;
@@ -781,6 +809,8 @@ impl Frame {
 		}
 		let (yaw, pitch) = match self.look {
 			Some(l) => l,
+			// Before Minecraft has the mouse, show ER's heading but level: its spawn camera looks steeply down.
+			None if mc_visible => self.aim(player, &space, eye).map_or((0.0, 0.0), |(yaw, _)| (yaw, 0.0)),
 			None => self.aim(player, &space, eye).unwrap_or_else(|| {
 				let o = player.chr_ins.modules.physics.orientation;
 				let f = glam::Quat::from(o).mul_vec3(glam::vec3(0.0, 0.0, -1.0));

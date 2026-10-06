@@ -101,13 +101,15 @@ impl Blocks {
 }
 
 /// Horizontal / vertical reach of the debug view around the player (blocks).
-const DRAW_RANGE: f64 = 12.0;
-const DRAW_HEIGHT: f64 = 8.0;
+const DRAW_RANGE: f64 = 8.0;
+const DRAW_HEIGHT: f64 = 5.0;
 /// The cached edge set is rebuilt after the player moves this far from where it was built;
 /// it is built a little wider than the view so nothing pops in at the rim.
 const DRAW_SLACK: f64 = 3.0;
 /// Upper bound on debug lines drawn per frame.
-const MAX_EDGES: usize = 12_000;
+const MAX_EDGES: usize = 4_000;
+/// A changed scan rebuilds the cached edges at most this often (walking on still rebuilds at once).
+const REBUILD_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
 
 /// The collision debug view (F7). Every drawn triangle is a native call, so the nearby edges are
 /// gathered once and re-used until the scan changes or the player walks on; edges shared by
@@ -116,6 +118,7 @@ const MAX_EDGES: usize = 12_000;
 pub struct CollisionDraw {
 	generation: u64,
 	built_at: Option<V3>,
+	built_time: Option<std::time::Instant>,
 	floors: Vec<([f32; 3], [f32; 3])>,
 	walls: Vec<([f32; 3], [f32; 3])>,
 }
@@ -127,13 +130,14 @@ impl CollisionDraw {
 	}
 
 	fn stale(&self, generation: u64, feet: V3) -> bool {
-		self.generation != generation
-			|| self.built_at.is_none_or(|at| (at[0] - feet[0]).hypot(at[2] - feet[2]) > DRAW_SLACK || (at[1] - feet[1]).abs() > DRAW_SLACK)
+		self.built_at.is_none_or(|at| (at[0] - feet[0]).hypot(at[2] - feet[2]) > DRAW_SLACK || (at[1] - feet[1]).abs() > DRAW_SLACK)
+			|| (self.generation != generation && self.built_time.is_none_or(|t| t.elapsed() >= REBUILD_INTERVAL))
 	}
 
 	fn rebuild(&mut self, generation: u64, tris: &HashMap<(i32, i32), Vec<ColTri>>, feet: V3) {
 		self.generation = generation;
 		self.built_at = Some(feet);
+		self.built_time = Some(std::time::Instant::now());
 		self.floors.clear();
 		self.walls.clear();
 		let (range, height) = (DRAW_RANGE + DRAW_SLACK, DRAW_HEIGHT + DRAW_SLACK);
@@ -158,6 +162,12 @@ impl CollisionDraw {
 					if wall { self.walls.push(edge) } else { self.floors.push(edge) }
 				}
 			}
+		}
+		// Every edge costs a native call per frame: keep the nearest ones and drop the rest.
+		let dist = |e: &([f32; 3], [f32; 3])| (e.0[0] as f64 - feet[0]).powi(2) + (e.0[1] as f64 - feet[1]).powi(2) + (e.0[2] as f64 - feet[2]).powi(2);
+		for edges in [&mut self.floors, &mut self.walls] {
+			edges.sort_by(|a, b| dist(a).total_cmp(&dist(b)));
+			edges.truncate(MAX_EDGES / 2);
 		}
 	}
 
