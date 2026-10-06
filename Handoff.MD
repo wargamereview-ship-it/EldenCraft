@@ -267,6 +267,22 @@ Preserve startup fingerprints and guards when changing native bridges.
 - **Minecraft:** the world was reset once at the user's request; gathering and later changes were installed
   without another reset.
 
+## Installer (6 October build; not play-confirmed)
+
+`installer/setup.py` and the platform launchers install a pinned portable me3, Windows Prism,
+Windows Java 25, Fabric API, and the paired DLL/JAR from a package. The normal installer asks only
+for the ER folder/executable path; Steam, Proton/bottle and Local AppData are derived. It opens
+Prism visibly for Minecraft sign-in and first download, then uses hidden MC for normal offline play.
+`game/src/launcher.rs` now passes Prism's root explicitly with `--dir`. Saves/accounts are preserved;
+managed files are backed up and rolled back on file-install errors. macOS requires CrossOver and is
+experimental until tested on a Mac. Windows/macOS installation and all platform gameplay remain
+unverified; 18 installer tests, real dependency extraction, an isolated full Linux file install,
+Linux preflight and DLL build pass. Windows bootstrap syntax is checked with PowerShell.
+
+Run `python3 tools/package_installer.py` after DLL/JAR builds; output is `dist/installers/` (ignored).
+Installer source is included with the release. Use `--release-version 0.1` for the first installer
+release label; the bundled Minecraft mod remains version 0.0.1. See `installer/README.md`.
+
 ## Verification, build and deployment
 
 Latest checks (6 Oct 2026): DLL and JAR build; 71 Java tests pass (`RewardsSheetTest` is skipped unless

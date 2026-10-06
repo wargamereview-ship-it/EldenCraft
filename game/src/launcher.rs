@@ -28,7 +28,9 @@ pub fn start_minecraft() {
 		log::line(&format!("launcher: {name} is already running; not starting another Minecraft"));
 		return;
 	}
-	match Command::new(&prism).args(["--launch", "EldenCraft"]).current_dir(&dir).spawn() {
+	// Explicit root also works with portable releases and paths containing spaces.
+	match Command::new(&prism).arg("--dir").arg(dir.join("Prism"))
+		.args(["--launch", "EldenCraft"]).current_dir(dir.join("Prism")).spawn() {
 		Ok(child) => log::line(&format!("launcher: started Prism (pid {})", child.id())),
 		Err(e) => log::line(&format!("launcher: couldn't start {}: {e}", prism.display())),
 	}

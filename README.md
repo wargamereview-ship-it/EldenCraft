@@ -182,6 +182,14 @@ After restarting both games with matching DLL/JAR builds:
 
 The movement milestone remains open until these scenarios have been observed in game.
 
+## Installer packages
+
+Build with `python3 tools/package_installer.py` after compiling the DLL and JAR. Packages are written
+into `dist/installers/` for Windows, Linux and macOS. Extract a package and run Install.cmd (Windows),
+Install.sh (Linux), or Install.command (macOS). Setup asks for the Elden Ring path and derives the other
+locations, installs verified dependencies, and guides Minecraft sign-in. macOS requires an existing
+CrossOver Steam/Elden Ring bottle and remains experimental. See [installer instructions](installer/README.md).
+
 ## Building (Linux)
 
 ```bash
