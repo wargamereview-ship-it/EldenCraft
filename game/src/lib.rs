@@ -535,14 +535,18 @@ impl Frame {
 			// Not steady yet (a load, a map change): Minecraft holds still until it is.
 			self.explain_hold(&format!("the mapping is not steady (map {:08x}, havok {:.1} {:.1} {:.1})",
 				fresh.world_id, fresh.havok[0], fresh.havok[1], fresh.havok[2]));
-			return self.publish_loading(Some(player));
+			// Only the coordinates are being renamed: the view direction is still right. Keeping it
+			// stops the camera snapping to Elden Ring's angle (and back) at every re-anchor.
+			let look = self.look;
+			self.publish_loading(Some(player));
+			self.look = look;
+			return;
 		};
 		if self.loading_was {
 			self.loading_was = false;
 			self.scanner.reset_after_load();
 			self.resources.arrived();
 			self.cursor_armed = false;
-			self.look = None;
 			self.sent = None;
 			self.observed = None;
 			log::line("movement: load settled; refreshing collision and Minecraft handoff for this body");
