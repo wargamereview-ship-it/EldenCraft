@@ -69,6 +69,10 @@ const MAX_JOIN: f64 = 1.25;
 const SKIN: f64 = 1.0;
 /// Time per frame spent casting rays.
 const BUDGET: Duration = Duration::from_micros(2500);
+/// Right after a map change or a refresh, Minecraft holds still until the columns around the player
+/// arrive, so they are scanned with a larger budget until they are all in (at most HURRY_FOR).
+const HURRY_BUDGET: Duration = Duration::from_millis(9);
+const HURRY_FOR: Duration = Duration::from_secs(3);
 
 /// Filters that see ground, walls and rock but not bushes (found with the F6 aim probe in
 /// Limgrave; 0 and the single-bit masks see foliage too). The first that also looks through the
@@ -203,6 +207,7 @@ pub struct Scanner {
 	rejected_bands: u64,
 	ray_time: Duration,
 	next_report: Instant,
+	hurry_until: Instant,
 }
 
 impl Scanner {
@@ -223,6 +228,7 @@ impl Scanner {
 			rejected_bands: 0,
 			ray_time: Duration::ZERO,
 			next_report: Instant::now(),
+			hurry_until: Instant::now(),
 		}
 	}
 
@@ -244,6 +250,7 @@ impl Scanner {
 	pub fn refresh_near(&mut self, feet: V3) {
 		let near = near_columns(feet, 1);
 		self.done.retain(|column, _| !near.contains(column));
+		self.hurry_until = Instant::now() + HURRY_FOR;
 		// Prioritize the destination's own column at its safe height, rather than scanning
 		// around the body's still-below-ground position before the teleport is acknowledged.
 		self.job = Some(Job::new(
@@ -433,6 +440,7 @@ impl Scanner {
 			self.generation += 1;
 			self.samples.clear();
 			self.job = None;
+			self.hurry_until = Instant::now() + HURRY_FOR;
 			crate::scene::with(|s| s.occluders.clear());
 			link.write_collision(proto::COL_CLEAR, &[bytes_of(&self.epoch)]);
 			log::line(&format!("collision: new world {:08x}, epoch {}", space.world_id, self.epoch));
@@ -447,7 +455,9 @@ impl Scanner {
 		rays.filter = filter;
 
 		let started = Instant::now();
-		while started.elapsed() < BUDGET {
+		let budget = if started < self.hurry_until
+			&& near_columns(feet, 1).iter().any(|c| self.done.get(c).is_none_or(|d| d.far)) { HURRY_BUDGET } else { BUDGET };
+		while started.elapsed() < budget {
 			if self.job.is_none() {
 				match self.next_column(feet) {
 					Some((rx, rz, far)) => self.job = Some(Job::new(rx, rz, feet[1], far)),
@@ -455,7 +465,7 @@ impl Scanner {
 				}
 			}
 			let job = self.job.as_mut().unwrap();
-			if run_job(job, &mut rays, started) {
+			if run_job(job, &mut rays, started, budget) {
 				let job = self.job.take().unwrap();
 				if self.send(link, &job) {
 					self.confirmed_bands += job.confirmed_bands;
@@ -707,9 +717,9 @@ fn sample_xz(job: &Job, i: usize, j: usize) -> (f64, f64) {
 }
 
 /// Advances a column job within the frame budget. True when it is finished.
-fn run_job(job: &mut Job, rays: &mut Rays, started: Instant) -> bool {
+fn run_job(job: &mut Job, rays: &mut Rays, started: Instant, budget: Duration) -> bool {
 	while job.next_sample < job.n * job.n {
-		if started.elapsed() >= BUDGET {
+		if started.elapsed() >= budget {
 			return false;
 		}
 		let k = job.next_sample;
@@ -733,7 +743,7 @@ fn run_job(job: &mut Job, rays: &mut Rays, started: Instant) -> bool {
 	// Horizontal confirmation shares the existing frame budget and resumes next frame.
 	// Column building/publishing never starts until this phase is complete.
 	while job.next_wall < job.walls.as_ref().unwrap().len() {
-		if started.elapsed() >= BUDGET { return false; }
+		if started.elapsed() >= budget { return false; }
 		let wall = &job.walls.as_ref().unwrap()[job.next_wall];
 		let lo = wall.lo + job.next_band as f64 * WALL_BAND;
 		let hi = (lo + WALL_BAND).min(wall.hi);
