@@ -65,6 +65,10 @@ pub struct Scene {
 	/// The game camera's aspect ratio (it letterboxes when the screen is wider than it supports).
 	pub aspect: f32,
 	pub hud: Hud,
+	/// The light blocks and entities are shaded with (see `lighting`).
+	pub light: crate::lighting::Light,
+	/// Light blocks from the game's own picture (F4 switches this off for the clock's light alone).
+	pub game_light: bool,
 }
 
 static SCENE: LazyLock<Mutex<Scene>> = LazyLock::new(|| Mutex::new(Scene::default()));

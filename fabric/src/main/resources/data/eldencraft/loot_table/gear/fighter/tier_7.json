@@ -1,0 +1,89 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_sword",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_damage",
+            "damage": {
+              "type": "minecraft:uniform",
+              "min": 0.3,
+              "max": 0.7
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_axe",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_damage",
+            "damage": {
+              "type": "minecraft:uniform",
+              "min": 0.3,
+              "max": 0.7
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_helmet",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_damage",
+            "damage": {
+              "type": "minecraft:uniform",
+              "min": 0.3,
+              "max": 0.7
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_chestplate",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_damage",
+            "damage": {
+              "type": "minecraft:uniform",
+              "min": 0.3,
+              "max": 0.7
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_leggings",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_damage",
+            "damage": {
+              "type": "minecraft:uniform",
+              "min": 0.3,
+              "max": 0.7
+            }
+          }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:netherite_boots",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_damage",
+            "damage": {
+              "type": "minecraft:uniform",
+              "min": 0.3,
+              "max": 0.7
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "random_sequence": "eldencraft:gear/fighter/tier_7"
+}

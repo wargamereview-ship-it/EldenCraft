@@ -3,7 +3,7 @@
 //! Change all three together and bump `VERSION`.
 
 pub const MAGIC: u32 = 0x4344_4C45; // "ELDC"
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 3;
 /// NUL-terminated UTF-16 for Win32, from an ASCII literal.
 const fn wide<const N: usize>(s: &str) -> [u16; N] {
 	let bytes = s.as_bytes();
@@ -89,6 +89,10 @@ pub const IN_HURT: u16 = 7;
 pub const IN_LOOT_POS: u16 = 12;
 pub const IN_LOOT_ID: u16 = 13;
 pub const IN_ENEMY_DIED: u16 = 14;
+/// a = raw native map block, b = play region. Precedes each death; c of death is boss completion flag.
+pub const IN_LOOT_REGION: u16 = 15;
+/// A native grace-rest edge, distinct from map loads and respawn.
+pub const IN_GRACE_REST: u16 = 16;
 pub const ENEMY_BOSS: u16 = 1;
 pub const OFF_NATIVE_LIFE: usize = 0x900;
 pub const OFF_PLAYER_VITALS: usize = 0x940;
@@ -116,6 +120,16 @@ const _: () = assert!(OFF_NATIVE_LIFE + size_of::<NativeLife>() <= OFF_PLAYER_VI
 const _: () = assert!(OFF_PLAYER_VITALS + size_of::<PlayerVitals>() <= OFF_INPUT_RING);
 pub const HIT_REJECTED: u16 = 1 << 15;
 pub const EV_HIT_ACTOR: u32 = 1;
+pub const HIT_CRITICAL: u32 = 1 << 0;
+/// McEvent.weapon: which kind of MC weapon dealt a hit (Proto.WEAPON_* / kWeapon*).
+pub const WEAPON_BLADE: u32 = 1;
+pub const WEAPON_AXE: u32 = 2;
+pub const WEAPON_BLUNT: u32 = 3;
+pub const WEAPON_PIERCE: u32 = 4;
+pub const WEAPON_ARROW: u32 = 5;
+pub const WEAPON_SPEAR: u32 = 6;
+pub const WEAPON_MACE: u32 = 7;
+pub const WEAPON_MACE_SMASH: u32 = 8;
 pub const HIT_PROJECTILE: u32 = 1 << 1;
 pub const HIT_FIRE: u32 = 1 << 3;
 pub const ACTOR_HOSTILE: u32 = 1;

@@ -25,8 +25,20 @@ use crate::world::{Space, V3};
 const REGION: i32 = 8;
 const STEP: f64 = 0.5;
 const SAMPLES: usize = (REGION as f64 / STEP) as usize + 1; // 17: both edges of the column
-/// Columns kept around the player (radius, in regions).
+/// Columns scanned in full (walls, half-block grid) around the player (radius, in regions).
 const RADIUS: i32 = 3;
+/// Columns scanned as floors only, out to this radius (in regions): a coarse ring that lets
+/// Minecraft see distant ground without paying for walls.
+const FAR_RADIUS: i32 = 10;
+/// Sample spacing and samples per side of a far column.
+const FAR_STEP: f64 = 1.0;
+const FAR_SAMPLES: usize = (REGION as f64 / FAR_STEP) as usize + 1;
+/// A far column is rescanned once the player is this far above or below where it was scanned.
+const FAR_RESCAN_DY: f64 = 8.0;
+/// Far columns that came back with missing samples (map still streaming in) are retried this
+/// often, at most FAR_TRIES times in all: some ground is simply empty (water, void).
+const FAR_RETRY: Duration = Duration::from_secs(10);
+const FAR_TRIES: u8 = 3;
 /// Rescan a column once the player is this far (blocks) above or below where it was scanned.
 const RESCAN_DY: f64 = 4.0;
 /// A scan during map loading may contain no hits. Retry incomplete nearby columns even
@@ -117,6 +129,10 @@ struct Job {
 	rx: i32,
 	rz: i32,
 	base_y: f64,
+	/// Floor-only coarse scan: no walls, FAR_STEP spacing.
+	far: bool,
+	step: f64,
+	n: usize,
 	samples: Vec<Sample>,
 	/// Samples that were inside the player's own body when scanned (the rays see it).
 	in_body: Vec<bool>,
@@ -130,10 +146,37 @@ struct Job {
 	rejected_bands: u64,
 }
 
+impl Job {
+	fn new(rx: i32, rz: i32, base_y: f64, far: bool) -> Self {
+		let (step, n) = if far { (FAR_STEP, FAR_SAMPLES) } else { (STEP, SAMPLES) };
+		Self {
+			rx,
+			rz,
+			base_y,
+			far,
+			step,
+			n,
+			samples: vec![Sample::default(); n * n],
+			in_body: vec![false; n * n],
+			next_sample: 0,
+			walls: None,
+			next_wall: 0,
+			next_band: 0,
+			wall_run: Vec::new(),
+			wall_tris: Vec::new(),
+			confirmed_bands: 0,
+			rejected_bands: 0,
+		}
+	}
+}
+
 struct ScannedColumn {
 	base_y: f64,
 	at: Instant,
 	incomplete: bool,
+	far: bool,
+	/// Rescans since it last came back complete.
+	tries: u8,
 }
 
 pub struct Scanner {
@@ -148,6 +191,8 @@ pub struct Scanner {
 	job: Option<Job>,
 	/// Triangles per column, kept for the debug view.
 	pub tris: HashMap<(i32, i32), Vec<ColTri>>,
+	/// Bumped whenever `tris` changes, so the debug view knows when to rebuild.
+	pub generation: u64,
 	/// Keep the full solid spans, including ground above a player who has fallen into it.
 	/// A single floor chosen at scan height loses that evidence as the body descends.
 	samples: HashMap<(i32, i32), Vec<Sample>>,
@@ -169,6 +214,7 @@ impl Scanner {
 			done: HashMap::new(),
 			job: None,
 			tris: HashMap::new(),
+			generation: 0,
 			samples: HashMap::new(),
 			rays: 0,
 			confirmed_bands: 0,
@@ -198,21 +244,12 @@ impl Scanner {
 		self.done.retain(|column, _| !near.contains(column));
 		// Prioritize the destination's own column at its safe height, rather than scanning
 		// around the body's still-below-ground position before the teleport is acknowledged.
-		self.job = Some(Job {
-			rx: (feet[0].floor() as i32).div_euclid(REGION),
-			rz: (feet[2].floor() as i32).div_euclid(REGION),
-			base_y: feet[1],
-			samples: vec![Sample::default(); SAMPLES * SAMPLES],
-			in_body: vec![false; SAMPLES * SAMPLES],
-			next_sample: 0,
-			walls: None,
-			next_wall: 0,
-			next_band: 0,
-			wall_run: Vec::new(),
-			wall_tris: Vec::new(),
-			confirmed_bands: 0,
-			rejected_bands: 0,
-		});
+		self.job = Some(Job::new(
+			(feet[0].floor() as i32).div_euclid(REGION),
+			(feet[2].floor() as i32).div_euclid(REGION),
+			feet[1],
+			false,
+		));
 	}
 
 	/// F6: how far a ray along `dir` from `from` gets with each filter that sees the floor. Aimed
@@ -296,6 +333,17 @@ impl Scanner {
 		Rays { world, player, space, filter: self.filter?, count: 0, bodies: Vec::new() }.cast(from, delta)
 	}
 
+	/// True when Minecraft can ride this floor up by itself (SkyCollider's carry): the live
+	/// floor under `feet` is flat and risen a little above them. A teleport recovery would only
+	/// park Minecraft while a lift keeps rising, so these are left to the carry.
+	pub fn carried_rise(&self, player: &PlayerIns, space: &Space, feet: V3) -> bool {
+		const CARRY: f64 = 1.0;
+		const FLAT: f64 = 0.15;
+		let Some((_, _, h)) = self.ground_patch(player, space, feet) else { return false };
+		let (lo, hi) = (h.iter().copied().fold(f64::INFINITY, f64::min), h.iter().copied().fold(f64::NEG_INFINITY, f64::max));
+		hi - lo <= FLAT && h[0] - feet[1] > 0.02 && h[0] - feet[1] <= CARRY
+	}
+
 	/// Sweep downward from the last accepted feet to the new destination. This uses native
 	/// surfaces directly: no streamed-region availability or solid-volume parity is required.
 	/// Starting close to the feet also avoids roofs far above the player. Character hits are
@@ -311,6 +359,12 @@ impl Scanner {
 		let mut floor: Option<f64> = None;
 		for [dx, dz] in [[0.0, 0.0], [-0.15, 0.0], [0.15, 0.0], [0.0, -0.15], [0.0, 0.15]] {
 			let (x, z) = (to[0] + dx, to[2] + dz);
+			if let Some(risen) = rays.risen_floor(x, z, to[1]) {
+				if risen > to[1] + 0.12 {
+					floor = Some(floor.map_or(risen, |f| f.max(risen)));
+				}
+				continue;
+			}
 			let mut y = top;
 			for _ in 0..8 {
 				if y <= bottom { break }
@@ -346,7 +400,8 @@ impl Scanner {
 			let (x, z) = (feet[0] + dx, feet[2] + dz);
 			let bottom = feet[1] - 1.5;
 			let mut y = feet[1] + 0.35;
-			let mut found = None;
+			let mut found = rays.risen_floor(x, z, feet[1]);
+			if found.is_some() { y = bottom; }
 			for _ in 0..8 {
 				if y <= bottom { break; }
 				let hit = rays.cast([x, y, z], [0.0, bottom - y, 0.0])?;
@@ -373,6 +428,7 @@ impl Scanner {
 			self.epoch = self.epoch.wrapping_add(1);
 			self.done.clear();
 			self.tris.clear();
+			self.generation += 1;
 			self.samples.clear();
 			self.job = None;
 			crate::scene::with(|s| s.occluders.clear());
@@ -392,23 +448,7 @@ impl Scanner {
 		while started.elapsed() < BUDGET {
 			if self.job.is_none() {
 				match self.next_column(feet) {
-					Some((rx, rz)) => {
-						self.job = Some(Job {
-							rx,
-							rz,
-							base_y: feet[1],
-							samples: vec![Sample::default(); SAMPLES * SAMPLES],
-							in_body: vec![false; SAMPLES * SAMPLES],
-							next_sample: 0,
-							walls: None,
-							next_wall: 0,
-							next_band: 0,
-							wall_run: Vec::new(),
-							wall_tris: Vec::new(),
-							confirmed_bands: 0,
-							rejected_bands: 0,
-						})
-					}
+					Some((rx, rz, far)) => self.job = Some(Job::new(rx, rz, feet[1], far)),
 					None => break,
 				}
 			}
@@ -418,10 +458,15 @@ impl Scanner {
 				if self.send(link, &job) {
 					self.confirmed_bands += job.confirmed_bands;
 					self.rejected_bands += job.rejected_bands;
+					let incomplete = job.samples.iter().any(|s| s.surfaces.is_empty());
+					let tries = self.done.get(&(job.rx, job.rz))
+						.filter(|c| c.incomplete && c.far == job.far).map_or(0, |c| c.tries.saturating_add(1));
 					self.done.insert((job.rx, job.rz), ScannedColumn {
 						base_y: job.base_y,
 						at: Instant::now(),
-						incomplete: job.samples.iter().any(|s| s.surfaces.is_empty()),
+						incomplete,
+						far: job.far,
+						tries,
 					});
 				}
 			}
@@ -442,23 +487,34 @@ impl Scanner {
 		}
 	}
 
-	/// The nearest column that is missing or was scanned at a very different height.
-	fn next_column(&self, feet: V3) -> Option<(i32, i32)> {
+	/// The nearest column that is missing or was scanned at a very different height, and whether
+	/// it is only in the coarse far ring. Columns within RADIUS (full scans) always come first.
+	fn next_column(&self, feet: V3) -> Option<(i32, i32, bool)> {
 		let prx = (feet[0].floor() as i32).div_euclid(REGION);
 		let prz = (feet[2].floor() as i32).div_euclid(REGION);
-		let mut best: Option<((i32, i32), f64)> = None;
-		for rx in prx - RADIUS..=prx + RADIUS {
-			for rz in prz - RADIUS..=prz + RADIUS {
-				if self.done.get(&(rx, rz)).is_some_and(|c| (c.base_y - feet[1]).abs() < RESCAN_DY
-					&& !(c.incomplete && (rx - prx).abs() <= 1 && (rz - prz).abs() <= 1
-						&& c.at.elapsed() >= RETRY_INCOMPLETE)) {
-					continue;
+		let mut best: Option<((i32, i32, bool), f64)> = None;
+		for rx in prx - FAR_RADIUS..=prx + FAR_RADIUS {
+			for rz in prz - FAR_RADIUS..=prz + FAR_RADIUS {
+				let (dx, dz) = ((rx - prx).abs(), (rz - prz).abs());
+				let far = dx.max(dz) > RADIUS;
+				if let Some(c) = self.done.get(&(rx, rz)) {
+					let stale = if far {
+						// A full scan already covers a column that has drifted into the far ring.
+						c.far && ((c.base_y - feet[1]).abs() >= FAR_RESCAN_DY
+							|| (c.incomplete && c.tries < FAR_TRIES && c.at.elapsed() >= FAR_RETRY))
+					} else {
+						c.far || (c.base_y - feet[1]).abs() >= RESCAN_DY
+							|| (c.incomplete && dx <= 1 && dz <= 1 && c.at.elapsed() >= RETRY_INCOMPLETE)
+					};
+					if !stale {
+						continue;
+					}
 				}
 				let cx = (rx * REGION) as f64 + REGION as f64 / 2.0 - feet[0];
 				let cz = (rz * REGION) as f64 + REGION as f64 / 2.0 - feet[2];
-				let d = cx * cx + cz * cz;
+				let d = cx * cx + cz * cz + if far { 1e9 } else { 0.0 };
 				if best.is_none_or(|(_, b)| d < b) {
-					best = Some(((rx, rz), d));
+					best = Some(((rx, rz, far), d));
 				}
 			}
 		}
@@ -555,12 +611,19 @@ impl Scanner {
 			return false;
 		}
 		let all = tris;
-		self.samples.insert((job.rx, job.rz), job.samples.clone());
-		// For the renderer: the same triangles hide Minecraft blocks behind Elden Ring's ground.
-		let (ox, oz) = (x0 as f32, z0 as f32);
-		let corners: Vec<[f32; 3]> = all.iter().flat_map(|t| [0, 3, 6].map(|k| [t.v[k] - ox, t.v[k + 1], t.v[k + 2] - oz])).collect();
-		crate::scene::with(|s| s.occluders.insert((job.rx, job.rz), std::sync::Arc::new(corners)));
+		if job.far {
+			// Coarse samples must not feed the half-block floor lookups, and the coarse mesh
+			// is too rough to hide Minecraft blocks behind: only full scans do either.
+			self.samples.remove(&(job.rx, job.rz));
+		} else {
+			self.samples.insert((job.rx, job.rz), job.samples.clone());
+			// For the renderer: the same triangles hide Minecraft blocks behind Elden Ring's ground.
+			let (ox, oz) = (x0 as f32, z0 as f32);
+			let corners: Vec<[f32; 3]> = all.iter().flat_map(|t| [0, 3, 6].map(|k| [t.v[k] - ox, t.v[k + 1], t.v[k + 2] - oz])).collect();
+			crate::scene::with(|s| s.occluders.insert((job.rx, job.rz), std::sync::Arc::new(corners)));
+		}
 		self.tris.insert((job.rx, job.rz), all);
+		self.generation += 1;
 		true
 	}
 }
@@ -574,6 +637,14 @@ struct Rays<'a> {
 	/// Characters' feet to keep out of the scan (filled once per frame).
 	bodies: Vec<V3>,
 }
+
+/// A lift can rise a few tenths of a block between ticks. Floor probes that start only 0.35 above
+/// the feet then begin underneath its top, and the player sinks through it. A separate probe
+/// looks for such a risen floor between these heights over the feet.
+const RISE_FREE: f64 = 0.36;
+const RISE: f64 = 1.0;
+/// Clear space needed above a risen surface for it to count as a floor, not a ceiling.
+const HEADROOM: f64 = 1.6;
 
 /// Characters this close to the player are kept out of the scan.
 const BODY_RANGE: f32 = 48.0;
@@ -593,6 +664,27 @@ fn bodies(player: &PlayerIns, space: &Space) -> Vec<V3> {
 }
 
 impl Rays<'_> {
+	/// A floor risen above the feet at (x, z): the first hit between RISE_FREE and RISE over
+	/// `feet_y`, with room above it. Without the room it is a ceiling's underside, not a lift.
+	/// The ray starts inside the player's own capsule, which it cannot hit above its base, so only
+	/// other characters' capsules are excluded from the floor; every capsule is skipped over
+	/// when checking the room above.
+	fn risen_floor(&mut self, x: f64, z: f64, feet_y: f64) -> Option<f64> {
+		let (top, bottom) = (feet_y + RISE, feet_y + RISE_FREE);
+		let hit = self.cast([x, top, z], [0.0, bottom - top, 0.0])?;
+		if !hit[1].is_finite() || hit[1] > top + 0.01 || hit[1] < bottom - 0.01 {
+			return None;
+		}
+		let in_body = |b: &V3, y: f64| (x - b[0]).hypot(z - b[2]) < BODY_RADIUS && y > b[1] + 0.3 && y < b[1] + 2.0;
+		if self.bodies.iter().skip(1).any(|b| in_body(b, hit[1])) {
+			return None;
+		}
+		match self.cast([x, hit[1] + 0.02, z], [0.0, HEADROOM, 0.0]) {
+			Some(over) if !self.bodies.iter().any(|b| in_body(b, over[1])) => None,
+			_ => Some(hit[1]),
+		}
+	}
+
 	/// First hit (Minecraft coords) on the segment from `from` along `delta` (Minecraft axes).
 	fn cast(&mut self, from: V3, delta: V3) -> Option<V3> {
 		self.count += 1;
@@ -609,17 +701,17 @@ impl Rays<'_> {
 }
 
 fn sample_xz(job: &Job, i: usize, j: usize) -> (f64, f64) {
-	((job.rx * REGION) as f64 + i as f64 * STEP, (job.rz * REGION) as f64 + j as f64 * STEP)
+	((job.rx * REGION) as f64 + i as f64 * job.step, (job.rz * REGION) as f64 + j as f64 * job.step)
 }
 
 /// Advances a column job within the frame budget. True when it is finished.
 fn run_job(job: &mut Job, rays: &mut Rays, started: Instant) -> bool {
-	while job.next_sample < SAMPLES * SAMPLES {
+	while job.next_sample < job.n * job.n {
 		if started.elapsed() >= BUDGET {
 			return false;
 		}
 		let k = job.next_sample;
-		let (x, z) = sample_xz(job, k % SAMPLES, k / SAMPLES);
+		let (x, z) = sample_xz(job, k % job.n, k / job.n);
 		if rays.bodies.iter().any(|b| (x - b[0]).hypot(z - b[2]) < BODY_RADIUS) {
 			// Every filter sees characters' capsules: don't scan through one (it would read as a
 			// pillar, or eat the floor under it). The nearest sample outside it stands in.
@@ -633,7 +725,8 @@ fn run_job(job: &mut Job, rays: &mut Rays, started: Instant) -> bool {
 	}
 	if job.walls.is_none() {
 		fill_body_samples(job);
-		job.walls = Some(proposed_walls(job));
+		// Far columns are floors only: no wall proposals to confirm.
+		job.walls = Some(if job.far { Vec::new() } else { proposed_walls(job) });
 	}
 	// Horizontal confirmation shares the existing frame budget and resumes next frame.
 	// Column building/publishing never starts until this phase is complete.
@@ -732,11 +825,11 @@ fn wall_faces(rays: &mut Rays, wall: &WallProbe, lo: f64, hi: f64) -> Vec<WallFa
 fn fill_body_samples(job: &mut Job) {
 	let skipped: Vec<usize> = (0..job.samples.len()).filter(|&k| job.in_body[k]).collect();
 	for k in skipped {
-		let (i, j) = ((k % SAMPLES) as i32, (k / SAMPLES) as i32);
+		let (i, j) = ((k % job.n) as i32, (k / job.n) as i32);
 		let nearest = (0..job.samples.len())
 			.filter(|&n| !job.in_body[n])
 			.min_by_key(|&n| {
-				let (a, b) = ((n % SAMPLES) as i32 - i, (n / SAMPLES) as i32 - j);
+				let (a, b) = ((n % job.n) as i32 - i, (n / job.n) as i32 - j);
 				a * a + b * b
 			});
 		if let Some(n) = nearest {
@@ -895,13 +988,14 @@ fn proposed_walls(job: &Job) -> Vec<WallProbe> {
 
 /// Floor, ceiling and wall triangles for a finished column, and its voxel skin.
 fn build(job: &Job) -> (Vec<ColTri>, Vec<ColBlock>) {
-	let at = |i: usize, j: usize| &job.samples[j * SAMPLES + i];
+	let (n, step) = (job.n, job.step);
+	let at = |i: usize, j: usize| &job.samples[j * n + i];
 	let floor = job.base_y - DOWN_REACH;
 	let mut tris = job.wall_tris.clone();
-	for j in 0..SAMPLES - 1 {
-		for i in 0..SAMPLES - 1 {
+	for j in 0..n - 1 {
+		for i in 0..n - 1 {
 			let (x0, z0) = sample_xz(job, i, j);
-			let (x1, z1) = (x0 + STEP, z0 + STEP);
+			let (x1, z1) = (x0 + step, z0 + step);
 			let quad = [at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)];
 			let corners = [(x0, z0), (x1, z0), (x0, z1), (x1, z1)];
 			// Pairing crossings can misclassify thin/overlapping meshes. The actual hit planes
@@ -913,8 +1007,8 @@ fn build(job: &Job) -> (Vec<ColTri>, Vec<ColBlock>) {
 	// Skin: under every top, one block deep (or down to the span's bottom), per 1/8-block voxel.
 	let mut blocks: HashMap<(i32, i32, i32), [u64; 8]> = HashMap::new();
 	let nearest_sample = |x: f64, z: f64| {
-		let fi = ((x - (job.rx * REGION) as f64) / STEP).round().clamp(0.0, (SAMPLES - 1) as f64) as usize;
-		let fj = ((z - (job.rz * REGION) as f64) / STEP).round().clamp(0.0, (SAMPLES - 1) as f64) as usize;
+		let fi = ((x - (job.rx * REGION) as f64) / step).round().clamp(0.0, (n - 1) as f64) as usize;
+		let fj = ((z - (job.rz * REGION) as f64) / step).round().clamp(0.0, (n - 1) as f64) as usize;
 		at(fi, fj)
 	};
 	for bz in 0..REGION {

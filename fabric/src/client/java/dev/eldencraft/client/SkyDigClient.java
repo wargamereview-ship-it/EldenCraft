@@ -63,6 +63,7 @@ public final class SkyDigClient {
 	 * as mining the block it's made of would take. Returns true if it's being mined.
 	 */
 	public static boolean attack(Minecraft minecraft) {
+		if (!SkyDig.NATIVE_DIGGING_SUPPORTED) return false;
 		if (!(minecraft.hitResult instanceof SkyClip.SkyrimHitResult result) || minecraft.level == null || minecraft.player == null || minecraft.gameMode == null) {
 			return false;
 		}

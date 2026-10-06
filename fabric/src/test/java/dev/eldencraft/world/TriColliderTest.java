@@ -202,4 +202,16 @@ class TriColliderTest {
 		double[] m = TriCollider.resolve(t, 0, 0, 0, R, H, STEP, true, 0, 0.42, 0);
 		assertEquals(0.2, m[1], 1e-6);
 	}
+
+	@Test
+	void ridesAPlatformThatRoseAboveTheStepHeight() {
+		List<SkyTri> tris = new ArrayList<>();
+		flat(tris, -2, -2, 2, 2, 0.8);
+		// A lift 0.8 above the feet is out of reach at the normal step height...
+		double[] stuck = TriCollider.resolve(tris, 0, 0, 0, R, H, STEP, true, 0, GRAVITY_TICK, 0);
+		assertTrue(stuck[1] < 0.5);
+		// ...but SkyCollider raises the step to the platform's rise, and the player is carried up.
+		double[] carried = TriCollider.resolve(tris, 0, 0, 0, R, H, 0.82, true, 0, GRAVITY_TICK, 0);
+		assertEquals(0.8, carried[1], 1e-6);
+	}
 }

@@ -1,328 +1,251 @@
-# EldenCraft — continuation handoff
+# EldenCraft — current-state handoff
 
-Prepared 4 October 2026 for continuing this local prototype with Claude.
-Read this document, `README.md`, `roadmap.MD`, and the current Git diff before editing.
+Updated 5 October 2026 (America/Toronto). This replaces the previous handoff and its accumulated
+history. Read this, `roadmap.MD`, `README.md`, and the working-tree diff before changing code.
+A successful build is not evidence of successful gameplay.
 
-## 1. Purpose and scope
+## Project and working rules
 
-EldenCraft lets a Minecraft player explore, build and fight inside Elden Ring's world.
-It adapts the SkyCraft concept from Skyrim to Elden Ring. Both games still run: an
-injected Rust DLL in Elden Ring exchanges data with a Fabric mod in a hidden Minecraft
-instance, then draws Minecraft content over Elden Ring.
+EldenCraft runs a native Rust DLL inside Elden Ring and a Fabric mod in a hidden Minecraft
+instance. The bridge exports ER collision and actors, renders MC content over ER, and allows MC
+movement, combat, inventory, crafting and building in ER's world.
 
-Work on **EldenCraft only**:
+Workspace: `/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/EldenCraft`.
+The separate `../Skycraft` checkout supplies the existing JDK, Gradle cache and Windows SDK;
+inherited Sky/Skyrim class names do not mean that checkout should be edited.
+Repository: `https://github.com/wargamereview-ship-it/EldenCraft`.
+Local development uses me3's offline launch without Easy Anti-Cheat.
 
-```text
-/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/EldenCraft
-```
+The user prefers decisions one step at a time and questions in ordinary chat; the question widget
+has not worked reliably for them. Continue work already authorized without repeated confirmation.
+Preserve unrelated local changes. Current local HEAD is `728d002 Looting V1`; the combat, loot,
+gathering and documentation work is still uncommitted, including new files. Build outputs are ignored.
+Do not reset the checkout to remove the duplicate Looting V1 commit.
 
-The Codex chat's working directory was the adjacent `Skycraft` project. That is not the
-project being developed. Some inherited filenames/classes/comments inside EldenCraft
-still say Sky/Skyrim; do not mistake them for the separate Skycraft checkout.
-Skycraft's existing Java, Gradle cache and Windows SDK are reused for local builds.
+## Current build and gameplay evidence
 
-The user wants local development. An earlier explicit request published the initial
-EldenCraft repository to https://github.com/wargamereview-ship-it/EldenCraft.
-There is no new request to commit or push the current fixes. Preserve existing local
-changes and saves. The modded game uses me3's offline launch without Easy Anti-Cheat.
+The current DLL and installed JAR use **protocol version 3**. The shared-memory name remains
+`Local\EldenCraft_v1`; its suffix is not the protocol version. Both binaries must match.
+The installed JAR matches `fabric/build/libs/eldencraft-0.0.1.jar`, SHA-256:
+`08a2d142b91705353d30fbef688958d6b00e1ee78a9b2ec18934cdf166dd8e9a`.
+me3 loads the DLL directly from `game/target/x86_64-pc-windows-msvc/release/eldencraft.dll`.
 
-## 2. Current prototype state
-
-This is a playable local prototype, with implemented rendering, movement and combat
-bridges. It is not yet a reliable complete playthrough. Several difficult bugs improved
-over repeated user game sessions; movement and combat acceptance remain open.
-
-| Area | Implemented | Evidence / remaining limits |
+| Area | Current state | Evidence / remaining check |
 | --- | --- | --- |
-| Launch and connection | me3 loads the DLL; DLL launches portable Prism/Minecraft in the same Wine session; shared-memory transport | User has repeatedly launched both games successfully. Earlier Proton runtime discovery trouble was resolved locally. |
-| Blocks and entities | Minecraft texture/mesh export, native drawing, terrain occlusion, block placement, entity rendering including the requested dropped-item path | Visuals were exercised by the user. Full visual/performance coverage and entity types are not accepted as complete. |
-| HUD and camera | MC hearts, armour, hunger, hotbar, hands, crosshair; enemy health/hit feedback; first-person/F5 view integration | Redundant player Life/Tarnished bar removed. Hands are gated separately from HUD. Cave map changes still briefly expose the ER view. |
-| Movement | ER controls by default; optional MC movement; native body synchronization, teleport acknowledgements, floor patches and recovery | Earlier falling, snapback and camera instability prompted substantial fixes. Stationary grace respawns, MC-block support and repeated transitions still require regression checks. |
-| Terrain collision | Native ray sampling, floors/ceilings, confirmed wall segments, self-body skipping, foliage filtering and diagnostics | Church tunnel movement improved; previous reports included jagged movement and doorway walls extending into passages. Do not assume all caves/tunnels are solved. |
-| Cave streaming | Matching map/position coordinates, Havok rebasing, native ground-contact allowance and play-region collision refresh | Latest user entered Groveside in MC mode and stayed in the cave. Earlier gray barrier/missing lower geometry improved, but the transition camera flash remains. |
-| Outgoing combat | MC weapon damage applied to live ER enemy HP; hit identity/range/map/protection checks; native AI damage notice | Forest soldier opening-hit fix worked according to user. Cave wolves remain excluded until they attack. ER stagger/defence/guard/stance pipeline is not integrated. |
-| Incoming combat/life | MC hearts authoritative; ER HP observes hits; MC armour/absorption/shields/totems; MC death triggers native ER death/respawn | Directional shield source capture and block feedback implemented. Enemy AoE/shield/death edge cases need wider gameplay confirmation. |
-| Arrows | Accepted bow impacts retain MC arrows attached to enemy body position/yaw | Root attachment, not animated bones. Bows/tridents and lifecycle edge cases need manual coverage. |
-| Loot/progression/dimensions | Future design work | User explicitly wants enemy/boss drops changed to MC items, and much later Nether/End/end portals. No completed ER loot replacement or dimension bridge is claimed. |
+| Launch, rendering, HUD and cameras | DLL starts Prism/MC in the same Wine session; MC content is composited over ER | Used in play |
+| Movement and connected caves | MC tick feet drive the native body; camera stays in MC through connected map changes | User confirmed cave entry; recovery edge cases remain |
+| Enemy targeting | Hostile factions can be attacked before damaging the player | User confirmed wolves and soldiers |
+| Hearing | MC footsteps replay player AiSoundParam IDs learned in ER mode | User confirmed detection from behind |
+| ER interactions | R taps Event Action; body faces MC look and native animations temporarily own movement | User confirmed, including the rubberbanding fix |
+| Outgoing combat | Native carrier bullet invokes ER guarding, stagger, reactions and AI response with MC damage | User confirmed hits work; weapon tuning remains |
+| Incoming damage and death | MC hearts/armour/shields participate; MC death drives ER death and grace respawn | Played previously; transition/recovery cases remain |
+| Loot rework | Regional family drops and guaranteed boss gear/books/materials | User confirmed regular NPC drops and boss drops after the hotfix |
+| Empty start | Starter, builder and test-guest kits removed; existing inventories preserved | User confirmed (5 Oct 2026) |
+| Visible gathering | Log piles, loose stone, rocks, visible mine ores and grace replenishment | User confirmed gathering works in play, including mine ores and grace replenishment (5 Oct 2026); tuning of yields/placement and the player-built-block check not separately reported |
+| Native digging | Explicitly disabled | User withdrew digging from the requested scope |
+| Villager traders | Discussed as possible replacements/overlays for selected ER merchants | Not implemented or yet scoped |
+| Seamless co-op | Feasibility investigated only | Not implemented |
 
-Compilation confirms a build, not gameplay correctness. Some helper/multiplayer/digging
-code was inherited; its presence does not establish a completed feature.
+The Minecraft world was reset without backup at the user's explicit request before loot testing.
+The ER save was untouched. Gathering was installed without another reset; existing worlds should
+receive nodes. Do not reset either save unless the user asks.
 
-## 3. Exact stopping point: three latest bugs
+## Loot: current rules and implementation
 
-The latest request was:
+- Fresh MC characters receive nothing; no optional generous testing preset.
+- Enemy family determines supplies; region/placement determines quality. HP only changes bulk
+  material quantities, not the tier. Every eligible ordinary kill has a guaranteed material item.
+- Base game tiers 1–5; Shadow of the Erdtree tiers 6–7. Early gear stays early and late gear stays late.
+- Equipment-capable ordinary enemies have a 10% gear chance: 9% regional tier, 1% one tier higher,
+  capped at T5 in the base game and T7 in the DLC. The capped upgrade uses a stronger same-tier
+  enchantment package. Ordinary equipment has 30–70% durability remaining.
+- Boss completion gives a fixed named enchanted item at full durability, a curated enchanted book,
+  regional materials and XP. There are 17 four-piece collections (68 pieces), each spread over
+  multiple fixed boss encounters. Collection bonuses and custom visuals are deferred.
+- DLC boss primaries include Protection V/VI and Sharpness VI/VII plus compatible utilities.
+  Custom ER elemental/status effects have not been implemented or advertised on these rewards.
+- Original ER drops and runes remain unchanged. MC boss claims are per world/encounter flag, not
+  per NG+ cycle. Old V1 text claims are not migrated.
 
-> Entering the cave briefly returned the view to ER mode. Wolves could not be attacked
-> until they hit the player or the player blocked an attack. They only aggroed when the
-> player was right in their field of view.
+`tools/loot_catalog.json` contains the public-data reference snapshot: 446 map defaults, 372 enemy
+models and 208 boss encounters. `tools/generate_loot.py` writes loot rules, 105 enemy/gear/boss
+tables, `game/src/loot_catalog.rs` and `docs/loot-boss-rewards.md`. The generated reward sheet is the
+current item assignment; the proposal document contains earlier illustrative signature examples.
+Public-data coverage is not proof that every runtime identity or boundary has been verified.
 
-These issues were **investigated but not patched** before the user requested this
-handoff. The currently compiled DLL still has them.
+Native `loot.rs` observes completion flags after seeing a nearby encounter alive. Known boss
+actors suppress ordinary payout so duo members and phases do not each generate a boss reward.
+Radagon/Elden Beast share one completion. Unmapped team-7 actors have a generic fallback reward.
+Four-event loot batches carry position, identity, raw map/play region and completion flag.
+`LootRules`, `LootEquipment`, `SkyLoot` and `BossRewards` implement the MC reward path.
 
-### A. Wolves have a confirmed target-filter problem
+The no-drop hotfix removed zero actor IDs from boss lists. `Boss::matches` requires a nonzero
+actor identity or an exact map/NPC fallback; zero must never act as a wildcard. Keep the regression
+checks in `tools/test_loot_identity.rs` and `tools/test_loot.py`.
 
-The latest native log identifies cave wolves as `c4070` and `c4071`, team `48`, type
-`Npc`, active, with valid cave map and HP. Normal targeting rejects them for `team`.
-The observed-attacker fallback publishes their MC hitbox only after a captured attack:
+Boss parcels persist in the world's `eldencraft_boss_rewards_v2.json` before delivery. Player
+attachments track item/partial-stack/XP receipts. Full inventories hold outstanding rewards;
+player death delays delivery until respawn. These recovery paths are implemented but the user
+explicitly postponed their gameplay tests. Ordinary delayed events and retries during boss-ledger
+I/O failure are in memory, not durable across every possible interruption.
 
-```text
-[1791145842.105] combat: unexported native attacker c4070 npc 40700010 team 48 type Npc active true ...; normal filter team; observed-attacker filter accepted; publishing a target this frame
-[1791145857.038] combat: unexported native attacker c4071 npc 40710010 team 48 type Npc active true ...; normal filter team; observed-attacker filter accepted; publishing a target this frame
-[1791145860.955] combat: actor 13 c4071 weapon 1 MC 7.00 -> 175 ER HP; 466 -> 291 flags 0x0; aggro notified
-```
+## Gathering: current rules and implementation
 
-Start in `game/src/combat.rs`, `hostile_character()` and `exclusion()`.
-The current extra team-48 allowance covers only forest soldiers `(48, 4311)`.
-The logs now provide evidence to add the wolf model/team pairs narrowly, so MC targets
-exist before their first attack. Preserve friendly NPC/summon filtering, live identity,
-map, health and unloaded/disabled checks. Do not blindly treat every team-48 actor as hostile.
+**No native terrain digging or native tree/structure destruction.** MC deposits are additional
+visible blocks placed in available space; ER geometry is retained.
 
-### B. Brief ER camera flash: strong code-path explanation, pending fix
+- Outdoors: oak log piles, low mossy loose-stone slabs and larger stone deposits.
+- Logs and loose stone are harvestable bare-handed. Loose stone drops cobblestone; a wooden
+  pickaxe then enables harvesting larger stone. Normal tool speed/requirements apply.
+- Ordinary rocks have a 10% bonus: raw copper at T1, raw iron at T2+. They never generate valuable
+  gathering ores. This restriction concerns gathering nodes, not the approved enemy/boss loot.
+- Mine ore is visible immediately. T1 has copper/coal; T2 adds iron; T3 adds gold/rare diamonds;
+  T4 increases diamonds; T5+ adds ancient debris. Vanilla tool gates, Fortune, Silk Touch,
+  smelting and netherite upgrading apply.
+- Harvested nodes replenish after a native grace rest. Travel/reload alone does not replenish them.
+  Replenishment waits for a clear loaded position and never replaces player-built MC blocks.
 
-At the cave boundary the position map changes from exterior `m60_42_37_00` to
-Groveside `m31_03_00_00`. The same native body remains live. `anchor()` waits for a
-new mapping to settle; `run()` calls `publish_loading(Some(player))` in the meantime.
-That function restores model/HUD/input state and calls `camera::set(None)`, exposing
-the ER camera. The log records a fresh load/handoff at `1791145814.959`.
+`ResourceBlocks`, `ResourceNodes`, `ResourceRules` and `ResourceSurface` own the system. The
+custom loose-stone block has slab geometry, low hardness and no correct-tool requirement.
+Deposits rest at the ground's exact height (`ResourceRules.restHeight`): cubes sink up to 0.6 into it or
+rise to the next block (never floating more than 0.4); loose stone is a slab placed in half-block steps
+(bottom or top half, persisted as kind `loose_top`). Each block follows the ground separately. Nodes
+placed before this change keep their old, sometimes floating, positions. Each cell tries up to 6 candidate points (a tunnel is narrow; one point per cell mostly landed in rock),
+mines look 3 cells around the player, and a cell with no usable floor is skipped for 90 s. Support is the
+scan skin or a walkable floor surface at that height. Placement runs 4 times a second (up to 12 deposits per pass, one save per pass) and logs every 30 s
+why cells were skipped (no native floor / blocked / no support). Outdoors use a deterministic 12-block placement grid; mines use an 8-block grid. Placement needs
+five native floor samples covering the footprint, <=0.45 m height variation, known collision,
+loaded clear air and entity clearance. Positions are saved before blocks are placed.
 
-Relevant files: `game/src/lib.rs` (`anchor`, `publish_loading`, main frame flow,
-`set_model_hidden`) and `game/src/camera.rs` (`set`, `apply`, view history).
+The world's `eldencraft_resources_v1.json` stores node identities, generated cells, harvest cycles
+and the grace cycle. `ResourceRemovalMixin` wraps `LevelChunk.setBlockState` inside `Level.setBlock`
+so mining, explosions and pistons deplete deposits instead of triggering immediate refill.
 
-Design a bounded handoff for a live connected interior transition which holds MC
-movement safely, preserves camera/input ownership, and rebases the eye correctly.
-Keep genuine loading, missing/replaced bodies, death and respawn paths distinct.
-Do not retain stale coordinates or permanently suppress loading recovery to hide the flash.
+`resources.rs` reads event flag 9000. `grace_edges.rs` turns false->true into `IN_GRACE_REST` (16),
+avoiding repeat refreshes while seated and refreshes from attaching already at a grace. The
+client forwards this to the integrated server. Reference: the public grace talk script at
+`https://github.com/lraty-li/Elden-Ring-Mods/blob/main/Gacha_Ring/t000001000.py`.
+Grace-rest replenishment was confirmed in play.
 
-### C. Narrow passive aggro: cause not established
+`tools/generate_resources.py` derives eight explicit area-32 mine interiors from the region rules:
+Morne, Limgrave, Raya Lucaria Crystal, Old Altus, Altus, Gael, Sellia Crystal and Yelough Anix.
+Overworld labels mentioning a tunnel entrance are not mines. Shared-map mines such as Sealed
+Tunnel need a more precise zone definition before enabling deposits there.
 
-Accepted nonlethal hits already reach the verified ER AI damage-notification path;
-the latest wolf log says `aggro notified`. Fix A should allow opening hits to alert
-wolves. Passive detection still needs investigation and comparison with ER mode.
+Limits: placement-only native rays cannot identify natural versus constructed floors, so nodes
+may need location/density adjustments. They do not modify either floor type. Harvesting and
+rest events currently use the local host's native link; guest gathering is not implemented.
 
-Possible leads, **not conclusions**: MC-driven movement lacks native walking/footstep
-signals; native vision may interact with the hidden player's zero base transparency;
-sleeping/cave enemies may have ordinary scripted vision restrictions. Keep visual
-hiding separate from native simulation eligibility. Do not make all enemies aggro
-through walls or send fake damage notices to simulate ordinary detection.
+## Combat and stability details to preserve
 
-## 4. Important fixes already made — preserve these
+MC damage is multiplied by 25 ER HP; melee reach is 4.25 m. Accepted hits use Ruin Fragment
+BulletParam/AtkParam_Pc 10176000. ER processes guard/poise/reaction; the HP hook substitutes MC
+damage and retains smaller guarded damage. Undelivered bullets fall back to direct HP after
+600 ms. Spears, mace, mace smash and criticals have distinct reaction/poise settings but need tuning.
 
-### Movement and handoffs
+Native bridge references for the currently pinned SDK / ER 2.7.1:
 
-- Native movement uses MC's actual tick feet; camera uses interpolated render position.
-- Camera conventions are learned only when ER owns the view, avoiding sign flips.
-- Collision/teleport epochs refresh on loads and grace respawns, including reused bodies/maps.
-- Teleport readiness checks the player's footprint/body and integrated-server acknowledgement.
-- A delayed handoff rescans after 2 seconds and returns ER controls after 8 seconds.
-- Fresh local native floor samples expire after 150 ms and are tied to map/epoch.
-- Small floor corrections preserve camera/input; repeated deep falls can return to ER.
-- Native raycasts skip the player's own body, which previously looked like a floor above feet.
+| Module | Native reference | Purpose |
+| --- | --- | --- |
+| `movement.rs` | ChrCtrl +0x100 | Queues MC destination |
+| `native_hits.rs` | 0x448910 HP hook | Attacker/origin capture and MC damage substitution |
+| `native_damage.rs` | 0x3a2cb0 SpawnBullet | Outgoing carrier hits |
+| `aggro.rs` | 0x2c50d0; ComManipulator 0x3ce9a0 | Direct-hit fallback AI notice |
+| `ai_sound.rs` | hook 0x37a6c0; call 0x5f2c50; global 0x3d66548 | Learned native footsteps |
+| `dinput.rs` | DirectInput vtable patches | Input ownership and Event Action E injection |
 
-### Tunnels and targeting
+Preserve existing startup fingerprints/guards when changing native bridges. Carrier visuals and
+crowded/ranged delivery need further play review. Looting does not yet add reward rolls.
+`KEEP_INVENTORY` and `IMMEDIATE_RESPAWN` are currently true. Incoming life/health edge cases
+and hunger/healing balance remain open. ER HUD is hidden while MC drives, which may hide prompts.
 
-- Stacked downward crossings no longer create tall guessed walls under roofs.
-- Sideways rays confirm walls in half-block height bands; angled walls follow real hits.
-- Door-frame ends are shortened to confirmed endpoints; floor/ceiling rays remain independent.
-- Real incoming attackers can bypass incomplete team/type/activity metadata, with other
-  identity/map/health/unloaded protections retained and fallback cleared across loads.
-- Forest soldiers `c4311`, team `48`, are exported before attacking; user said this worked.
-- An undocumented event byte is no longer assumed to mean unconditional immunity.
+A prior integrated-server stall led to a watchdog: after 10 seconds without a server tick, MC
+logs a thread dump. Recovery without a manual restart is not yet guaranteed. Map/load transitions
+refresh collision epochs and teleport readiness; falling, rebases and recovery still merit testing.
 
-### Cave/map streaming
+Moving platforms (lifts) are not static collision. The scan is a snapshot, so a lift's old
+position stays baked into its column. Live probes cover it: `scan.rs` `risen_floor` finds a floor
+0.4-1.0 m above the feet (a rising lift outruns the 0.35 m probe start) with 1.6 m of headroom,
+used by the ground patch and the fall-recovery sweep. `SkyCollider` drops scanned walkable floors
+more than 0.3 m above the live patch (a lift that left) and raises the step height to carry the
+player up onto a flat risen patch (<= 1.0 m). A recovery teleport parks Minecraft for ~85 ms, during which a lift
+rises ~0.35 m, so a rising lift must not trigger recovery: `Scanner::carried_rise` makes
+`fallen_floor` leave flat risen floors (<= 1.0 m) to the Java carry. Built and unit-tested
+(`ridesAPlatformThatRoseAboveTheStepHeight`); a first lift test still fell through (the recovery loop
+above); after the `carried_rise` follow-up the user confirmed lifts work (5 Oct 2026). Columns are still not rescanned for moving geometry.
 
-- `Space::of` pairs `PlayerIns.current_block_id` with its matching block-local position.
-- Effective map overrides apply to combat filtering; physics-origin rebases are distinguished
-  from actual world/map discontinuities.
-- ER model remains enabled with `base_transparency = 0` in MC camera mode, and MC movement
-  requests native character updates. Original transparency/render flags restore on handback.
-- Installed-executable analysis found `no_gravity` skips native contact processing, stalling
-  safe-ground/play-region updates. This caused streaming to resume only in ER mode.
-- MC mode now permits native contact when fresh five-ray floor support is within 0.45 m
-  of acknowledged feet and body lag is within 0.5 m. Suspension stays on in air, on MC blocks,
-  and during unacknowledged teleports.
-- Native code owns ground flags, map/safe positions and region updates. Do not manually
-  force save/safe-position fields or play-region IDs.
-- A native region change stable for 200 ms refreshes nearby collision immediately and
-  again after 2 seconds, keeping old surfaces while replacements arrive.
+Block lighting: the renderer copies Elden Ring's finished frame (`gpu.rs` `FrameCopy`, taken before our
+pass, SRV slot 64) and the block vertex shader averages 32 of its pixels around each vertex's screen
+position (`GameLight`), so blocks pick up the game's shadows, fog, weather, colour grading, lamp light and
+indoor brightness. The average is scaled by 0.42 (roughly a sunlit scene), tinted at half strength, shaded
+per face from the clock's sun and multiplied by Minecraft's own sky light; torch light is added. F4
+switches to the clock-only model (`lighting.rs`: sun/moon and ambient from `WorldAreaTime`, dim even
+ambient indoors) which is also the fallback if the copy cannot be made (unsupported back buffer format,
+multisampling, or a creation error, logged as `gpu: cannot copy ...`). Averaging a picture cannot tell
+a shadow from dark ground, so blocks over dark soil read a little dark; tune `look` in `draw_world`
+(reference 0.42, tint 0.5, radius 12% of the picture height). The shader compiled under Wine's d3dcompiler;
+the D3D12 copy path (barriers, root parameter 2, `FRAME_READ`) is unverified in the game. The 2 s
+native log line `lighting:` shows the clock model.
 
-Latest cave logs show native body/model following MC, native contact enabled on floors,
-and native player/field play-region `3103001` matching. Geometry-container presence alone
-does not prove complete loading.
+Collision scanning has two tiers (`scan.rs`): full columns (half-block grid, wall fitting) within 3
+regions, and a floor-only ring of 1 m samples out to 10 regions (about 80 m), nearest-first with
+full columns always taking priority. Far columns send triangles and voxel skin but no walls, do
+not feed the half-block floor lookups, and do not register renderer occluders; they are
+rescanned in full when the player approaches, and retried up to 3 times if they came back
+incomplete. F7 (`render::CollisionDraw`) caches deduplicated edges for ~12 m around the player and
+rebuilds only when the scan changes or the player moves 3 m. Built, not yet checked in play; the
+protocol version is unchanged, so only the DLL changed.
 
-## 5. Combat rules and limitations
+## Verification, build and deployment
 
-- Nearby live hostile characters within 64 m become invisible MC proxy hitboxes.
-- Outgoing scale is `HP_PER_DAMAGE = 25`: one MC damage point removes 25 ER HP.
-- MC computes weapon cooldown, criticals and enchantment damage; bridge validates live
-  identity, mode, map, reach (4.25 m melee tolerance), death and native protection flags.
-- Accepted hits modify HP/last-attacker attribution, then `aggro.rs` reports damage to local AI
-  without applying HP twice. Native function fingerprints and controller ownership are checked.
-- This is not ER's complete damage pipeline: native guarding, absorption/defence, poise,
-  stagger, stance breaks, knockback and physical hit animations/sounds remain future work.
-- MC owns player health while the local bridge is connected, including ER controls.
-  ER HP is held full with a saved/restored no-death bit and used as a hit sensor.
-- Incoming scale is `20 * native HP lost / maximum native HP`. It is already mitigated by
-  ER before MC applies its rules; damage types, overkill and statuses are incomplete.
-- A guarded native damage-call observer captures the attacker position for directional
-  MC shields, including physical slams. Unknown/environmental damage remains undirected.
-- Right mouse with an MC shield uses vanilla delay, durability and rear-hit rules, plus
-  confirmed block sound, recoil and BLOCKED feedback.
-- At zero MC hearts, ER death/rune-loss/grace respawn is requested. Life epochs reject stale hits.
-- Attached arrows expire at 60 s, with limits 32/enemy and 128 total; removed on death/unload.
-  They follow actor root/yaw, not bones, and are not persisted. Piercing remains vanilla.
-- Names are currently model labels such as `Enemy c4071`. Boss phases/rewards/death lifecycle
-  are not broadly verified. Do not equate a zero-HP log with completed boss progression.
+Latest recorded checks: both builds succeed; 40 Java tests pass, including resource policy/floor
+placement and Minecraft codec parsing for all 106 tables (105 loot + loose stone). Two standalone
+Rust grace-edge tests and three boss-identity tests pass. Loot simulation covers 700,000 kills.
+Custom slab models were checked against MC assets and the removal mixin target against bytecode.
+In-game gathering was later confirmed by the user.
 
-## 6. Code navigation
-
-Paths below are relative to the EldenCraft root.
-
-| Concern | Files |
-| --- | --- |
-| Frame tasks, ownership, lifecycle, mapping | `game/src/lib.rs`, `world.rs`, `movement.rs` |
-| Camera and render synchronization | `game/src/camera.rs`, `scene.rs` |
-| Collision scanning | `game/src/scan.rs`; Fabric `world/SkyCollision.java`, `TriCollider.java`; client `SkyCollider.java` |
-| Native combat, HP and incoming source capture | `game/src/combat.rs`, `native_hits.rs`, `aggro.rs` |
-| Input / launch | `game/src/input.rs`, `dinput.rs`, `launcher.rs` |
-| Native graphics / HUD | `game/src/gpu.rs`, `render.rs`, `hud.rs` |
-| Shared protocol | `protocol/eldencraft_protocol.h`, `game/src/proto.rs`, Fabric `link/Proto.java` and `SkyLink.java` |
-| MC handoffs / body and render positions | `fabric/src/client/java/dev/eldencraft/client/SkyClient.java` |
-| MC proxies / outgoing and incoming damage | client `ProxySync.java`; main `combat/SkyCombat.java`, `SkyrimActorEntity.java`, `NativeDamageSource.java` |
-| Arrows / shield / feedback | main `combat/AttachedArrow.java`; client `ShieldImpact.java`, `CombatHud.java`; relevant mixins |
-| Meshes, textures, entities and avatar export | client `render/WorldExporter.java`, `SkyAtlas.java`, `AvatarExporter.java`, `FrameExporter.java` |
-
-All Java short paths in this table are inside `fabric/src/{main,client}/java/dev/eldencraft/`.
-Protocol layout changes must agree in C, Rust and Java and use matching deployed builds.
-Native simulation work runs in `FramePostPhysicsSafe`; camera replacement in `DrawParamUpdate`.
-Never dereference actor pointers retained from an earlier frame; match current live identities.
-
-## 7. Build, deployment, launch and logs
-
-### Build native DLL on Linux
-
-From the EldenCraft root:
+From the workspace root:
 
 ```bash
 tools/build_dll.sh --offline
+python3 tools/test_loot.py
+rustc --test tools/test_loot_identity.rs -o /tmp/eldencraft-loot-identity-test
+/tmp/eldencraft-loot-identity-test
+rustc --test tools/test_grace_edges.rs -o /tmp/eldencraft-grace-test
+/tmp/eldencraft-grace-test
+rustc --test tools/test_lighting.rs -o /tmp/eldencraft-lighting-test
+/tmp/eldencraft-lighting-test
 ```
 
-Uses Rust `x86_64-pc-windows-msvc`, `lld-link`, `clang-cl`, `llvm-lib`, and the existing
-Windows sysroot (default `../Skycraft/.install/xwin-out`; configurable via `XWIN_SYSROOT`).
-me3 loads `game/target/x86_64-pc-windows-msvc/release/eldencraft.dll` directly.
-
-### Build Fabric JAR
-
-From `EldenCraft/fabric`:
+For the Java build:
 
 ```bash
-JAVA_HOME='/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/Skycraft/.install/jdk-25.0.4.1+1' GRADLE_USER_HOME='/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/Skycraft/.install/gradle' ./gradlew jar --offline --no-daemon --no-configuration-cache
+cd fabric
+JAVA_HOME='/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/Skycraft/.install/jdk-25.0.4.1+1' GRADLE_USER_HOME='/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/Skycraft/.install/gradle' ./gradlew test jar --offline --no-daemon --no-configuration-cache
 ```
 
-Current configuration: Minecraft 26.3, Fabric Loader 0.19.5, Fabric API
-0.161.0+26.3, Java 25, mod version 0.0.1. Output:
-`fabric/build/libs/eldencraft-0.0.1.jar`. Recent work compiled artifacts and used user
-game sessions; no automated tests were run for the latest changes.
+Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.161.0+26.3, Java 25. The shared Gradle cache
+and installed instance are outside workspace write roots and may require tool escalation.
+Regenerate design data only when changing mappings: `tools/generate_loot.py`, then
+`tools/generate_resources.py`; revalidate after generation.
 
-Copy a changed JAR into the instance's `.minecraft/mods/eldencraft-0.0.1.jar` and restart
-both games so DLL/JAR/protocol versions agree. Building the JAR alone does not deploy it.
-The DLL must launch Prism inside ER's Wine session: a separate Linux Minecraft process
-does not share the `Local\EldenCraft_v1` mapping.
+Install `fabric/build/libs/eldencraft-0.0.1.jar` in `<instance>/mods/` only while both games are
+closed. The DLL is already at me3's configured load path. Instance:
+`/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/SteamLibrary/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Local/EldenCraft/Prism/instances/EldenCraft/.minecraft`.
 
-Instance location:
+Launch from the root with `~/.local/bin/me3 launch -p me3/eldencraft.me3`.
+Controls: F8 MC movement, F9 first person, F10 input owner, F5 MC camera, F7 collision view, F4 block light source (game picture / clock),
+F6 ray probes, F11 render-history delay, R native interaction. R assumes ER Event Action is E.
 
-```text
-/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/SteamLibrary/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Local/EldenCraft/Prism/instances/EldenCraft/.minecraft
-```
-
-Launch command the user has been using:
-
-```bash
-cd /run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/EldenCraft && ~/.local/bin/me3 launch -p me3/eldencraft.me3
-```
-
-Controls: ER movement initially; F8 toggles MC movement; F9 first-person camera;
-F10 input ownership; F5 MC camera modes; F7 collision debug; F6 native ray/column probes;
-F11 camera/render history delay diagnostic. MC left click attacks, right click uses/shields.
-
-Logs (copy before a new launch overwrites them):
+Capture logs before relaunching:
 
 - Native: `game/target/x86_64-pc-windows-msvc/release/eldencraft.log`.
-- Minecraft: the instance path above plus `/logs/latest.log`.
-- me3: `/home/alex/.local/share/me3/logs/eldencraft/`.
-- A snapshot of the logs used for this handoff is in
-  `/tmp/eldencraft-handoff-docs/logs/`; `/tmp` is temporary, so preserve anything needed.
+- Minecraft: `<instance>/logs/latest.log`.
+- me3: `~/.local/share/me3/logs/eldencraft/`.
 
-### Exact artifact state at handoff
+## Next work
 
-| Artifact | Size / last modified UTC | SHA-256 |
-| --- | --- | --- |
-| DLL | 1,285,632 bytes; 2026-10-04 20:24:30 | `535eea60c3a67a0e5fab54aaa6542a640ad8b2c66b1f7e4ecb10907f24d85555` |
-| Built and installed JAR (matching) | 272,215 bytes; 2026-10-04 18:24:33 | `ba3edbb8ce8c2b859742cb11cff2c957fa383a0ae68c595639d5234b0131c8fa` |
-
-The last cave fix changed only Rust/docs, so the earlier JAR date is expected.
-
-## 8. Git and local investigation state
-
-Branch `main`; HEAD `f901293` (Add staged EldenCraft project), preceded by `cc89589`.
-Local `origin/main` also points to `f901293`; no remote network check was made during
-this handoff. Eleven existing files were modified before adding these documents:
-
-```text
-README.md
-fabric/src/client/java/dev/eldencraft/client/SkyClient.java
-fabric/src/client/java/dev/eldencraft/client/SkyCollider.java
-fabric/src/main/java/dev/eldencraft/world/SkyCollision.java
-fabric/src/main/java/dev/eldencraft/world/TriCollider.java
-game/src/camera.rs
-game/src/combat.rs
-game/src/lib.rs
-game/src/link.rs
-game/src/scan.rs
-game/src/world.rs
-```
-
-These contain working local fixes beyond the pushed initial project. Do not reset them
-or treat the GitHub snapshot as the latest prototype. Build outputs are ignored.
-
-Previous investigation/backups in `/tmp` include:
-
-- `eldencraft-movement-stability`: tick-vs-render movement, bounded handoffs and spawn fixes.
-- `eldencraft-tunnel-targeting-fix`: tunnel walls and observed-attacker fallback.
-- `eldencraft-opening-hit-fix`: forest soldier model/team allowance.
-- `eldencraft-cave-map-fix`: map pairing, render/update eligibility, diagnostics;
-  includes a pre-change MC world backup.
-- `eldencraft-streaming-region-fix`: latest native contact/region-refresh source baseline,
-  DLL/log backups, build report and executable analysis.
-
-Native SDK checkout:
-`/home/alex/.cargo/git/checkouts/fromsoftware-rs-66ca903120e84447/59fbd3b`
-(commit `59fbd3b3b7daaf14aca47c9f73530493dba6bc79`).
-Installed `eldenring.exe` is in the same Steam library under
-`steamapps/common/ELDEN RING/Game/`. Native bridges are tied to inspected code and guarded
-signatures. me3 reports game version 1.17.1.0; native bridge comments use WW 2.7.1 labels.
-Recheck actual code/signatures for a changed executable rather than relying on labels.
-
-Useful verified native details, if streaming investigation resumes:
-
-- `0x467130`: `ChrIns.no_gravity` feeds physics contact/gravity suppression.
-- `0x3f6750`, `0x3feb00`, `0x402530`: native ground/contact processing and flags.
-- `0x65b180`: safe block position/ID and player play-region update; native ground gating
-  occurs in caller `0xb02ba0` (call at `0xb02cfb`).
-- AI damage notice at `0x2c50d0`, manipulator accessor `0x3f0560`; `aggro.rs` carries guards.
-- `llvm-objdump` and Python `pefile` were available; `capstone` was not. If reading PE
-  runtime-function ranges, filter `.pdata` entries to valid `.text` bounds and reasonable
-  sizes before disassembly; padding produced misleading huge ranges during investigation.
-
-## 9. Resume plan
-
-1. Read the diff and snapshot logs; back up current source/artifacts before editing.
-2. Publish verified team-48 wolf targets before attacks. Confirm opening melee and bow hits.
-3. Separate connected cave transition holding from true loading so the MC camera does not flash.
-4. Investigate passive detection separately, then validate native aggro after opening damage.
-5. Repeat movement/collision regressions: stationary grace -> F8, slopes/stairs, church tunnel,
-   foliage, placed-block support, cave entry/deeper geometry/re-entry, death and view toggles.
-6. Continue the ten milestones in `roadmap.MD`; full combat and MC loot follow stabilization.
-
-For acceptance, use user-observed sessions and focused log evidence. A previous optimistic
-claim of “no more falling” was corrected by the user: stationary grace -> F8 could still
-fall. Report what was observed, what is only implemented, and what remains unverified.
+Gathering and the empty start are confirmed. Next: tune yields and placement from play, and check the crafting route, base/storage persistence and player-built blocks in depleted node positions.
+Follow `roadmap.MD` for current priorities. The user postponed full-inventory, simultaneous-death
+and multi-phase boss testing; keep those open without treating them as the immediate next task.
+Villager traders are a possible next design discussion, not an already-approved implementation.

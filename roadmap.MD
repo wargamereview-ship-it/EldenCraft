@@ -1,149 +1,122 @@
-# EldenCraft — next 10 milestones
+# EldenCraft — current roadmap
 
-Proposed continuation plan, 4 October 2026. This is the recommended sequence from the
-current prototype, not a claim that all earlier functionality is complete.
-See `Handoff.MD` for the actual local state, build instructions and latest bug evidence.
+Updated 5 October 2026 (America/Toronto). This replaces the previous milestone history.
+`Handoff.MD` describes the installed build and operational details. Mark gameplay as confirmed
+only when observed; builds and automated tests have their own status.
 
-The intended experience is Minecraft movement, building, survival and equipment in
-Elden Ring's world, with ER enemies/bosses awarding Minecraft items. Multiplayer and
-other inherited scaffolding are outside this first local prototype plan.
+## Confirmed in play
 
-## 1. Make exploration and opening attacks reliable
+- MC exploration and connected cave entry, with the camera retained through connected changes.
+- Opening attacks against ordinary enemies; footsteps detected by native enemy AI.
+- ER interactions through R, with native interaction animations and corrected body alignment.
+- MC hits delivered through the native combat path.
+- Regular enemy drops and boss drops from the new loot system, after the zero-ID boss fix.
+- Elevators: riding lifts up and down without falling through or hovering (user confirmed 5 October 2026).
+- Empty start and the gathering system: log piles, loose stone, rocks, mine ores in the eight mapped
+  interiors, and replenishment after a grace rest (user confirmed 5 October 2026).
 
-**Start here.** Close the current cave/wolf issues and finish the movement milestone.
+These confirmations cover tested examples, not every enemy, region or encounter variant.
 
-- Add narrowly verified hostile model/team classification for team-48 wolves `c4070`
-  and `c4071`, so they have MC targets before dealing their first hit.
-- Preserve the MC view during connected cave map changes while safely holding/rebasing movement.
-- Investigate poor passive detection: compare ER/MC visibility, movement noise and scripted AI.
-- Recheck native body/camera alignment, terrain contact, stale-hit handling and recovery.
-- Complete stationary grace -> F8, slopes/stairs, church tunnel, bushes, MC-block support,
-  cave entry/deep streaming/re-entry, death and view-toggle scenarios.
+## Built and installed
 
-**Done when:** repeated sessions allow these routes without falling, sustained snapback,
-camera flips or requiring ER mode to load the cave; wolves and soldiers accept opening
-hits and respond to accepted damage, with friendly NPCs protected.
+The current matching DLL/JAR use protocol version 3.
 
-## 2. Complete the core combat interaction
+- Empty starting inventory; starter, builder and test-guest kits removed.
+- Seven loot tiers: base game T1–T5 and Shadow of the Erdtree T6–T7.
+- Guaranteed family materials; 10% eligible worn equipment, including the capped upgrade roll.
+- 208 mapped boss encounters with named enchanted gear, books and materials.
+- 17 collections / 68 fixed boss pieces; persistent pending boss rewards and player receipts.
+- Visible log piles, bare-handed loose stone and pickaxe deposits with 10% copper/iron bonuses.
+- Visible regional mine ores in eight explicitly mapped interiors; valuable gathering materials
+  restricted to mines.
+- Persistent resource depletion and replenishment from native grace-rest transitions.
+- Native digging explicitly disabled at the user's request.
 
-Move from HP changes plus AI notices to a convincing combat loop.
+Latest checks pass: DLL/JAR builds, 40 Java tests, five standalone Rust identity/rest tests,
+Minecraft parsing of 106 loot tables, and 700,000 simulated kills. Existing worlds receive
+gathering nodes without a reset.
 
-- Integrate appropriate ER hit reactions, stagger and stance effects through verified native paths.
-- Define how MC attacks interact with ER guarding, defence and bosses without applying damage twice.
-- Cover swords/axes, bow draw/projectiles, attached-arrow cleanup, shields and front/rear/AoE cases.
-- Refine incoming scaling, damage attribution, overkill and statuses; document remaining limitations.
-- Validate MC-heart death -> ER death/runes/grace -> MC respawn across multiple encounters.
-- Improve readable enemy names, target feedback and guard/immune/rejected-hit explanations.
+## Immediate next: tune gathering and verify crafting
 
-**Done when:** a soldier, a wolf, Tree Sentinel and a cave boss can be fought using MC
-equipment; damage, blocking, reactions, aggro and death are consistent and understandable.
+Gathering and the empty start are confirmed. Remaining from the checklist below: the crafting
+route, tuning, and the player-built-block check. Do not erase saves to test.
 
-## 3. Replace enemy and boss drops with Minecraft items
+1. Find visible log piles and low mossy loose-stone slabs outdoors; collect both bare-handed.
+2. Craft a workbench and wooden pickaxe, then harvest larger stone and make a furnace/stone tools.
+3. Check that ordinary rocks supply stone and occasional copper/iron, without valuable ores.
+4. Visit a supported mine, verify visible ore and correct tool requirements, then smelt materials.
+5. Harvest a deposit, travel/reload and verify it stays depleted; rest at a grace and verify it returns.
+6. Put a player-built block in a depleted node position and verify replenishment leaves it alone.
 
-This is an explicit user goal. Build it on authoritative native death detection.
+Adjust visibility, density, placement, yields and replenishment from results. Check crafting,
+furnaces and storage on native terrain, including persistence after leaving and returning.
 
-- Map ER enemy/boss identities to configurable MC loot tables, quantities and probabilities.
-- Make normal enemy and boss rewards distinct, with a small initial progression-oriented set.
-- Spawn real MC item entities at defeated enemies and support pickup/inventory stacking.
-- Deduplicate deaths/rewards across frame retries, loads, respawns and corpse unloading.
-- Decide how existing ER loot/runes are suppressed or retained without breaking quest/boss flags.
-- Persist one-time boss reward claims and keep native event progression working.
+**Complete when:** an empty character can gather, craft a meaningful equipment upgrade, and
+repeat the resource loop without a world reset or loss of player-built blocks.
 
-**Done when:** killing and looting enemies works, a boss awards its intended MC reward once,
-and reloading/re-entering cannot duplicate rewards or prevent native progression.
+## Following priorities
 
-## 4. Finish survival, equipment and death rules
+### 1. Crafting and building progression
 
-- Define food/hunger, regeneration, armour, shield durability and consumables consistently.
-- Decide inventory retention versus dropped inventory on MC death; distinguish ER rune loss.
-- Handle recovery of dropped items, despawn limits and deaths during transitions.
-- Verify armour/enchantments/absorption/totems and avoid accidental double mitigation.
-- Create a small starting kit and communicate control/use rules in the game.
+Balance the material demand of early tools, armour, repair and enchanting against drops/nodes.
+Add ER-themed recipes where they improve progression. Verify smithing, uneven-ground placement,
+standing on MC blocks, and storage/furnace persistence through loads and rebases.
+Shared-map mines need precise zone definitions rather than enabling ore across protected locations.
 
-**Done when:** the player can survive, take damage, heal, consume equipment and recover
-from death using a coherent set of MC rules without losing or duplicating state.
+**Complete when:** a useful small base and its inventories survive travel, and regional resources
+produce a clear crafting progression.
 
-## 5. Make building and world interaction dependable
+### 2. Survival and combat balance
 
-- Finish precise placement previews, face selection and support on uneven ER terrain.
-- Make walking/jumping on placed blocks reliable in both movement modes and after loading.
-- Define which MC blocks/items are supported first, including partial-height shapes and interactions.
-- Cover breaking, dropped block items, containers and a useful subset of crafting stations.
-- Keep saved player structures anchored through map transitions and physics-origin rebases.
-- Treat destruction of native ER terrain as a separate feasibility decision; existing dig helpers
-  do not establish that ER geometry is safely editable.
+Review hunger, food and healing against ER damage. Current death rules keep inventory and respawn
+immediately; design changes need a user decision. Tune weapon reactions and poise, including spears,
+mace and mace smash. Check ranged/crowded hits, carrier visibility and guarded-hit feedback.
 
-**Done when:** the player can build a small functional base, use it, leave, reload and return
-with correct visuals, collision and inventories.
+**Complete when:** gathering, food, equipment and fighting support a coherent survival loop.
 
-## 6. Finish rendering, HUD polish and performance
+### 3. Villager traders — scope with the user first
 
-- Resolve remaining floaty block alignment, render-history delays and terrain occlusion errors.
-- Validate textures, lighting, transparency, dropped items and first/third-person MC presentation.
-- Keep redundant player bars removed; make target, shield, pickup and inventory feedback consistent.
-- Check resolution/GUI scaling and native/MC HUD overlap across modes and transitions.
-- Measure scan/render/shared-memory costs and place sensible budgets/limits on meshes and entities.
-- Add useful diagnostic counters without exposing implementation details in normal play.
+The user asked whether selected ER NPCs could become custom villager traders. Start by discussing
+which merchants, their inventories and payment materials. Prefer preserving native quest/dialogue
+logic behind a custom trader presentation. No trader implementation has been authorized yet.
 
-**Done when:** a dense small build and a combat encounter render clearly at the user's
-normal resolution with acceptable frame pacing and no growing resource backlog.
+**Complete when:** a chosen trader offers useful, tier-appropriate trades without breaking native
+NPC behavior or progression.
 
-## 7. Build a progression and balance loop
+### 4. Loot refinement and collections
 
-- Connect milestone-3 loot to recipes, tools, armour, consumables and meaningful upgrades.
-- Balance MC damage/health against a defined ER area and a small boss sequence.
-- Make loot tiers and boss rewards create reasons to explore, craft and fight.
-- Define interactions with native quests/keys/progression and preserve required ER flags.
-- Replace an unlimited debug kit with a configurable playable start while retaining developer tools.
+Tune regional rewards from play and inspect the generated boss reward sheet. Verify collection
+pieces across different encounters, improve signature reward variety, then design collection bonuses.
+Looting support, rarity/pickup feedback and custom visuals remain follow-ups.
 
-**Done when:** a fresh character can complete a short Limgrave -> cave boss route, earn
-resources, craft an upgrade and feel a meaningful improvement without manual intervention.
+**Complete when:** the regional upgrade curve and boss collections are useful and understandable
+across a longer route, including the DLC.
 
-## 8. Harden saves, lifecycle handling and local setup
+### 5. Interaction, stability and lifecycle
 
-- Version bridge/save data; persist structures, inventory, reward claims and settings consistently.
-- Back up/migrate saves and recover cleanly after either game exits or the link disconnects.
-- Reject stale actor/damage/render data after reloads, deaths and reconnects.
-- Provide a repeatable local install/build/deploy/launch path with actionable diagnostics.
-- Document exact supported game/mod versions and detect incompatible native signatures.
-- Separate developer-only tools and local caches from distributable project files.
+Improve native prompt visibility, readable enemy names and interaction-key configuration. Check
+ladders, lifts and less common interactions. Strengthen recovery after server/game stalls and
+restarts; add a build/install helper that checks processes and matching protocol versions.
 
-**Done when:** the user can restart, reload and recover a session through the documented
-local workflow without manual repair or state duplication.
+**Complete when:** ordinary play and relaunching do not require manual repair.
 
-## 9. Investigate and prototype Nether, End and portals
+## Deferred verification — user chose to test later
 
-This is deliberately late, as requested. **Feasibility first:** decide whether these
-dimensions can be presented convincingly by the existing MC renderer/collision bridge,
-require an ER map context, or need another clearly explained approach.
+- Boss rewards with a full inventory and subsequent space becoming available.
+- Simultaneous boss/player death, delivery after respawn and restart during partial delivery.
+- Duo, multi-phase, field and surrender encounters; no duplicate or missing completion rewards.
+- Regional boundaries, shared underground maps, later tiers and NG+ behavior.
+- Fresh-start and death-transition edge cases beyond the examples already played.
 
-- Explore dimension IDs/coordinate transforms, native player simulation and safe ownership of
-  collisions, streaming, camera, enemies and damage while outside the ER overworld context.
-- Prototype one reversible portal round trip with stable inventory, health and return coordinates.
-- Then expand to Nether terrain/environment and appropriate MC entities, subject to performance.
-- Prototype End portal activation and End access, including safe spawn/return/death handling.
-- Add dimension progression/boss content only after the transport/rendering model proves viable.
-- Preserve ER-world state while away; avoid pretending an unsupported native map can load.
+Keep these open. A regular boss payout does not confirm all encounter/recovery paths.
 
-**Done when:** a documented technical approach survives repeated portal/return/death/reload
-cycles; at least a small Nether/End demonstration is playable, or infeasibility is documented
-with concrete evidence and a viable alternative agreed with the user.
+## Longer-term work
 
-## 10. Deliver a cohesive local vertical slice
+- ER elemental/status enchantments: native Magic/Fire/Lightning/Holy and appropriate buildup.
+  Implement actual native effects before adding their books or claims to named gear.
+- Seamless co-op: hook compatibility, per-player native hits, guest loot/gathering and coherent
+  death/respawn rules. Current resource and loot routing is host-only.
+- Nether/End feasibility, then a polished route: empty start -> gathering -> crafted upgrade ->
+  early boss -> regional progression.
 
-- Package the supported features into one clearly bounded experience with simple onboarding.
-- Run the complete exploration -> building -> crafting -> combat -> loot -> death/recovery route.
-- Exercise repeated loading, long sessions, bosses and the dimension prototype if viable.
-- Fix the highest-impact regressions and record known limitations and unsupported combinations.
-- Produce concise setup, controls, troubleshooting and continuation documentation.
-- Tag/package a reproducible local prototype; publish only if the user requests it.
-
-**Done when:** the user can play the defined route from a fresh setup without code changes,
-and the handoff distinguishes demonstrated features from experimental ones.
-
-## How to use this roadmap
-
-Finish milestone 1 before broadening native hooks. Milestones 2–5 form the main gameplay
-loop; presentation, balance and lifecycle work then make it repeatable. Milestone 9 is a
-research gate with uncertain architecture, so do not promise full dimensions in advance.
-Agree on concrete manual acceptance scenarios and record observed results for each milestone.
+Native terrain excavation is out of scope unless the user explicitly requests it again.

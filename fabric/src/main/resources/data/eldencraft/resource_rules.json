@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "rock_bonus_percent": 10,
+  "mines": {
+    "536870912": {
+      "name": "Morne Tunnel",
+      "tier": 1
+    },
+    "536936448": {
+      "name": "Limgrave Tunnels",
+      "tier": 1
+    },
+    "537001984": {
+      "name": "Raya Lucaria Crystal Tunnel",
+      "tier": 2
+    },
+    "537133056": {
+      "name": "Old Altus Tunnel",
+      "tier": 3
+    },
+    "537198592": {
+      "name": "Altus Tunnel",
+      "tier": 3
+    },
+    "537329664": {
+      "name": "Gael Tunnel",
+      "tier": 3
+    },
+    "537395200": {
+      "name": "Sellia Crystal Tunnel",
+      "tier": 3
+    },
+    "537591808": {
+      "name": "Yelough Anix Tunnel",
+      "tier": 5
+    }
+  }
+}

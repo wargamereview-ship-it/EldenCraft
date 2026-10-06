@@ -62,7 +62,11 @@ pub struct Combat {
 	/// Published enemies alive last frame: a transition to dead is a death, once per life.
 	alive: HashSet<Identity>,
 	/// Deaths awaiting room in the input ring (position, identity, death).
-	deaths: VecDeque<[proto::InputEvent; 3]>,
+	deaths: VecDeque<crate::loot::Reward>,
+	boss_rewards: crate::loot::BossRewards,
+	/// MC hits through ER's own hit application, once an ER hit has supplied a template.
+	native: crate::native_damage::NativeDamage,
+	direct_logged: bool,
 }
 
 /// Copy this frame's live entries before borrowing the main player. Pointers are used only in
@@ -77,7 +81,8 @@ impl Combat {
 	pub fn new() -> Self {
 		Self { ids: HashMap::new(), confirmed_attackers: HashSet::new(), next_id: 1, was_active: false, last_count: 0,
 			health_owner: None, restore_pending: false, life_epoch: 1, was_loading: true, death_pending: false,
-			death_saw_loading: false, health_fraction: 1.0, incoming: VecDeque::new(), alive: HashSet::new(), deaths: VecDeque::new() }
+			death_saw_loading: false, health_fraction: 1.0, incoming: VecDeque::new(), alive: HashSet::new(), deaths: VecDeque::new(),
+			boss_rewards: crate::loot::BossRewards::new(), native: crate::native_damage::NativeDamage::new(), direct_logged: false }
 	}
 
 	pub fn owns_health(&self) -> bool { self.health_owner.is_some() }
@@ -112,7 +117,7 @@ impl Combat {
 		self.ids.clear(); // Keep next_id: late hits cannot address a new actor after respawning.
 		self.confirmed_attackers.clear();
 		self.alive.clear();
-		self.deaths.clear();
+		// Rewards survive loading/respawn; actor and damage events do not.
 		self.was_active = false;
 		self.last_count = 0;
 
@@ -125,6 +130,13 @@ impl Combat {
 	pub fn player_frame(&mut self, link: &Link, player: &mut PlayerIns, space: &Space,
 		near: &[NonNull<ChrIns>], connected: bool) {
 		self.was_loading = false;
+		if connected {
+			self.deaths.extend(self.boss_rewards.frame(player, space, near));
+			while let Some(batch) = self.deaths.front() {
+				if !link.send_inputs(batch) { break; }
+				self.deaths.pop_front();
+			}
+		}
 		if self.restore_pending { self.release_health(Some(player)); }
 		if self.death_pending {
 			self.release_health(Some(player));
@@ -222,6 +234,7 @@ impl Combat {
 
 	pub fn frame(&mut self, link: &Link, player: &PlayerIns, space: &Space,
 		near: &[NonNull<ChrIns>], mc: Option<&McView>, active: bool) {
+		self.native.frame(active || self.was_active);
 		let mut seen = HashSet::new();
 		let mut live = Vec::new();
 		let mut alive_now = HashSet::new();
@@ -239,7 +252,7 @@ impl Combat {
 			let identity = (chr.field_ins_handle, ptr.as_ptr() as usize, chr.npc_param_id);
 			// Checked before the hostility filter: a dying body can lose its active flag.
 			if (chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag()) && self.alive.remove(&identity) {
-				self.enemy_died(chr, &player.chr_ins, space);
+				self.enemy_died(chr, player, space);
 			}
 			let observed_attacker = self.confirmed_attackers.contains(&identity);
 			if exclusion(chr, space, observed_attacker).is_some() { continue; }
@@ -301,10 +314,24 @@ impl Combat {
 					}
 					let before = chr.modules.data.hp;
 					let damage = (event.a.min(1000.0) * HP_PER_DAMAGE).round().max(1.0) as i32;
-					let after = before.saturating_sub(damage).max(0);
+					// A native bullet carries the hit into ER's own pipeline: guard, poise/stagger,
+					// reaction, effects and AI response; MC's damage replaces the bullet's at HP.
+					let critical = event.flags & proto::HIT_CRITICAL != 0;
+					let (after, aggro) = match self.native.send(chr, &player.chr_ins, damage, event.weapon, critical) {
+						// Feedback reports the expected result; ER applies it a few frames later.
+						crate::native_damage::Outcome::Sent => (before.saturating_sub(damage).max(0), "native hit sent"),
+						crate::native_damage::Outcome::Unavailable(why) => {
+							let after = before.saturating_sub(damage).max(0);
+							chr.modules.data.hp = after;
+							let aggro = crate::aggro::on_damage(chr, &player.chr_ins, before - after);
+							if !self.direct_logged {
+								self.direct_logged = true;
+								log::line(&format!("native damage: MC hits use the direct HP bridge ({why})"));
+							}
+							(after, aggro)
+						}
+					};
 					chr.last_hit_by = player.chr_ins.field_ins_handle;
-					chr.modules.data.hp = after;
-					let aggro = crate::aggro::on_damage(chr, &player.chr_ins, before - after);
 					// Death/loot handling remains owned by ER; do not reset reward flags or force animations.
 					*actor = record(chr, space, actor.id);
 					link.send_input_full(proto::IN_HIT_FEEDBACK, flags, before - after, actor.id as i32, after);
@@ -312,6 +339,22 @@ impl Combat {
 						actor.id, chr.character_id, event.weapon, event.a, before - after, before, after, event.flags, aggro));
 				}
 			}
+		}
+		// Hits whose bullet never arrived: apply them directly to the still-live target.
+		for missed in self.native.resolve() {
+			let Some((ptr, actor)) = live.iter_mut().find(|(p, _)| p.as_ptr() as usize == missed.victim) else {
+				log::line("native damage: an undelivered hit's target is no longer nearby; dropped");
+				continue;
+			};
+			let chr = unsafe { ptr.as_mut() };
+			if chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag() || protection(chr) != 0 { continue; }
+			let before = chr.modules.data.hp;
+			let after = before.saturating_sub(missed.damage).max(0);
+			chr.last_hit_by = player.chr_ins.field_ins_handle;
+			chr.modules.data.hp = after;
+			let aggro = crate::aggro::on_damage(chr, &player.chr_ins, before - after);
+			*actor = record(chr, space, actor.id);
+			log::line(&format!("combat: actor {} c{} direct fallback {} ER HP; {before} -> {after}; aggro {aggro}", actor.id, chr.character_id, missed.damage));
 		}
 		self.was_active = active;
 		if live.len() != self.last_count {
@@ -325,26 +368,23 @@ impl Combat {
 impl Combat {
 	/// ER's own last-attacker attribution decides MC loot, so ER weapons and MC weapons both
 	/// count, while deaths to falls, other enemies or scripts do not. ER drops and runes stay.
-	fn enemy_died(&mut self, chr: &ChrIns, player: &ChrIns, space: &Space) {
+	fn enemy_died(&mut self, chr: &ChrIns, player: &PlayerIns, space: &Space) {
+		// Known bosses pay on encounter completion, never on an individual phase/add death.
+		if crate::loot::known_boss(chr) { return; }
 		let boss = chr.team_type == 7;
 		let h = chr.modules.physics.position;
 		let pos = space.havok_to_mc([h.0, h.1, h.2]);
-		let killer = chr.last_hit_by == player.field_ins_handle;
+		let killer = chr.last_hit_by == player.chr_ins.field_ins_handle;
 		log::line(&format!("loot: c{} npc {} entity {} max HP {} team {}{} died; {}", chr.character_id, chr.npc_param_id,
 			chr.event_entity_id, chr.modules.data.max_hp, chr.team_type, if boss { " (boss)" } else { "" },
 			if killer { "the player hit it last: Minecraft loot requested" } else { "not killed by the player: no loot" }));
 		if !killer || !pos.iter().all(|v| v.is_finite()) { return; }
-		if self.deaths.len() >= 32 {
+		if self.deaths.len() >= 512 {
 			log::line("loot: death queue full while Minecraft is unresponsive; dropping this reward");
 			return;
 		}
-		let bits = pos.map(|v| (v as f32).to_bits() as i32);
-		self.deaths.push_back([
-			proto::InputEvent { kind: proto::IN_LOOT_POS, code: 0, a: bits[0], b: bits[1], c: bits[2] },
-			proto::InputEvent { kind: proto::IN_LOOT_ID, code: 0, a: chr.event_entity_id as i32, b: space.world_id as i32, c: chr.npc_param_id },
-			proto::InputEvent { kind: proto::IN_ENEMY_DIED, code: if boss { proto::ENEMY_BOSS } else { 0 },
-				a: chr.modules.data.max_hp, b: chr.character_id as i32, c: 0 },
-		]);
+		self.deaths.push_back(crate::loot::batch(pos, chr.event_entity_id, space.world_id, chr.npc_param_id,
+			i32::from(chr.block_id()) as u32, player.play_region_id, chr.modules.data.max_hp, chr.character_id as u32, boss, 0));
 	}
 }
 

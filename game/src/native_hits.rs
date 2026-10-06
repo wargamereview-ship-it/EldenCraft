@@ -55,6 +55,8 @@ unsafe fn live_hp(module: *mut u8, body: (usize, usize)) -> Option<*const i32> {
 
 unsafe extern "system" fn apply(module: *mut u8, attacker: *mut u8, hit: *mut u8, flag: u8, extra: u8) {
 	let Some(original) = ORIGINAL.get().copied() else { return };
+	// A replayed Minecraft hit takes Minecraft's damage at this stage (see native_damage).
+	crate::native_damage::substitute_damage(module, hit);
 	// Only read the data module of the currently armed local player, on the game's
 	// own damage thread while that module is already live. Retain identity only.
 	let sensor = if !module.is_null() {

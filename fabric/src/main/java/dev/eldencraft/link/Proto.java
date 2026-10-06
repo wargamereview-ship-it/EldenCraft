@@ -8,7 +8,7 @@ public final class Proto {
 	}
 
 	public static final int MAGIC = 0x43444C45;
-	public static final int VERSION = 1;
+	public static final int VERSION = 3;
 	// A second client on the same PC (multiplayer testing) talks to its own stand-in Skyrim:
 	// -Deldencraft.link=Local\EldenCraft_guest (see tools/fake_guest.py).
 	public static final String MAPPING_NAME = System.getProperty("eldencraft.link", "Local\\EldenCraft_v1");
@@ -58,6 +58,8 @@ public final class Proto {
 	public static final int IN_LOOT_POS = 12;
 	public static final int IN_LOOT_ID = 13;
 	public static final int IN_ENEMY_DIED = 14;
+	public static final int IN_LOOT_REGION = 15;
+	public static final int IN_GRACE_REST = 16;
 	public static final int ENEMY_BOSS = 1;
 	public static final long OFF_NATIVE_LIFE = 0x900, OFF_PLAYER_VITALS = 0x940;
 	public static final int LIFE_ACTIVE = 1, LIFE_RESPAWN = 2;
@@ -106,6 +108,9 @@ public final class Proto {
 	public static final int WEAPON_BLUNT = 3;
 	public static final int WEAPON_PIERCE = 4;
 	public static final int WEAPON_ARROW = 5;
+	public static final int WEAPON_SPEAR = 6;
+	public static final int WEAPON_MACE = 7;
+	public static final int WEAPON_MACE_SMASH = 8;
 
 	// World entities (relative to OFF_WORLD_ENTITIES)
 	public static final int MAX_WORLD_ENTITIES = 160;

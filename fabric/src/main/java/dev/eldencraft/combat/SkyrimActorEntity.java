@@ -145,6 +145,14 @@ public class SkyrimActorEntity extends LivingEntity {
 		if (weapon.is(Items.TRIDENT)) {
 			return Proto.WEAPON_PIERCE;
 		}
+		if (weapon.is(ItemTags.SPEARS)) {
+			return Proto.WEAPON_SPEAR;
+		}
+		if (weapon.is(Items.MACE)) {
+			// Called from actuallyHurt, before the mace resets the attacker's fall distance.
+			return source.getEntity() instanceof LivingEntity attacker && net.minecraft.world.item.MaceItem.canSmashAttack(attacker)
+				? Proto.WEAPON_MACE_SMASH : Proto.WEAPON_MACE;
+		}
 		return Proto.WEAPON_BLUNT;
 	}
 

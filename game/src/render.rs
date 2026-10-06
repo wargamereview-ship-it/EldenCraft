@@ -1,10 +1,12 @@
 //! Minecraft's block meshes and atlas, read from the render ring and handed to the renderer
 //! (`gpu`), and the collision debug view (F7, drawn with the game's debug drawer).
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use eldenring::cs::{CSEzDraw, EzDrawFillMode, RendMan};
-use fromsoftware_shared::{F32Vector4, FromStatic, Triangle};
+use eldenring::cs::RendMan;
+use eldenring::position::HavokPosition;
+use fromsoftware_shared::{F32Vector4, FromStatic};
 
 use crate::link::Link;
 use crate::log;
@@ -36,8 +38,6 @@ fn parse_batches(payload: &[u8], at: usize, origin: [f64; 3]) -> Option<Arc<scen
 
 /// Render ring bytes read per frame, so a burst of meshes doesn't stall a frame.
 const READ_BUDGET: usize = 8 << 20;
-/// Upper bound on debug triangles drawn per frame.
-const MAX_TRIS: usize = 30_000;
 
 pub struct Blocks {
 	logged_atlas: bool,
@@ -100,33 +100,84 @@ impl Blocks {
 	}
 }
 
-fn draw_tri(ez: &mut CSEzDraw, p: [[f32; 3]; 3]) {
-	let v = |a: [f32; 3]| F32Vector4(a[0], a[1], a[2], 1.0);
-	let e = |a: [f32; 3], b: [f32; 3]| F32Vector4(b[0] - a[0], b[1] - a[1], b[2] - a[2], 0.0);
-	ez.draw_triangle(&Triangle { origin: v(p[0]), edge1: e(p[0], p[1]), edge2: e(p[0], p[2]) });
+/// Horizontal / vertical reach of the debug view around the player (blocks).
+const DRAW_RANGE: f64 = 12.0;
+const DRAW_HEIGHT: f64 = 8.0;
+/// The cached edge set is rebuilt after the player moves this far from where it was built;
+/// it is built a little wider than the view so nothing pops in at the rim.
+const DRAW_SLACK: f64 = 3.0;
+/// Upper bound on debug lines drawn per frame.
+const MAX_EDGES: usize = 12_000;
+
+/// The collision debug view (F7). Every drawn triangle is a native call, so the nearby edges are
+/// gathered once and re-used until the scan changes or the player walks on; edges shared by
+/// neighbouring triangles are drawn once.
+#[derive(Default)]
+pub struct CollisionDraw {
+	generation: u64,
+	built_at: Option<V3>,
+	floors: Vec<([f32; 3], [f32; 3])>,
+	walls: Vec<([f32; 3], [f32; 3])>,
 }
 
-/// The collision Minecraft was sent, as a wireframe: floors green, walls and steep parts red.
-pub fn draw_collision<'a>(space: &Space, tris: impl Iterator<Item = &'a ColTri>, feet: V3) {
-	let Some(ez) = (unsafe { RendMan::instance_mut() }).ok().map(|r| r.debug_ez_draw.as_mut()) else {
-		return;
-	};
-	ez.set_fill_mode(EzDrawFillMode::Wireframe);
-	let floor = F32Vector4(0.2, 1.0, 0.3, 1.0);
-	let wall = F32Vector4(1.0, 0.25, 0.2, 1.0);
-	for (n, t) in tris.enumerate() {
-		if n >= MAX_TRIS {
-			break;
-		}
-		let c = [0, 3, 6].map(|k| [t.v[k] as f64, t.v[k + 1] as f64, t.v[k + 2] as f64]);
-		if (c[0][0] - feet[0]).abs() > 12.0 || (c[0][2] - feet[2]).abs() > 12.0 || (c[0][1] - feet[1]).abs() > 8.0 {
-			continue;
-		}
-		let n = normal_y(&c);
-		ez.set_color(if n > 0.7 { &floor } else { &wall });
-		draw_tri(ez, c.map(|v| space.mc_to_havok(v)));
+impl CollisionDraw {
+	/// Drop the cache (view switched off), so it is rebuilt fresh when shown again.
+	pub fn reset(&mut self) {
+		self.built_at = None;
 	}
-	ez.set_fill_mode(EzDrawFillMode::Fill);
+
+	fn stale(&self, generation: u64, feet: V3) -> bool {
+		self.generation != generation
+			|| self.built_at.is_none_or(|at| (at[0] - feet[0]).hypot(at[2] - feet[2]) > DRAW_SLACK || (at[1] - feet[1]).abs() > DRAW_SLACK)
+	}
+
+	fn rebuild(&mut self, generation: u64, tris: &HashMap<(i32, i32), Vec<ColTri>>, feet: V3) {
+		self.generation = generation;
+		self.built_at = Some(feet);
+		self.floors.clear();
+		self.walls.clear();
+		let (range, height) = (DRAW_RANGE + DRAW_SLACK, DRAW_HEIGHT + DRAW_SLACK);
+		let near = crate::scan::near_columns(feet, 2);
+		// Edges already taken (quantised to a millimetre, ends ordered).
+		let mut seen: HashSet<[i32; 6]> = HashSet::new();
+		let q = |v: [f64; 3]| v.map(|c| (c * 1000.0).round() as i32);
+		for t in tris.iter().filter(|(c, _)| near.contains(c)).flat_map(|(_, t)| t) {
+			let c = [0, 3, 6].map(|k| [t.v[k] as f64, t.v[k + 1] as f64, t.v[k + 2] as f64]);
+			if c.iter().all(|v| (v[0] - feet[0]).abs() > range || (v[2] - feet[2]).abs() > range)
+				|| c.iter().all(|v| (v[1] - feet[1]).abs() > height) {
+				continue;
+			}
+			let wall = normal_y(&c) <= 0.7;
+			for (a, b) in [(0, 1), (1, 2), (2, 0)] {
+				let (qa, qb) = (q(c[a]), q(c[b]));
+				let (lo, hi) = if qa <= qb { (qa, qb) } else { (qb, qa) };
+				let key = [lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]];
+				let edge = (c[a].map(|v| v as f32), c[b].map(|v| v as f32));
+				// A shared edge is drawn once, as whichever triangle reached it first.
+				if seen.insert(key) {
+					if wall { self.walls.push(edge) } else { self.floors.push(edge) }
+				}
+			}
+		}
+	}
+
+	pub fn draw(&mut self, space: &Space, scanner: &crate::scan::Scanner, feet: V3) {
+		if self.stale(scanner.generation, feet) {
+			self.rebuild(scanner.generation, &scanner.tris, feet);
+		}
+		let Some(ez) = (unsafe { RendMan::instance_mut() }).ok().map(|r| r.debug_ez_draw.as_mut()) else {
+			return;
+		};
+		let mut budget = MAX_EDGES;
+		for (color, edges) in [(F32Vector4(0.2, 1.0, 0.3, 1.0), &self.floors), (F32Vector4(1.0, 0.25, 0.2, 1.0), &self.walls)] {
+			ez.set_color(&color);
+			for (a, b) in edges.iter().take(budget) {
+				let [a, b] = [a, b].map(|v| space.mc_to_havok([v[0] as f64, v[1] as f64, v[2] as f64]));
+				ez.draw_line(&HavokPosition::from_xyz(a[0], a[1], a[2]), &HavokPosition::from_xyz(b[0], b[1], b[2]));
+			}
+			budget = budget.saturating_sub(edges.len());
+		}
+	}
 }
 
 fn normal_y(c: &[V3; 3]) -> f64 {

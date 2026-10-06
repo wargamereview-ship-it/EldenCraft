@@ -20,7 +20,8 @@
     "ServerExplosionMixin",
     "ServerPlayerMixin",
     "SmithingMixin",
-    "NativeShieldMixin"
+    "NativeShieldMixin",
+    "ResourceRemovalMixin"
   ],
   "injectors": {
     "defaultRequire": 1

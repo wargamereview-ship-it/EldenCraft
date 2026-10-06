@@ -14,7 +14,7 @@ import time
 import zlib
 
 MAGIC = 0x43444C45
-VERSION = 1
+VERSION = 3
 NAME = os.environ.get("ELDENCRAFT_LINK", "Local\\EldenCraft_v1")  # fake_guest.py runs one beside a real Skyrim
 OFF_SKY = 0x100
 OFF_MC = 0x200

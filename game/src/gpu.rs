@@ -82,7 +82,13 @@ cbuffer C : register(b0) {
 	float4 proj;    // x scale, y scale, z scale, z offset
 	float4 offset;  // blocks: what to add to positions; overlay: the invert rectangle (pixels)
 	float4 params;  // blocks: y daylight; occluders: x push-back; overlay: x flip
+	float4 sunDir;  // blocks: unit vector toward the sun (or moon)
+	float4 sunCol;  // blocks: its colour
+	float4 ambient; // blocks: colour of the light on every face
+	float4 frame;   // blocks: the game's picture on screen (x, y, width, height in back buffer pixels)
+	float4 look;    // blocks: x 1 = take light from the game's picture, y its reference brightness, z tint strength, w sample radius (pixels)
 };
+Texture2D<float4> frameTex : register(t1);
 Texture2D tex : register(t0);
 SamplerState samp : register(s0);
 
@@ -92,7 +98,26 @@ float4 Project(float3 p) {
 }
 
 struct BIn { float3 pos : POSITION; float2 uv : TEXCOORD0; float4 col : COLOR0; uint light : LIGHT; uint flags : FLAGS; };
-struct BOut { float4 pos : SV_Position; float2 uv : TEXCOORD0; float4 col : COLOR0; float bright : BRIGHT; nointerpolation uint flags : FLAGS; };
+struct BOut { float4 pos : SV_Position; float2 uv : TEXCOORD0; float4 col : COLOR0; float3 lit : LITCOL; nointerpolation uint flags : FLAGS; };
+
+// The average colour of the game's picture around a point on screen, as a light level (1 is
+// what a normally sunlit scene looks like) with a mild tint.
+float3 GameLight(float4 clip) {
+	float2 ndc = clip.xy / max(clip.w, 0.05);
+	float2 c = frame.xy + float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * frame.zw;
+	float2 lo = frame.xy, hi = frame.xy + frame.zw - 1.0;
+	float3 acc = float3(0, 0, 0);
+	[unroll] for (int k = 0; k < 32; k++) {
+		float a = k * 2.39996323;
+		float r = sqrt((k + 0.5) / 32.0) * look.w;
+		float2 p = clamp(c + float2(cos(a), sin(a)) * r, lo, hi);
+		acc += frameTex.Load(int3(int2(p), 0)).rgb;
+	}
+	float3 avg = acc / 32.0;
+	float luma = dot(avg, float3(0.299, 0.587, 0.114));
+	float3 tint = lerp(float3(1, 1, 1), clamp(avg / max(luma, 0.02), 0.6, 1.6), look.z);
+	return clamp(luma / look.y, 0.05, 1.3) * tint;
+}
 
 BOut VSBlock(BIn i) {
 	BOut o;
@@ -102,18 +127,38 @@ BOut VSBlock(BIn i) {
 	o.flags = i.flags;
 	float block = (i.light & 15) / 15.0;
 	float sky = ((i.light >> 8) & 15) / 15.0;
-	float l = max(block, sky * params.y);
-	l = l / (4.0 - 3.0 * l);  // Minecraft's brightness curve
+	float sl = sky * params.y;
+	sl = sl / (4.0 - 3.0 * sl);  // Minecraft's brightness curve
+	float bl = block / (4.0 - 3.0 * block);
+	// Face codes: 1 down, 2 up, 3 north, 4 south, 5 west, 6 east (0: no face, as for entities).
 	uint face = (i.flags >> 4) & 7;
-	float shade = face == 1 ? 0.5 : face == 2 ? 1.0 : (face == 3 || face == 4) ? 0.8 : (face == 5 || face == 6) ? 0.6 : 1.0;
-	o.bright = max(l, 0.08) * shade;
+	float3 n = face == 1 ? float3(0, -1, 0) : face == 3 ? float3(0, 0, -1) : face == 4 ? float3(0, 0, 1)
+		: face == 5 ? float3(-1, 0, 0) : face == 6 ? float3(1, 0, 0) : float3(0, 1, 0);
+	float shade = face == 1 ? 0.55 : face == 2 ? 1.0 : face == 0 ? 0.9 : 0.8;
+	float facing = face == 0 ? 0.6 : saturate(dot(n, sunDir.xyz));
+	float3 blockLight = float3(1.0, 0.78, 0.5) * bl * shade;
+	float3 skyLight;
+	if (look.x > 0.5) {
+		// The light of this spot as the game itself drew it: shadows, fog, weather, colour grading,
+		// lamps and how bright the place is all show in the picture around it.
+		float3 here = GameLight(o.pos);
+		// How much dimmer this face is than a face looking straight up, from the sun and sky.
+		float3 w = float3(0.299, 0.587, 0.114);
+		float faceLit = dot(ambient.rgb * shade + sunCol.rgb * facing, w);
+		float topLit = dot(ambient.rgb + sunCol.rgb * saturate(sunDir.y), w);
+		skyLight = here * clamp(faceLit / max(topLit, 0.02), 0.3, 1.0) * sl;
+	} else {
+		// Minecraft's sky light, shaded by the clock's sun and ambient.
+		skyLight = (ambient.rgb * shade + sunCol.rgb * facing) * sl;
+	}
+	o.lit = clamp(skyLight + blockLight, 0.05, 1.25);
 	return o;
 }
 
 float4 PSBlock(BOut i) : SV_Target {
 	float4 t = tex.Sample(samp, i.uv) * i.col;
 	if ((i.flags & 1) != 0 && t.a < 0.5) discard;
-	return float4(t.rgb * i.bright, (i.flags & 2) != 0 ? t.a : 1.0);
+	return float4(t.rgb * i.lit, (i.flags & 2) != 0 ? t.a : 1.0);
 }
 
 // Contact shadow: a soft dark disc over the quad.
@@ -167,12 +212,14 @@ float4 PSInvert(OOut i) : SV_Target {
 }
 "#;
 
-const CONSTANTS: u32 = 28;
+const CONSTANTS: u32 = 48;
 /// Descriptor slots: 0 the block atlas, 1 the GUI, then Minecraft's entity textures by id.
-const SRV_SLOTS: u32 = 64;
+const SRV_SLOTS: u32 = 65;
+/// The copy of the game's picture (blocks take their light from it).
+const FRAME_SLOT: u32 = 64;
 
 fn texture_slot(id: u32) -> Option<u32> {
-	(id >= 1 && id + 1 < SRV_SLOTS).then_some(id + 1)
+	(id >= 1 && id + 1 < FRAME_SLOT).then_some(id + 1)
 }
 
 #[repr(C)]
@@ -185,7 +232,24 @@ struct Constants {
 	proj: [f32; 4],
 	offset: [f32; 4],
 	params: [f32; 4],
+	sun_dir: [f32; 4],
+	sun_col: [f32; 4],
+	ambient: [f32; 4],
+	frame: [f32; 4],
+	look: [f32; 4],
 }
+
+struct FrameCopy {
+	resource: ID3D12Resource,
+	width: u32,
+	height: u32,
+	format: DXGI_FORMAT,
+	/// Has been copied into once (it is in the shader-resource state between frames).
+	ready: bool,
+}
+
+/// What a vertex shader (or any) reads the copy of the game's picture in.
+const FRAME_READ: D3D12_RESOURCE_STATES = D3D12_RESOURCE_STATES(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE.0 | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE.0);
 
 struct Mesh {
 	source: Arc<Vec<RenVertex>>,
@@ -237,6 +301,9 @@ struct Renderer {
 	overlay: Option<Texture>,
 	overlay_front: usize,
 	overlay_flip: bool,
+	/// A copy of the game's picture taken before drawing, and whether making one has failed for good.
+	frame_copy: Option<FrameCopy>,
+	frame_failed: bool,
 	meshes: HashMap<[i32; 3], Mesh>,
 	/// Entity textures by Minecraft's id, and what they were made from.
 	entity_textures: HashMap<u32, (Texture, Arc<Atlas>)>,
@@ -339,6 +406,23 @@ impl Renderer {
 						},
 					},
 					ShaderVisibility: D3D12_SHADER_VISIBILITY_PIXEL,
+				},
+				// The game's picture, read by the block vertex shader.
+				D3D12_ROOT_PARAMETER {
+					ParameterType: D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+					Anonymous: D3D12_ROOT_PARAMETER_0 {
+						DescriptorTable: D3D12_ROOT_DESCRIPTOR_TABLE {
+							NumDescriptorRanges: 1,
+							pDescriptorRanges: &D3D12_DESCRIPTOR_RANGE {
+								RangeType: D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+								NumDescriptors: 1,
+								BaseShaderRegister: 1,
+								RegisterSpace: 0,
+								OffsetInDescriptorsFromTableStart: 0,
+							},
+						},
+					},
+					ShaderVisibility: D3D12_SHADER_VISIBILITY_VERTEX,
 				},
 			];
 			let root_desc = D3D12_ROOT_SIGNATURE_DESC {
@@ -482,6 +566,21 @@ impl Renderer {
 			let dsv_heap = heap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE)?;
 			let srv_heap = heap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, SRV_SLOTS, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)?;
 			let srv_step = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			// Until a copy of the game's picture exists the table still points at something valid.
+			{
+				let mut handle = srv_heap.GetCPUDescriptorHandleForHeapStart();
+				handle.ptr += (FRAME_SLOT * srv_step) as usize;
+				device.CreateShaderResourceView(
+					None,
+					Some(&D3D12_SHADER_RESOURCE_VIEW_DESC {
+						Format: DXGI_FORMAT_R8G8B8A8_UNORM,
+						ViewDimension: D3D12_SRV_DIMENSION_TEXTURE2D,
+						Shader4ComponentMapping: D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+						Anonymous: D3D12_SHADER_RESOURCE_VIEW_DESC_0 { Texture2D: D3D12_TEX2D_SRV { MipLevels: 1, ..Default::default() } },
+					}),
+					handle,
+				);
+			}
 
 			Ok(Self {
 				device: device.clone(),
@@ -507,6 +606,8 @@ impl Renderer {
 				overlay: None,
 				overlay_front: 2,
 				overlay_flip: false,
+				frame_copy: None,
+				frame_failed: false,
 				meshes: HashMap::new(),
 				entity_textures: HashMap::new(),
 				dynamic: None,
@@ -626,6 +727,64 @@ impl Renderer {
 		Ok(())
 	}
 
+	/// Makes (or resizes) the texture the game's picture is copied into. False when this back
+	/// buffer's format cannot be copied and read, in which case blocks keep the clock's light.
+	unsafe fn ensure_frame_copy(&mut self, desc: &D3D12_RESOURCE_DESC) -> Result<bool> {
+		if desc.SampleDesc.Count > 1 {
+			return Ok(false);
+		}
+		let (typeless, read) = match desc.Format {
+			DXGI_FORMAT_R8G8B8A8_UNORM | DXGI_FORMAT_R8G8B8A8_UNORM_SRGB | DXGI_FORMAT_R8G8B8A8_TYPELESS => (DXGI_FORMAT_R8G8B8A8_TYPELESS, DXGI_FORMAT_R8G8B8A8_UNORM),
+			DXGI_FORMAT_B8G8R8A8_UNORM | DXGI_FORMAT_B8G8R8A8_UNORM_SRGB | DXGI_FORMAT_B8G8R8A8_TYPELESS => (DXGI_FORMAT_B8G8R8A8_TYPELESS, DXGI_FORMAT_B8G8R8A8_UNORM),
+			DXGI_FORMAT_R10G10B10A2_UNORM | DXGI_FORMAT_R10G10B10A2_TYPELESS => (DXGI_FORMAT_R10G10B10A2_TYPELESS, DXGI_FORMAT_R10G10B10A2_UNORM),
+			DXGI_FORMAT_R16G16B16A16_FLOAT => (DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT),
+			_ => return Ok(false),
+		};
+		let (width, height) = (desc.Width as u32, desc.Height);
+		if self.frame_copy.as_ref().is_some_and(|f| f.width == width && f.height == height && f.format == desc.Format) {
+			return Ok(true);
+		}
+		unsafe {
+			let resource: ID3D12Resource = util::try_out_ptr(|v| {
+				self.device.CreateCommittedResource(
+					&D3D12_HEAP_PROPERTIES { Type: D3D12_HEAP_TYPE_DEFAULT, ..Default::default() },
+					D3D12_HEAP_FLAG_NONE,
+					&D3D12_RESOURCE_DESC {
+						Dimension: D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+						Width: width as u64,
+						Height: height,
+						DepthOrArraySize: 1,
+						MipLevels: 1,
+						Format: typeless,
+						SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+						Layout: D3D12_TEXTURE_LAYOUT_UNKNOWN,
+						..Default::default()
+					},
+					D3D12_RESOURCE_STATE_COPY_DEST,
+					None,
+					v,
+				)
+			})?;
+			let mut handle = self.srv_heap.GetCPUDescriptorHandleForHeapStart();
+			handle.ptr += (FRAME_SLOT * self.srv_step) as usize;
+			self.device.CreateShaderResourceView(
+				&resource,
+				Some(&D3D12_SHADER_RESOURCE_VIEW_DESC {
+					Format: read,
+					ViewDimension: D3D12_SRV_DIMENSION_TEXTURE2D,
+					Shader4ComponentMapping: D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+					Anonymous: D3D12_SHADER_RESOURCE_VIEW_DESC_0 { Texture2D: D3D12_TEX2D_SRV { MipLevels: 1, ..Default::default() } },
+				}),
+				handle,
+			);
+			if let Some(old) = self.frame_copy.replace(FrameCopy { resource, width, height, format: desc.Format, ready: false }) {
+				self.garbage.push(old.resource);
+			}
+		}
+		log::line(&format!("gpu: copying the game's picture ({width}x{height}, format {}) for block lighting", desc.Format.0));
+		Ok(true)
+	}
+
 	unsafe fn barrier(&self, resource: &ID3D12Resource, before: D3D12_RESOURCE_STATES, after: D3D12_RESOURCE_STATES) {
 		let barriers = [util::create_barrier(resource, before, after)];
 		unsafe { self.list.ResourceBarrier(&barriers) };
@@ -724,11 +883,20 @@ impl Renderer {
 			let (width, height) = (desc.Width as u32, desc.Height);
 			crate::hud::set_viewport(width, height);
 
-			let (view, aspect, hud, atlas, entities, textures, avatar) = scene::with(|s| -> Result<_> {
+			let (view, aspect, hud, atlas, entities, textures, avatar, light, game_light) = scene::with(|s| -> Result<_> {
 				self.sync_buffers(s)?;
 				let avatar = s.avatar.clone().zip(s.avatar_at).map(|(a, at)| (a, at));
-				Ok((s.view, s.aspect, s.hud, s.atlas.clone(), s.entities.clone(), s.textures.clone(), avatar))
+				Ok((s.view, s.aspect, s.hud, s.atlas.clone(), s.entities.clone(), s.textures.clone(), avatar, s.light, s.game_light))
 			})?;
+			// Blocks take their light from the game's picture when this works; never at the cost of drawing.
+			let sampling = game_light && !self.frame_failed && match self.ensure_frame_copy(&desc) {
+				Ok(ok) => ok,
+				Err(e) => {
+					log::line(&format!("gpu: cannot copy the game's picture, blocks keep the clock's light: {e}"));
+					self.frame_failed = true;
+					false
+				}
+			};
 
 			self.allocator.Reset()?;
 			self.list.Reset(&self.allocator, None)?;
@@ -772,7 +940,21 @@ impl Renderer {
 				}
 			}
 
-			self.barrier(back_buffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			if sampling {
+				// The game's finished picture, before anything of ours is on it.
+				let copy = self.frame_copy.as_ref().unwrap();
+				let (resource, ready) = (copy.resource.clone(), copy.ready);
+				self.barrier(back_buffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE);
+				if ready {
+					self.barrier(&resource, FRAME_READ, D3D12_RESOURCE_STATE_COPY_DEST);
+				}
+				self.list.CopyResource(&resource, back_buffer);
+				self.barrier(&resource, D3D12_RESOURCE_STATE_COPY_DEST, FRAME_READ);
+				self.barrier(back_buffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				self.frame_copy.as_mut().unwrap().ready = true;
+			} else {
+				self.barrier(back_buffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			}
 			let rtv = self.rtv_heap.GetCPUDescriptorHandleForHeapStart();
 			self.device.CreateRenderTargetView(back_buffer, None, rtv);
 			self.ensure_depth(width, height)?;
@@ -781,6 +963,7 @@ impl Renderer {
 			self.list.ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0, 0, None);
 			self.list.SetGraphicsRootSignature(&self.root);
 			self.list.SetDescriptorHeaps(&[Some(self.srv_heap.clone())]);
+			self.list.SetGraphicsRootDescriptorTable(2, self.srv(FRAME_SLOT));
 			self.list.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			let full = RECT { left: 0, top: 0, right: width as i32, bottom: height as i32 };
 			self.list.RSSetScissorRects(&[full]);
@@ -793,7 +976,7 @@ impl Renderer {
 				// The player's model sits at its feet; only drawn when the camera is away from the eye.
 				let avatar = avatar.map(|(a, at)| scene::Entities { origin: at, batches: a.batches.clone(), verts: a.verts.clone() });
 				let dynamic = self.build_dynamic(&things, selection, entities.as_deref(), avatar.as_ref(), origin)?;
-				self.draw_world(view, aspect, width, height, self.srv(0), &dynamic, entities.as_deref(), avatar.as_ref());
+				self.draw_world(view, aspect, width, height, self.srv(0), &dynamic, entities.as_deref(), avatar.as_ref(), light, sampling);
 			}
 
 			if let (Some(t), true) = (self.overlay.as_ref().filter(|t| t.ready), hud.shown) {
@@ -914,6 +1097,8 @@ impl Renderer {
 		dynamic: &Dynamic,
 		entities: Option<&scene::Entities>,
 		avatar: Option<&scene::Entities>,
+		light: crate::lighting::Light,
+		sampling: bool,
 	) {
 		if !self.atlas.as_ref().is_some_and(|(t, _)| t.ready) {
 			return;
@@ -946,6 +1131,13 @@ impl Renderer {
 				proj: [sy / aspect, sy, FAR / (FAR - NEAR), -NEAR * FAR / (FAR - NEAR)],
 				offset: [0.0; 4],
 				params: [0.08, 1.0, 0.0, 0.0],
+				sun_dir: [light.dir[0], light.dir[1], light.dir[2], 0.0],
+				sun_col: [light.direct[0], light.direct[1], light.direct[2], 0.0],
+				ambient: [light.ambient[0], light.ambient[1], light.ambient[2], 0.0],
+				// Where the game's picture is on screen, and how its brightness becomes light: 0.42
+				// is about the average of a sunlit scene, and the radius is wide enough to smooth texture detail.
+				frame: [(width as f32 - vw) * 0.5, (height as f32 - vh) * 0.5, vw, vh],
+				look: [if sampling { 1.0 } else { 0.0 }, 0.42, 0.5, vh * 0.12],
 			};
 			let near = |p: [f64; 3], reach: f64| (p[0] - view.eye[0]).abs() < reach && (p[1] - view.eye[1]).abs() < reach && (p[2] - view.eye[2]).abs() < reach;
 

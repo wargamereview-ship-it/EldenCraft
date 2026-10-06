@@ -1,0 +1,59 @@
+{
+  "regions": 446,
+  "enemy_models": 372,
+  "bosses": 208,
+  "collections": 17,
+  "set_pieces": 68,
+  "tables": 105,
+  "simulations": [
+    {
+      "tier": 1,
+      "kills": 100000,
+      "normal_gear_percent": 8.973,
+      "upgrade_percent": 0.976,
+      "guaranteed_material_items_per_kill": 1.5
+    },
+    {
+      "tier": 2,
+      "kills": 100000,
+      "normal_gear_percent": 9.055,
+      "upgrade_percent": 0.999,
+      "guaranteed_material_items_per_kill": 2.006
+    },
+    {
+      "tier": 3,
+      "kills": 100000,
+      "normal_gear_percent": 8.968,
+      "upgrade_percent": 0.936,
+      "guaranteed_material_items_per_kill": 3.007
+    },
+    {
+      "tier": 4,
+      "kills": 100000,
+      "normal_gear_percent": 8.885,
+      "upgrade_percent": 0.996,
+      "guaranteed_material_items_per_kill": 3.503
+    },
+    {
+      "tier": 5,
+      "kills": 100000,
+      "normal_gear_percent": 9.026,
+      "upgrade_percent": 0.975,
+      "guaranteed_material_items_per_kill": 4.498
+    },
+    {
+      "tier": 6,
+      "kills": 100000,
+      "normal_gear_percent": 9.048,
+      "upgrade_percent": 0.987,
+      "guaranteed_material_items_per_kill": 5.0
+    },
+    {
+      "tier": 7,
+      "kills": 100000,
+      "normal_gear_percent": 8.98,
+      "upgrade_percent": 1.0,
+      "guaranteed_material_items_per_kill": 6.0
+    }
+  ]
+}

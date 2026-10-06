@@ -25,13 +25,17 @@ While Minecraft has the controls, **R** taps ER's Event Action (E): open doors, 
 up items, rest at graces and confirm item/message popups. The ER body turns with Minecraft's look,
 and an interaction animation owns the body until it ends while Minecraft follows it.
 
-Enemies the player killed (ER's last attacker is the player, with MC or ER weapons) drop Minecraft
-loot and XP at the corpse; ER's own drops and runes are unchanged. Native max HP picks a tier:
-`eldencraft:enemy/tier_1`..`tier_5` below 600 / 1500 / 4000 / 10000 HP and above, and team-Boss
-enemies use `eldencraft:boss/tier_1`..`tier_5` (below 3500 / 7000 / 12000 / 20000 HP) once per
-placed boss, recorded in the world's `eldencraft_boss_rewards.txt`. An optional
-`eldencraft:enemy/model/cNNNN` table adds model-specific drops. All are data-pack loot tables in
-`fabric/src/main/resources/data/eldencraft/loot_table/` (Minecraft 26.3 `modifier` format).
+Player kills produce family-appropriate Minecraft materials and XP. Region and encounter mappings
+select tiers 1–5 in the base game and 6–7 in Shadow of the Erdtree. Equipment-capable enemies
+have a 10% gear chance (9% regional tier, 1% upgrade within the expansion), with 30–70% durability.
+Boss completion flags award one named enchanted item at full durability, one enchanted book and
+materials. Seventeen four-piece collections span different bosses; completion bonuses come later.
+Boss parcels persist in `eldencraft_boss_rewards_v2.json` in the Minecraft world and wait for
+inventory space or respawn. Original ER rewards remain unchanged. Loot data is generated offline
+by `tools/generate_loot.py`; see [the complete reward sheet](docs/loot-boss-rewards.md).
+The rebuilt protocol version 3 DLL and JAR must be installed together. Automated checks pass;
+native completion flags, region boundaries and gameplay balance still need in-game confirmation.
+
 Terrain recovery has recently changed and still needs gameplay confirmation at grace respawns.
 Native movement now uses Minecraft's actual tick feet; the camera keeps its interpolated render
 position. Camera direction is calibrated only while ER owns the view. Loads and grace respawns
@@ -72,6 +76,27 @@ Roofs above open passages cannot create tall guessed walls through
 empty space. Floor and ceiling surfaces remain based on actual ray hits. Confirmation shares
 the existing scan budget; collision logs count confirmed wall hits and rejected guesses. Buried
 terrain recovery excludes finite guessed volumes between roofs and floors.
+
+Fresh Minecraft characters start with an empty inventory and no equipped items. Automatic starter,
+builder and test-guest equipment grants have been removed; existing inventories are preserved.
+
+### Gathering
+
+Visible Minecraft resource deposits appear on clear, gently sloping scanned surfaces near the
+host player. Outdoors there are oak log piles, loose-stone slabs and stone deposits. Logs and
+loose stone can be harvested bare-handed; loose stone gives cobblestone. Larger stone requires a
+pickaxe and has a 10% copper bonus in tier 1 or raw-iron bonus in later regions.
+Visible ore deposits spawn in the eight explicitly mapped mine interiors. Copper/coal come first,
+then iron, then gold and rare diamonds from tier 3; tier 5 adds ancient debris. Valuable gathering
+materials do not spawn in ordinary outdoor rocks. Vanilla mining tool requirements, smelting,
+Fortune and Silk Touch apply to the ore blocks.
+
+Harvested deposits remain depleted across travel and reloads. A native grace-rest flag transition
+replenishes them; nearby loaded deposits return when clear. Player-built blocks prevent a node
+from reappearing at that position. Node identities and the rest cycle are saved in the world as
+`eldencraft_resources_v1.json`. No native digging: ER terrain, trees and structures are preserved.
+Existing worlds receive nodes without a reset. This gathering build uses protocol version 3 and
+requires its matching DLL/JAR. Placement and grace detection await in-game confirmation.
 
 ### Combat
 

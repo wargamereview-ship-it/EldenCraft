@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import dev.eldencraft.link.SkyLink;
@@ -53,6 +54,8 @@ import org.jspecify.annotations.Nullable;
  * around them; the server just applies it.
  */
 public final class SkyDig {
+	/** Native excavation is not part of EldenCraft gathering. */
+	public static final boolean NATIVE_DIGGING_SUPPORTED = false;
 	private SkyDig() {
 	}
 
@@ -171,7 +174,7 @@ public final class SkyDig {
 	 */
 	public static void open(ServerPlayer player, int world, BlockPos pos, int material) {
 		ServerLevel level = player.level();
-		if (!destruction || !inReach(player, pos, REACH) || !level.isLoaded(pos) || player.isSpectator()) {
+		if (!NATIVE_DIGGING_SUPPORTED || !destruction || !inReach(player, pos, REACH) || !level.isLoaded(pos) || player.isSpectator()) {
 			return;
 		}
 		LevelChunk chunk = level.getChunkAt(pos);
@@ -195,7 +198,7 @@ public final class SkyDig {
 
 	/** Cells around a mined one that are wholly inside Skyrim's geometry: blocks now. */
 	public static void reveal(ServerPlayer player, int world, List<BlockPos> cells, int[] materials) {
-		if (!destruction) {
+		if (!NATIVE_DIGGING_SUPPORTED || !destruction) {
 			return;
 		}
 		ServerLevel level = player.level();
@@ -267,11 +270,11 @@ public final class SkyDig {
 
 	/** The block a Proto.DIG_* material becomes here. Stone has ores in it. */
 	public static BlockState blockFor(ServerLevel level, BlockPos pos, int material) {
-		return material == DIG_STONE || material == DIG_NONE ? stoneOrOre(level.getSeed(), pos) : materialState(material);
+		return material == DIG_STONE || material == DIG_NONE ? stoneOrOre(level.getSeed(), pos, dev.eldencraft.combat.LootRules.tierAt(worldFor(level), Vec3.atCenterOf(pos))) : materialState(material);
 	}
 
 	/** Ores come in little clusters (a 2x2x2 cell picks one ore, then each block in it maybe). */
-	static BlockState stoneOrOre(long seed, BlockPos pos) {
+	static BlockState stoneOrOre(long seed, BlockPos pos, int tier) {
 		long cell = mix(seed ^ mix(((long) (pos.getX() >> 1) * 73856093L) ^ ((long) (pos.getY() >> 1) * 19349663L) ^ ((long) (pos.getZ() >> 1) * 83492791L)));
 		long block = mix(cell ^ ((pos.getX() & 1) | (pos.getY() & 1) << 1 | (pos.getZ() & 1) << 2));
 		if ((block & 0xFF) >= 150) { // about 60% of a vein cell's blocks
@@ -283,25 +286,25 @@ public final class SkyDig {
 			return Blocks.COAL_ORE.defaultBlockState();
 		}
 		if ((roll -= 220) < 0) {
-			return Blocks.IRON_ORE.defaultBlockState();
+			return tier >= 2 ? Blocks.IRON_ORE.defaultBlockState() : Blocks.COPPER_ORE.defaultBlockState();
 		}
 		if ((roll -= 170) < 0) {
 			return Blocks.COPPER_ORE.defaultBlockState();
 		}
 		if ((roll -= 80) < 0) {
-			return Blocks.REDSTONE_ORE.defaultBlockState();
+			return tier >= 2 ? Blocks.REDSTONE_ORE.defaultBlockState() : Blocks.COAL_ORE.defaultBlockState();
 		}
 		if ((roll -= 45) < 0) {
-			return Blocks.GOLD_ORE.defaultBlockState();
+			return tier >= 3 ? Blocks.GOLD_ORE.defaultBlockState() : Blocks.COPPER_ORE.defaultBlockState();
 		}
 		if ((roll -= 35) < 0) {
-			return Blocks.LAPIS_ORE.defaultBlockState();
+			return tier >= 2 ? Blocks.LAPIS_ORE.defaultBlockState() : Blocks.COAL_ORE.defaultBlockState();
 		}
 		if ((roll -= 14) < 0) {
-			return Blocks.DIAMOND_ORE.defaultBlockState();
+			return tier >= 3 ? Blocks.DIAMOND_ORE.defaultBlockState() : Blocks.COAL_ORE.defaultBlockState();
 		}
 		if ((roll -= 5) < 0) {
-			return Blocks.EMERALD_ORE.defaultBlockState();
+			return tier >= 3 ? Blocks.EMERALD_ORE.defaultBlockState() : Blocks.COPPER_ORE.defaultBlockState();
 		}
 		return Blocks.STONE.defaultBlockState();
 	}

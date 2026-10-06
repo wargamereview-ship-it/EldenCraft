@@ -6,137 +6,8 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:diamond",
+          "name": "minecraft:copper_ingot",
           "weight": 1,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 1,
-              "max": 2
-            }
-          }
-        }
-      ]
-    },
-    {
-      "rolls": 2,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_helmet",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_chestplate",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_leggings",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_boots",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_sword",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:iron_pickaxe",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:bow",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:golden_apple",
-          "weight": 6,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 1,
-              "max": 2
-            }
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:golden_carrot",
-          "weight": 4,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
@@ -145,11 +16,29 @@
               "max": 8
             }
           }
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cooked_beef",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 3,
+              "max": 6
+            }
+          }
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:ender_pearl",
-          "weight": 4,
+          "name": "minecraft:golden_carrot",
+          "weight": 1,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
@@ -162,29 +51,21 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:experience_bottle",
-          "weight": 4,
+          "weight": 1,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
               "type": "minecraft:uniform",
-              "min": 5,
-              "max": 10
+              "min": 3,
+              "max": 6
             }
           }
-        },
+        }
+      ],
+      "conditions": [
         {
-          "type": "minecraft:item",
-          "name": "minecraft:book",
-          "weight": 3,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 10,
-              "max": 20
-            },
-            "options": "#minecraft:on_random_loot"
-          }
+          "condition": "minecraft:random_chance",
+          "chance": 0.5
         }
       ]
     }

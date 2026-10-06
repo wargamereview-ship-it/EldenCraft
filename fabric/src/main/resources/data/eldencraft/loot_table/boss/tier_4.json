@@ -6,32 +6,14 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:netherite_scrap",
-          "weight": 1,
-          "modifier": {
-            "type": "minecraft:set_count",
-            "count": {
-              "type": "minecraft:uniform",
-              "min": 2,
-              "max": 3
-            }
-          }
-        }
-      ]
-    },
-    {
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "minecraft:item",
           "name": "minecraft:diamond",
           "weight": 1,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
               "type": "minecraft:uniform",
-              "min": 4,
-              "max": 8
+              "min": 2,
+              "max": 4
             }
           }
         }
@@ -42,147 +24,66 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:netherite_upgrade_smithing_template",
-          "weight": 1
-        }
-      ]
-    },
-    {
-      "rolls": 3,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_helmet",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_chestplate",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_leggings",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_boots",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_sword",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_pickaxe",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:diamond_axe",
-          "weight": 2,
-          "modifier": {
-            "type": "minecraft:enchant_with_levels",
-            "levels": {
-              "type": "minecraft:uniform",
-              "min": 30,
-              "max": 30
-            },
-            "options": "#minecraft:on_random_loot"
-          }
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:totem_of_undying",
-          "weight": 4
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:enchanted_golden_apple",
-          "weight": 3
-        },
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:golden_apple",
-          "weight": 4,
+          "name": "minecraft:gold_ingot",
+          "weight": 1,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
               "type": "minecraft:uniform",
-              "min": 4,
+              "min": 2,
+              "max": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cooked_beef",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 3,
               "max": 6
             }
           }
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:experience_bottle",
-          "weight": 4,
+          "name": "minecraft:golden_carrot",
+          "weight": 1,
           "modifier": {
             "type": "minecraft:set_count",
             "count": {
               "type": "minecraft:uniform",
-              "min": 16,
-              "max": 32
+              "min": 2,
+              "max": 4
             }
           }
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:experience_bottle",
+          "weight": 1,
+          "modifier": {
+            "type": "minecraft:set_count",
+            "count": {
+              "type": "minecraft:uniform",
+              "min": 3,
+              "max": 6
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.5
         }
       ]
     }

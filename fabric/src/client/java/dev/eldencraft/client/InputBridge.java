@@ -23,6 +23,7 @@ public final class InputBridge {
 	private static net.minecraft.world.phys.Vec3 hurtOrigin;
 	private static net.minecraft.world.phys.Vec3 lootPos;
 	private static int[] lootId;
+	private static int[] lootRegion;
 
 	private InputBridge() {
 	}
@@ -73,14 +74,20 @@ public final class InputBridge {
 			}
 			case Proto.IN_LOOT_POS -> lootPos = new net.minecraft.world.phys.Vec3(Float.intBitsToFloat(a), Float.intBitsToFloat(b), Float.intBitsToFloat(c));
 			case Proto.IN_LOOT_ID -> lootId = new int[] { a, b, c };
+			case Proto.IN_LOOT_REGION -> lootRegion = new int[] { a, b };
 			case Proto.IN_ENEMY_DIED -> {
-				if (lootPos != null && lootId != null) {
+				if (lootPos != null && lootId != null && lootRegion != null) {
 					enemyDied(minecraft, new dev.eldencraft.combat.SkyLoot.Death(lootPos, lootId[0], lootId[1], lootId[2], a, b,
-						(code & Proto.ENEMY_BOSS) != 0));
+						(code & Proto.ENEMY_BOSS) != 0, lootRegion[0], lootRegion[1], c));
 				}
 				lootPos = null;
 				lootId = null;
+				lootRegion = null;
 			}
+			case Proto.IN_GRACE_REST -> {
+                var current=minecraft.getSingleplayerServer();
+                if(current!=null) current.execute(() -> dev.eldencraft.world.ResourceNodes.graceRested(current));
+            }
 			case Proto.IN_HIT_FEEDBACK -> CombatHud.hit(b, a, c, code);
 			case Proto.IN_PLAYER_HEALTH -> CombatHud.playerHealth(a, b);
 			case Proto.IN_OPEN_MENU -> {

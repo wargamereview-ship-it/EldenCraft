@@ -13,7 +13,7 @@
 namespace eldencraft::proto
 {
 	inline constexpr std::uint32_t kMagic = 0x43444C45;  // "ELDC"
-	inline constexpr std::uint32_t kVersion = 1;
+	inline constexpr std::uint32_t kVersion = 3;
 	inline constexpr wchar_t       kMappingName[] = L"Local\\EldenCraft_v1";
 
 	// 1 Minecraft block == 70 Skyrim units (Skyrim player ~128 units tall, MC player 1.8 blocks).
@@ -187,10 +187,12 @@ namespace eldencraft::proto
 		kInHitFeedback = 9,  // ER confirmed hit: code = HitFlags (bit15 rejected), a = ER HP removed, b = actor ID, c = HP left
 		kInPlayerHealth = 10,// legacy native-health display, no longer the player's life source
 		kInHurtOrigin = 11,  // precedes kInHurt in one batch: a/b/c f32 position bits, code 1 when known
-		// An enemy the player last hit died; one batch of kInLootPos, kInLootId, kInEnemyDied.
+		// An enemy the player last hit died; one batch of kInLootPos, kInLootId, kInLootRegion, kInEnemyDied.
 		kInLootPos = 12,     // a/b/c f32 bits of the corpse position (MC coords)
 		kInLootId = 13,      // a = map event entity ID (0: none), b = world ID, c = NpcParam ID
-		kInEnemyDied = 14,   // code = EnemyDiedFlags, a = native max HP, b = character (model) ID, c = actor ID
+		kInLootRegion = 15, // a = raw native map block, b = play region; precedes every death
+		kInGraceRest = 16, // Native grace rest; replenish gathering nodes.
+		kInEnemyDied = 14,   // code = EnemyDiedFlags, a = native max HP, b = character (model) ID, c = boss completion flag (0: ordinary/fallback)
 	};
 
 	enum HurtKind : std::uint16_t
@@ -300,9 +302,12 @@ namespace eldencraft::proto
 		kWeaponUnarmed = 0,
 		kWeaponBlade = 1,   // swords
 		kWeaponAxe = 2,
-		kWeaponBlunt = 3,   // maces, pickaxes, shovels, hoes, anything else held
-		kWeaponPierce = 4,  // tridents, spears
+		kWeaponBlunt = 3,   // pickaxes, shovels, hoes, anything else held
+		kWeaponPierce = 4,  // tridents
 		kWeaponArrow = 5,   // arrows and other projectiles
+		kWeaponSpear = 6,   // spears (#minecraft:spears)
+		kWeaponMace = 7,    // the mace, ordinary swing
+		kWeaponMaceSmash = 8, // the mace's falling smash attack
 	};
 
 	struct McEvent

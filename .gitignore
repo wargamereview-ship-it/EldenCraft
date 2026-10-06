@@ -4,6 +4,7 @@ game/target/
 fabric/.gradle/
 fabric/build/
 fabric/run/
+fabric/logs/
 fabric/out/
 # ide
 .vs/

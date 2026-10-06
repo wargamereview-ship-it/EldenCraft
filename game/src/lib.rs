@@ -8,6 +8,11 @@ mod aggro;
 mod ai_sound;
 mod camera;
 mod combat;
+mod loot;
+mod loot_catalog;
+mod resources;
+mod grace_edges;
+mod lighting;
 mod dinput;
 mod hud;
 mod input;
@@ -17,6 +22,7 @@ mod launcher;
 mod link;
 mod log;
 mod movement;
+mod native_damage;
 mod native_hits;
 #[allow(dead_code)] // mirrors the whole protocol, not only what is used yet
 mod proto;
@@ -133,6 +139,7 @@ fn start(hmodule: usize) {
 	}
 
 	native_hits::install();
+	native_damage::install();
 	aggro::install();
 	ai_sound::install();
 	let mut frame = Frame::new(link);
@@ -180,9 +187,15 @@ struct Frame {
 	hearing: ai_sound::Hearing,
 	/// ER Event Action (R) and the native animation window it can start.
 	interact: interact::Interact,
+	resources: resources::Resources,
 	keys: Keys,
 	input: Input,
 	show_collision: bool,
+	collision_draw: render::CollisionDraw,
+	/// The light the renderer is easing toward / currently uses (Minecraft's blocks).
+	light: lighting::Light,
+	/// Blocks are lit from the game's own picture (F4).
+	game_light: bool,
 	/// The game camera sits in Minecraft's eye (and the Elden Ring body is hidden).
 	first_person: bool,
 	/// Original transparency/render state while our camera hides this body's model.
@@ -253,9 +266,13 @@ impl Frame {
 			combat: combat::Combat::new(),
 			hearing: ai_sound::Hearing::new(),
 			interact: interact::Interact::new(),
+			resources: resources::Resources::default(),
 			keys: Keys::default(),
 			input: Input::default(),
 			show_collision: false,
+			collision_draw: render::CollisionDraw::default(),
+			light: lighting::Light::default(),
+			game_light: true,
 			first_person: true,
 			model_state: None,
 			look: None,
@@ -442,6 +459,7 @@ impl Frame {
 	fn run(&mut self) {
 		self.link.heartbeat();
 		self.blocks.read(&self.link);
+		self.resources.frame(&self.link);
 
 		let Ok(world) = (unsafe { WorldChrMan::instance_mut() }) else {
 			self.player_id = (0, 0, 0);
@@ -545,8 +563,13 @@ impl Frame {
 		if self.keys.pressed(keys::VK_F11) {
 			log::line(&format!("blocks drawn with the camera from {} frame(s) back (F11)", camera::cycle_delay()));
 		}
+		if self.keys.pressed(keys::VK_F4) {
+			self.game_light = !self.game_light;
+			log::line(if self.game_light { "block light: from the game's picture" } else { "block light: from the clock only" });
+		}
 		if self.keys.pressed(keys::VK_F7) {
 			self.show_collision = !self.show_collision;
+			self.collision_draw.reset();
 			log::line(&format!("collision view {}", if self.show_collision { "on" } else { "off" }));
 		}
 
@@ -832,7 +855,14 @@ impl Frame {
 			teleport_seq: self.teleport_seq,
 			viewport: hud::viewport().unwrap_or((1920, 1080)),
 		});
+		// Elden Ring's time of day outdoors; dim and even in caves and buildings. Eased, not snapped.
+		let outdoors = matches!(space.world_id >> 24, 60 | 61);
+		let hour = clock_hour();
+		self.light.approach(lighting::light(hour, outdoors), 0.04);
+		let (light, game_light) = (self.light, self.game_light);
 		scene::with(|s| {
+			s.light = light;
+			s.game_light = game_light;
 			s.view = first_person.then(|| scene::View { eye: cam_eye, yaw: cam_yaw, pitch: cam_pitch, fov_deg });
 			s.avatar_at = first_person.then(|| if follow_body { Some(er) } else { mc.as_ref().map(|m| m.pos) }).flatten();
 			let shown = mc_visible || self.combat.owns_health();
@@ -845,9 +875,7 @@ impl Frame {
 			};
 		});
 		if self.show_collision {
-			let near = scan::near_columns(er, 2);
-			let tris = self.scanner.tris.iter().filter(|(c, _)| near.contains(c)).flat_map(|(_, t)| t);
-			render::draw_collision(&space, tris, er);
+			self.collision_draw.draw(&space, &self.scanner, er);
 		}
 
 		let connected = self.link.mc_connected();
@@ -880,6 +908,9 @@ impl Frame {
 				self.scanner.floor_at(er[0], er[2])
 			));
 			log::line(&world::streaming_report(player, native_contact, patch.map(|(_, _, heights)| ground_at[1] - heights[0])));
+			log::line(&format!("lighting: clock {hour:.2} h, {}, sun dir ({:.2}, {:.2}, {:.2}) colour ({:.2}, {:.2}, {:.2}), ambient ({:.2}, {:.2}, {:.2})",
+				if outdoors { "outdoors" } else { "indoors" }, light.dir[0], light.dir[1], light.dir[2],
+				light.direct[0], light.direct[1], light.direct[2], light.ambient[0], light.ambient[1], light.ambient[2]));
 		}
 	}
 
@@ -976,6 +1007,9 @@ impl Frame {
 	fn fallen_floor(&mut self, player: &PlayerIns, space: &Space, er: [f64; 3], m: [f64; 3]) -> Option<f64> {
 		let from = self.written.unwrap_or(er);
 		if let Some(floor) = self.scanner.crossed_floor(player, space, from, m) {
+			if self.scanner.carried_rise(player, space, m) {
+				return None;
+			}
 			log::line(&format!("collision: native sweep ({:.2}, {:.2}, {:.2}) -> ({:.2}, {:.2}, {:.2}) hit floor {floor:.2}; cached floor {:?}",
 				from[0], from[1], from[2], m[0], m[1], m[2], self.scanner.floor_at(m[0], m[2])));
 			return Some(floor);
@@ -1007,5 +1041,15 @@ impl Frame {
 		let reach = dir.map(|d| d / len * AIM_REACH);
 		let target = self.scanner.ray(player, space, from, reach).unwrap_or([from[0] + reach[0], from[1] + reach[1], from[2] + reach[2]]);
 		Some(world::yaw_pitch([target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]]))
+	}
+}
+
+/// Elden Ring's in-game time of day in hours, or noon if the clock cannot be read.
+fn clock_hour() -> f32 {
+	match unsafe { eldenring::cs::WorldAreaTime::instance() } {
+		Ok(time) if time.clock.hours() < 24 && time.clock.minutes() < 60 => {
+			time.clock.hours() as f32 + time.clock.minutes() as f32 / 60.0 + time.clock.seconds() as f32 / 3600.0
+		}
+		_ => 12.0,
 	}
 }
