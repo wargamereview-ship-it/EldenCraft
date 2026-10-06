@@ -178,7 +178,7 @@ That profile loads the DLL directly from the build output. Minecraft must run in
 
 | Key | Action |
 | --- | --- |
-| F8 | Switch movement between Elden Ring and Minecraft |
+| F8 | Open Minecraft's pause menu (options, video settings, GUI scale) |
 | F9 | Toggle the Minecraft first-person camera |
 | F10 | Switch input ownership |
 | F5 | Cycle Minecraft camera modes |
@@ -187,7 +187,7 @@ That profile loads the DLL directly from the build output. Minecraft must run in
 | F4 | Switch block lighting between the game picture and clock model |
 | F7 | Show nearby collision edges for debugging |
 
-Elden Ring owns movement by default. The R bridge assumes Elden Ring’s Event Action is bound to **E**. Minecraft’s usual inventory, crafting, mining, placement and weapon controls apply when it owns input.
+Minecraft owns movement by default; Escape still opens Elden Ring's own menu. The R bridge assumes Elden Ring’s Event Action is bound to **E**. Minecraft’s usual inventory, crafting, mining, placement and weapon controls apply when it owns input.
 
 ## Current state and limitations
 

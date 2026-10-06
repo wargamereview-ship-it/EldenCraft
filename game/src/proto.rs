@@ -76,6 +76,8 @@ pub const IN_SCROLL: u16 = 3;
 pub const IN_CURSOR: u16 = 4;
 pub const IN_TEXT: u16 = 5;
 pub const IN_RELEASE_ALL: u16 = 6;
+/// Open Minecraft's pause menu (options, video settings, GUI scale).
+pub const IN_OPEN_MENU: u16 = 8;
 /// code = HitFlags, a = actual ER HP removed, b = transient actor ID, c = remaining ER HP.
 pub const IN_HIT_FEEDBACK: u16 = 9;
 /// a = native player HP, b = maximum native player HP. Both zero clears the display.
