@@ -106,7 +106,7 @@ checksum = "f6579ea71cdf01b8ec995719df66f69ea2a08ea6406d0a4485a666a55f234c1a"
 
 [[package]]
 name = "eldencraft"
-version = "0.0.1"
+version = "0.4.0"
 dependencies = [
  "eldenring",
  "fromsoftware-shared",

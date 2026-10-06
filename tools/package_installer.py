@@ -65,7 +65,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--output", type=Path, default=ROOT / "dist/installers")
     p.add_argument("--dll", type=Path, default=ROOT / "game/target/x86_64-pc-windows-msvc/release/eldencraft.dll")
-    p.add_argument("--jar", type=Path, default=ROOT / "fabric/build/libs/eldencraft-0.0.1.jar")
+    p.add_argument("--jar", type=Path, default=ROOT / "fabric/build/libs/eldencraft-0.4.0.jar")
     p.add_argument("--release-version", help="Installer release label; the bundled mod retains its own version")
     args = p.parse_args()
     package(args.output, args.dll, args.jar, args.release_version)

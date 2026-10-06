@@ -107,7 +107,7 @@ The installer includes the mod binaries and supplies private runtimes, so no sys
 
 Use **Finish Minecraft setup** if sign-in or the first download was interrupted. Use **Check EldenCraft** to check the game build and installed files. Running the installer again repairs managed files, with backups under `EldenCraft/backups`. Advanced path overrides, offline caching and other options are covered in the [installer guide](installer/README.md). Release checksums are supplied as `SHA256SUMS.txt`.
 
-Release **0.1** is the installer release label. Its bundled mod remains version **0.0.1**, using Minecraft **26.3**, Fabric Loader **0.19.5**, Fabric API **0.161.0+26.3**, Java **25** and bridge protocol **3**.
+Releases 0.1 to 0.3 used installer labels over mod version **0.0.1**; from 0.4 the mod version and the release label match (the logs report `0.4.0`). The current mod uses Minecraft **26.3**, Fabric Loader **0.19.5**, Fabric API **0.161.0+26.3**, Java **25** and bridge protocol **3**.
 
 ## Build and install from source
 
@@ -161,7 +161,7 @@ The first build downloads dependencies. Add `--offline` to the DLL or Gradle bui
 The build outputs are:
 
 - `game/target/x86_64-pc-windows-msvc/release/eldencraft.dll`
-- `fabric/build/libs/eldencraft-0.0.1.jar`
+- `fabric/build/libs/eldencraft-0.4.0.jar`
 - Three platform setup ZIPs and checksums under `dist/installers/`
 
 Extract the ZIP for your play platform and follow the installer steps above. Packaging reads the compiled DLL/JAR, checks their identity and source freshness, and includes their hashes in the package. No game installation, account files or saves from the build machine are included.
