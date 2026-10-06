@@ -13,6 +13,8 @@ Their notices and licenses are retained in the installed program folders.
 - CPython 3.13.16 standalone installer runtime, build 20261003:
   https://github.com/astral-sh/python-build-standalone — Python and bundled dependency licenses
   are included in the runtime archive; see that release's source and license information.
+- Enemy names (`npc_names.tsv`): NpcParam row names from https://github.com/soulsmods/Paramdex (ER/Names),
+  regenerated with `tools/generate_npc_names.py`. The repository states no licence.
 
 Prism downloads Minecraft, Fabric Loader and their libraries after the user signs in. Minecraft is
 not bundled. Neither Steam, Elden Ring, CrossOver, saves nor Microsoft/Steam account data is included.

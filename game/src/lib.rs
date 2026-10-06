@@ -1,6 +1,6 @@
 //! EldenCraft's Elden Ring side, loaded into the game by me3 (or ModEngine2).
 //!
-//! Minecraft drives by default and F8 no longer hands movement back to Elden Ring. Each frame publishes the
+//! Minecraft drives by default; F8 opens its pause menu rather than handing movement back to Elden Ring. Each frame publishes the
 //! current body position, exports collision, and queues Minecraft's destination through the
 //! game's character controller while Minecraft drives.
 
@@ -554,7 +554,8 @@ impl Frame {
 			log::line("movement: load settled; refreshing collision and Minecraft handoff for this body");
 		}
 
-		if self.keys.pressed(keys::VK_F8) && !self.drive {
+		let open_menu = self.keys.pressed(keys::VK_F8);
+		if open_menu && !self.drive {
 			// Only reachable if a death left Elden Ring in charge; F8 gives control back to Minecraft.
 			self.drive = true;
 			self.interact.cancel();
@@ -767,6 +768,10 @@ impl Frame {
 		let mc_visible = self.drive && mc.as_ref().is_some_and(|m| m.in_world);
 		let mc_owns_input = mc_visible && keys::focused() && !menu && !self.er_controls;
 		let minecraft_controls = mc_owns_input && mc_ready;
+		// F8: Minecraft's pause menu, for its options and GUI scale. Escape stays with Elden Ring's menu.
+		if open_menu && mc_owns_input && mc.as_ref().is_some_and(|m| !m.screen_open) {
+			self.link.send_input(proto::IN_OPEN_MENU, 0, 0);
+		}
 		// R taps ER's Event Action: doors, levers, pickups, graces and popup confirmation.
 		if self.keys.pressed(keys::VK_R) && mc_owns_input {
 			self.interact.begin(player);
@@ -873,7 +878,9 @@ impl Frame {
 				}
 			}
 		}
-		self.set_model_hidden(player, first_person);
+		// Elden Ring plays its own death with the camera handed back: keep the body out of that view too.
+		let dying = player.chr_ins.modules.data.hp <= 0 || player.chr_ins.chr_flags1c5.death_flag();
+		self.set_model_hidden(player, first_person || dying);
 		// The moved body has no locomotion animation of its own while Minecraft drives it.
 		let living = player.chr_ins.modules.data.hp > 0 && !player.chr_ins.chr_flags1c5.death_flag();
 		self.hearing.frame(player, [p.0, p.1, p.2], er, driving && moving && mc_ready && living, mc.as_ref());

@@ -34,7 +34,7 @@ final class CombatHud {
 		hitFlags = flags;
 		hitAt = System.nanoTime();
 		SkyLink.Actor actor = ProxySync.actor(id);
-		hitName = actor == null ? "Enemy" : actor.name();
+		hitName = actor == null ? "Enemy" : dev.eldencraft.combat.NpcNames.display(actor.name());
 		EldenCraft.LOG.info("EldenCraft: ER {} actor {} for {} HP ({} left)",
 			(flags & Proto.HIT_REJECTED) != 0 ? "rejected hit on" : "confirmed hit on", id, damage, remainingHp);
 	}
@@ -63,7 +63,7 @@ final class CombatHud {
 		}
 		if (target != null && !target.dead()) {
 			int width = Math.min(200, gui.guiWidth() - 40);
-			gui.centeredText(mc.font, target.name(), center, 18, 0xffe8d6b1);
+			gui.centeredText(mc.font, dev.eldencraft.combat.NpcNames.display(target.name()), center, 18, 0xffe8d6b1);
 			boolean hitFlash = recent && target.formId() == hitId && now - hitAt < SECOND / 4;
 			bar(gui, center - width / 2, 31, width, 6, target.healthFrac(), hitFlash ? 0xfff4bb79 : 0xffb34248);
 			gui.centeredText(mc.font, Math.round(target.healthFrac() * 100) + "%", center, 42, 0xffc9c5ba);

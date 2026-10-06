@@ -164,7 +164,7 @@ public final class SkyCombat {
 				proxy.setSize(a.width(), a.height());
 				proxy.snapTo(a.x(), a.y(), a.z(), a.yaw(), 0.0F);
 				if (!a.name().isEmpty()) {
-					proxy.setCustomName(Component.literal(a.name()));
+					proxy.setCustomName(Component.literal(NpcNames.display(a.name())));
 				}
 				if (!level.addFreshEntity(proxy)) {
 					continue;

@@ -511,7 +511,8 @@ fn record(chr: &ChrIns, space: &Space, id: u32) -> proto::ActorRecord {
 	let height = if physics.chr_hit_height.is_finite() && physics.chr_hit_height > 0.0 {
 		physics.chr_hit_height.clamp(0.4, 20.0)
 	} else { 1.8 };
-	let label = format!("{} c{:04}", if chr.team_type == 7 { "Boss" } else { "Enemy" }, chr.character_id);
+	// Model number, then the NpcParam row: the Minecraft side turns the row into the enemy's real name.
+	let label = format!("{} c{:04} n{}", if chr.team_type == 7 { "Boss" } else { "Enemy" }, chr.character_id, chr.npc_param_id.max(0));
 	let mut name = [0; 24];
 	let n = label.len().min(23);
 	name[..n].copy_from_slice(&label.as_bytes()[..n]);
