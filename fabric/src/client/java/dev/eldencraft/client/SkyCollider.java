@@ -48,8 +48,9 @@ public final class SkyCollider {
 		if (patch != null) {
 			dropStaleGround(tris, patch, box.minY);
 			double rise = patch.heights()[0] - box.minY;
-			if (rise > 0.02 && rise <= RISE_CARRY && flat(patch)) {
-				// A platform has come up under the feet: ride it rather than sink through it.
+			if (rise > 0.02 && rise <= RISE_CARRY && (rise <= step || flat(patch))) {
+				// A platform has come up under the feet, or the live floor is just a step above them
+				// (the scan can put it lower on rubble): ride it rather than sink through it.
 				step = Math.max(step, rise + 0.02);
 				onGround = true;
 			}
