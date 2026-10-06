@@ -807,6 +807,8 @@ impl Frame {
 		}
 		let (yaw, pitch) = match self.look {
 			Some(l) => l,
+			// Before Minecraft has the mouse, show ER's heading but level: its spawn camera looks steeply down.
+			None if mc_visible => self.aim(player, &space, eye).map_or((0.0, 0.0), |(yaw, _)| (yaw, 0.0)),
 			None => self.aim(player, &space, eye).unwrap_or_else(|| {
 				let o = player.chr_ins.modules.physics.orientation;
 				let f = glam::Quat::from(o).mul_vec3(glam::vec3(0.0, 0.0, -1.0));
