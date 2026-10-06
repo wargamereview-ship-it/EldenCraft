@@ -1,353 +1,318 @@
 # EldenCraft — current-state handoff
 
-Updated 5 October 2026 (America/Toronto). This replaces the previous handoff and its accumulated
-history. Read this, `roadmap.MD`, `README.md`, and the working-tree diff before changing code.
-A successful build is not evidence of successful gameplay.
+Updated 6 October 2026 (America/Toronto). This replaces the previous handoff. Read it with
+`roadmap.MD` (gameplay priorities) and `README.md` before changing code. A successful build is not
+evidence of successful gameplay: say "built, not yet seen in play" until the user has seen it.
 
 ## Project and working rules
 
-EldenCraft runs a native Rust DLL inside Elden Ring and a Fabric mod in a hidden Minecraft
-instance. The bridge exports ER collision and actors, renders MC content over ER, and allows MC
-movement, combat, inventory, crafting and building in ER's world.
+EldenCraft runs a native Rust DLL inside Elden Ring and a Fabric mod in a hidden Minecraft instance.
+The bridge exports ER collision and actors, renders MC content over ER, and lets the player move,
+fight, gather, craft and build as a Minecraft player inside ER's world.
 
-Workspace: `/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/EldenCraft`.
-The separate `../Skycraft` checkout supplies the existing JDK, Gradle cache and Windows SDK;
-inherited Sky/Skyrim class names do not mean that checkout should be edited.
-Repository: `https://github.com/wargamereview-ship-it/EldenCraft`.
-Local development uses me3's offline launch without Easy Anti-Cheat.
+- Workspace: `/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/EldenCraft`. The separate
+  `../Skycraft` checkout only supplies the JDK, Gradle cache and Windows SDK; inherited Sky/Skyrim
+  class names do not mean it should be edited.
+- Repository: `https://github.com/wargamereview-ship-it/EldenCraft`. Development is offline through
+  me3 without Easy Anti-Cheat; never take the modded game online.
+- The user plays on Linux (Proton, vkd3d-proton). They prefer one decision at a time, asked in plain
+  chat; the question widget has not worked reliably for them. Continue authorized work without
+  re-asking. They usually test in game and send screenshots and logs.
+- Commit only when asked. Git has no identity configured; earlier commits use
+  `git -c user.name=alex -c user.email=wargamereview@gmail.com commit ...`. Never reset or rewrite history.
+- Never replace the DLL or JAR while either game runs. Check with `ps -eo comm,args | grep -i -E
+  "eldenring.exe|prismlauncher|net.minecraft"` (excluding your own shell): `pgrep -f eldenring.exe`
+  matches the shell running it and gives a false "running".
+- Do not reset either save unless the user asks.
 
-The user prefers decisions one step at a time and questions in ordinary chat; the question widget
-has not worked reliably for them. Continue work already authorized without repeated confirmation.
-Preserve unrelated local changes. Current local HEAD is `728d002 Looting V1`; the combat, loot,
-gathering and documentation work is still uncommitted, including new files. Build outputs are ignored.
-Do not reset the checkout to remove the duplicate Looting V1 commit.
+### Git state
 
-## Current build and gameplay evidence
+The player-status mirror and documentation updates are committed on local `main` after `7cef9fc`.
+Local `main` and `origin/main` have diverged: each holds its own copy of "Looting V1" (local `728d002`, GitHub
+`15739af`). Local is 4 ahead and 1 behind, so a push needs a merge or a force-push; ask the user which.
+Nothing has been pushed.
 
-The current DLL and installed JAR use **protocol version 3**. The shared-memory name remains
-`Local\EldenCraft_v1`; its suffix is not the protocol version. Both binaries must match.
-The installed JAR matches `fabric/build/libs/eldencraft-0.0.1.jar`, SHA-256:
-`a5d35f2ee521800991e18c635f69368d45bd886088a44472996ed4886f552906` (6 Oct 2026, wards, trims, XP orbs, varied boss weapons). Protocol additions that keep
-version 3 (old binaries ignore them): input `IN_HURT_ELEMENTS` (17) and `PlayerVitals.statusWards` (was padding).
-me3 loads the DLL directly from `game/target/x86_64-pc-windows-msvc/release/eldencraft.dll`.
+## Builds in use
 
-| Area | Current state | Evidence / remaining check |
+- DLL: me3 loads `game/target/x86_64-pc-windows-msvc/release/eldencraft.dll` directly (built 6 Oct 2026).
+- JAR: the instance's `mods/eldencraft-0.0.1.jar` matches `fabric/build/libs/eldencraft-0.0.1.jar`,
+  SHA-256 `baa6d4bb28ed2d428cbb28dbdc7f48f448825b71302e7d392e6ed5e4c004e35d`.
+- Protocol version 3 (`protocol/eldencraft_protocol.h` is the source of truth; `game/src/proto.rs` and
+  `Proto.java` mirror it; change all three together). The shared-memory name `Local\EldenCraft_v1` is
+  not the version. Additions that kept version 3 (old binaries ignore them): input `IN_HURT_ELEMENTS`
+  (17), `IN_HURT` codes `HURT_PROJECTILE`, and `PlayerVitals.statusWards` (was padding). The optional 136-byte `PlayerStatuses` snapshot at 0x980
+  is also a compatible version-3 extension; old DLLs leave its validity flag zero.
+
+## What works, and how sure we are
+
+| Area | State | Evidence |
 | --- | --- | --- |
-| Launch, rendering, HUD and cameras | DLL starts Prism/MC in the same Wine session; MC content is composited over ER | Used in play |
-| Movement and connected caves | MC tick feet drive the native body; camera stays in MC through connected map changes | User confirmed cave entry; recovery edge cases remain |
-| Enemy targeting | Hostile factions can be attacked before damaging the player | User confirmed wolves and soldiers |
-| Hearing | MC footsteps replay player AiSoundParam IDs learned in ER mode | User confirmed detection from behind |
-| ER interactions | R taps Event Action; body faces MC look and native animations temporarily own movement | User confirmed, including the rubberbanding fix |
-| Outgoing combat | Native carrier bullet invokes ER guarding, stagger, reactions and AI response with MC damage | User confirmed hits work; weapon tuning remains |
-| Incoming damage and death | MC hearts/armour/shields participate; MC death drives ER death and grace respawn | Played previously; transition/recovery cases remain |
-| Loot rework | Regional family drops and guaranteed boss gear/books/materials | User confirmed regular NPC drops and boss drops after the hotfix |
-| Empty start | Starter, builder and test-guest kits removed; existing inventories preserved | User confirmed (5 Oct 2026) |
-| Visible gathering | Log piles, loose stone, rocks, visible mine ores and grace replenishment | User confirmed gathering works in play, including mine ores and grace replenishment (5 Oct 2026); tuning of yields/placement and the player-built-block check not separately reported |
-| Native digging | Explicitly disabled | User withdrew digging from the requested scope |
-| Villager traders | Discussed as possible replacements/overlays for selected ER merchants | Not implemented or yet scoped |
-| Seamless co-op | Feasibility investigated only | Not implemented |
+| Launch, compositing, HUD, cameras | DLL starts Prism/MC in the same Wine session; MC is drawn over ER | Used in play |
+| Blocks hidden by ER scenery | Occlusion by the game's own depth buffer | Confirmed 6 Oct (pillars, grass, dithered fades) |
+| Block lighting from the game picture | Blocks sample ER's finished frame for light | Built; copy path not separately confirmed |
+| Movement, caves, lifts | MC feet drive the native body; lifts carried | Confirmed (caves, lifts 5 Oct) |
+| ER interactions (R) | Event Action taps; doors, levers, pickups, graces | Confirmed |
+| Enemy targeting and hearing | Hostiles attackable; MC footsteps replay ER sounds | Confirmed |
+| Outgoing combat | Native carrier bullet gives ER guard, poise, reactions and AI response with MC damage | Confirmed; tuning remains |
+| Knockback feeding stagger | MC push adds poise damage and reaction size | Built 6 Oct, not seen |
+| Incoming damage and death | MC hearts, armour and shields; MC death drives ER death and respawn | Played; edge cases open |
+| Element of each incoming hit | Read from the attack's AtkParam row | Confirmed 6 Oct (physical and fire) |
+| Wards, Projectile Protection, Smite | See Combat | Built 6 Oct, not seen |
+| Player statuses in Minecraft | Seven custom effects, native timers and buildup HUD | Built 6 Oct, not seen |
+| Weapon elements and statuses | MC-side damage and status meters on enemies | Built, not seen |
+| Loot (regular and boss) | Regional tiers, durable boss parcels | Confirmed before the 6 Oct reward redesign |
+| Boss reward redesign, XP orbs | Wards, trims, weapon types, signatures, orbs | Built 6 Oct, not seen |
+| Gathering and empty start | Nodes, mine ores, grace replenishment | Confirmed 5 Oct |
+| Native digging | Disabled at the user's request | — |
 
-The Minecraft world was reset without backup at the user's explicit request before loot testing.
-The ER save was untouched. Gathering was installed without another reset; existing worlds should
-receive nodes. Do not reset either save unless the user asks.
+## Rendering
 
-## Loot: current rules and implementation
+**Occlusion by ER's depth** (`depth.rs`, `depth_math.rs`, shader `HiddenByGame`; on by default, F3
+falls back to the scanned-collision occluders). A MinHook on `ID3D12GraphicsCommandList::ResourceBarrier`
+(installed on the first frame) takes the first full-size single-sample depth the game moves into
+DEPTH_WRITE as the scene depth (`D32_FLOAT_S8X24_UINT` at back-buffer size) and records a
+`CopyResource` into our texture (SRV slot 65) inside the game's own command list: when the game makes
+the whole depth readable (state 0xc0), and at the end of its frame (a back buffer moved to PRESENT,
+from plane states tracked through its barriers). The encoding is calibrated at run time against a native
+ray (first person, 3-100 m): reversed-Z, near 0.05, far 10000. Blocks, the target outline and contact
+shadows discard fragments more than 0.1 m (+2%) behind ER's depth; nothing nearer than 1.5 m is tested
+(the hidden player model). In a D3D pixel shader `SV_Position.w` is clip w (the forward distance), not
+OpenGL's 1/w: taking 1/w was the bug that made occlusion look broken. Failures log `depth: ...` and
+keep the collision occluders; `depth: blocks are now / are not hidden by the game's depth (...)` logs
+each change. Investigation history: `docs/depth-occlusion-handoff.md`.
 
-- Fresh MC characters receive nothing; no optional generous testing preset.
-- Enemy family determines supplies; region/placement determines quality. HP only changes bulk
-  material quantities, not the tier. Every eligible ordinary kill has a guaranteed material item.
-- Base game tiers 1–5; Shadow of the Erdtree tiers 6–7. Early gear stays early and late gear stays late.
-- Equipment-capable ordinary enemies have a 10% gear chance: 9% regional tier, 1% one tier higher,
-  capped at T5 in the base game and T7 in the DLC. The capped upgrade uses a stronger same-tier
-  enchantment package. Ordinary equipment has 30–70% durability remaining.
-- Boss completion gives a fixed named enchanted item at full durability, a curated enchanted book,
-  regional materials and XP. There are 17 four-piece collections (68 pieces), each spread over
-  multiple fixed boss encounters. Collection bonuses and custom visuals are deferred.
-- DLC boss primaries include Protection V/VI and Sharpness VI/VII plus compatible utilities.
-  Custom ER elemental/status effects have not been implemented or advertised on these rewards.
-- Original ER drops and runes remain unchanged. MC boss claims are per world/encounter flag, not
-  per NG+ cycle. Old V1 text claims are not migrated.
+**Accepted limit:** ER's translucent effects (grace glow, particles) write no depth, so blocks are drawn
+over them. Layering ER's VFX over blocks was considered and declined by the user (6 Oct).
 
-`tools/loot_catalog.json` contains the public-data reference snapshot: 446 map defaults, 372 enemy
-models and 208 boss encounters. `tools/generate_loot.py` writes loot rules, 105 enemy/gear/boss
-tables, `game/src/loot_catalog.rs` and `docs/loot-boss-rewards.md`. The generated reward sheet is the
-current item assignment; the proposal document contains earlier illustrative signature examples.
-Public-data coverage is not proof that every runtime identity or boundary has been verified.
+**Block lighting** (`gpu.rs` `FrameCopy`, SRV slot 64; `GameLight` in the shader): ER's finished frame
+is copied before our pass and each vertex averages 32 pixels around it (scaled by 0.42, half-strength
+tint), shaded per face by the clock's sun, times MC sky light, plus torch light. F4 switches to the
+clock-only model in `lighting.rs`, also the fallback if the copy fails (`gpu: cannot copy ...`).
+Blocks over dark soil read a little dark; tune `look` in `draw_world`.
 
-Native `loot.rs` observes completion flags after seeing a nearby encounter alive. Known boss
-actors suppress ordinary payout so duo members and phases do not each generate a boss reward.
-Radagon/Elden Beast share one completion. Unmapped team-7 actors have a generic fallback reward.
-Four-event loot batches carry position, identity, raw map/play region and completion flag.
-`LootRules`, `LootEquipment`, `SkyLoot` and `BossRewards` implement the MC reward path.
+Every HLSL entry point must compile under Wine's d3dcompiler (the game compiles them at start-up; one
+error disables all block rendering): run `tools/shader_check/check_shaders.sh` after any shader edit and
+add new entry points to `compile_shaders.c`.
 
-The no-drop hotfix removed zero actor IDs from boss lists. `Boss::matches` requires a nonzero
-actor identity or an exact map/NPC fallback; zero must never act as a wildcard. Keep the regression
-checks in `tools/test_loot_identity.rs` and `tools/test_loot.py`.
+## Collision and movement
 
-Boss parcels persist in the world's `eldencraft_boss_rewards_v2.json` before delivery. Player
-attachments track item/partial-stack/XP receipts. Full inventories hold outstanding rewards;
-player death delays delivery until respawn. These recovery paths are implemented but the user
-explicitly postponed their gameplay tests. Ordinary delayed events and retries during boss-ledger
-I/O failure are in memory, not durable across every possible interruption.
+`scan.rs` has full columns (half-block grid, wall fitting) within 3 regions and a floor-only ring of
+1 m samples out to 10 regions (~80 m), nearest first; far columns are rescanned in full on approach.
+F7 draws collision edges near the player. Lifts are not static collision: `risen_floor` finds a floor
+0.4-1.0 m above the feet, `SkyCollider` drops scanned floors a lift left and carries the player onto a
+risen patch, and `Scanner::carried_rise` keeps recovery from fighting a rising lift. A stall watchdog
+logs a thread dump after 10 s without a server tick; recovery without a restart is not guaranteed.
 
-## Gathering: current rules and implementation
+## Combat
 
-**No native terrain digging or native tree/structure destruction.** MC deposits are additional
-visible blocks placed in available space; ER geometry is retained.
+### Outgoing (MC hits ER enemies)
 
-- Outdoors: oak log piles, low mossy loose-stone slabs and larger stone deposits.
-- Logs and loose stone are harvestable bare-handed. Loose stone drops cobblestone; a wooden
-  pickaxe then enables harvesting larger stone. Normal tool speed/requirements apply.
-- Ordinary rocks have a 10% bonus: raw copper at T1, raw iron at T2+. They never generate valuable
-  gathering ores. This restriction concerns gathering nodes, not the approved enemy/boss loot.
-- Mine ore is visible immediately. T1 has copper/coal; T2 adds iron; T3 adds gold/rare diamonds;
-  T4 increases diamonds; T5+ adds ancient debris. Vanilla tool gates, Fortune, Silk Touch,
-  smelting and netherite upgrading apply.
-- Harvested nodes replenish after a native grace rest. Travel/reload alone does not replenish them.
-  Replenishment waits for a clear loaded position and never replaces player-built MC blocks.
+Each enemy has an invisible MC stand-in (`SkyrimActorEntity`, family from its model) that collects every
+hit per tick (melee, sweeps, arrows, fire ticks) and forwards it. The DLL spawns ER's Ruin Fragment
+bullet (BulletParam / AtkParam_Pc 10176000) into the enemy so ER runs guard, poise, reaction and AI; the
+HP hook substitutes MC damage (x25 ER HP), keeping smaller guarded damage. Melee reach is 4.25 m; a bullet
+not delivered within 600 ms falls back to direct HP. `native_damage::reaction(weapon, critical, knockback)`
+sets reaction size and poise per MC weapon class; MC knockback (`McEvent.d`: 0.4 plain, 0.5 per Knockback
+level or sprint) adds half the poise per 0.5 step and one reaction size at two steps.
 
-`ResourceBlocks`, `ResourceNodes`, `ResourceRules` and `ResourceSurface` own the system. The
-custom loose-stone block has slab geometry, low hardness and no correct-tool requirement.
-Deposits rest at the ground's exact height (`ResourceRules.restHeight`): cubes sink up to 0.6 into it or
-rise to the next block (never floating more than 0.4); loose stone is a slab placed in half-block steps
-(bottom or top half, persisted as kind `loose_top`). Each block follows the ground separately. Nodes
-placed before this change keep their old, sometimes floating, positions. Each cell tries up to 6 candidate points (a tunnel is narrow; one point per cell mostly landed in rock),
-mines look 3 cells around the player, and a cell with no usable floor is skipped for 90 s. Support is the
-scan skin or a walkable floor surface at that height. Placement runs 4 times a second (up to 12 deposits per pass, one save per pass) and logs every 30 s
-why cells were skipped (no native floor / blocked / no support). Outdoors use a deterministic 12-block placement grid; mines use an 8-block grid. Placement needs
-five native floor samples covering the footprint, <=0.45 m height variation, known collision,
-loaded clear air and entity clearance. Positions are saved before blocks are placed.
+**Weapon elements and statuses** (`ElementalRules`, `StatusMeters`, `ElementalHit`): Glintstone, Flame,
+Lightning and Sacred add 12% of the hit per level, scaled by enemy family; Bloodletting, Frostbite, Venom
+and Scarlet Rot fill an ER-style meter (100, bosses 250, harder after each proc, draining when idle).
+Hemorrhage and frostbite proc a burst of max HP, poison and rot tick for 18 s, frostbite also leaves the
+enemy taking 20% more. These are MC-side damage (`HIT_STATUS` events go straight to HP), not ER's own
+status effects or visuals.
 
-The world's `eldencraft_resources_v1.json` stores node identities, generated cells, harvest cycles
-and the grace cycle. `ResourceRemovalMixin` wraps `LevelChunk.setBlockState` inside `Level.setBlock`
-so mining, explosions and pistons deplete deposits instead of triggering immediate refill.
+### Incoming (ER hits the player)
 
-`resources.rs` reads event flag 9000. `grace_edges.rs` turns false->true into `IN_GRACE_REST` (16),
-avoiding repeat refreshes while seated and refreshes from attaching already at a grace. The
-client forwards this to the integrated server. Reference: the public grace talk script at
-`https://github.com/lraty-li/Elden-Ring-Mods/blob/main/Gacha_Ring/t000001000.py`.
-Grace-rest replenishment was confirmed in play.
+ER's HP becomes a sensor: the HP-stage hook (`native_hits.rs`) records each hit on the local player and
+`combat.rs` sends it to MC (`IN_HURT_ORIGIN`, `IN_HURT_ELEMENTS`, `IN_HURT`), where vanilla armour,
+shields and death apply; ER's HP is then restored. Falls and status ticks outside the attack call arrive
+as undirected damage.
 
-`tools/generate_resources.py` derives eight explicit area-32 mine interiors from the region rules:
-Morne, Limgrave, Raya Lucaria Crystal, Old Altus, Altus, Gael, Sellia Crystal and Yelough Anix.
-Overworld labels mentioning a tunnel entrance are not mines. Shared-map mines such as Sealed
-Tunnel need a more precise zone definition before enabling deposits there.
+The damage record names its attack (AtkParam row at +0x40, table at +0x44: 0 `AtkParam_Npc`,
+1 `AtkParam_Pc`); the row's `atk_phys/mag/fire/thun/dark` give the hit's make-up (confirmed in play for
+physical and fire). The record holds only the total (+0x228), not the per-type damage. A hit whose row
+is used by any BulletParam row (`Attack::projectile`, built once from the params) is a projectile and is
+sent as `HURT_PROJECTILE`; Java gives it the `mob_projectile` damage type. Spells, breath and thrown pots
+count. Each hit logs `life: damage call lost ... attack AtkParam_Npc <id> phys .. fire .. [, projectile]`.
 
-Limits: placement-only native rays cannot identify natural versus constructed floors, so nodes
-may need location/density adjustments. They do not modify either floor type. Harvesting and
-rest events currently use the local host's native link; guest gathering is not implemented.
+**Status buildup:** seven f32 at +0x158 that the HP stage passes to the attack's status effects, assumed
+in `PlayerGameData::resistance_gauges` order (poison, scarlet rot, blood loss, deathblight, frostbite,
+sleep, madness). Not yet confirmed: `life: status buildup on you: <status> a -> b` names them, so one hit
+by a known status confirms or corrects the order.
 
-## Combat and stability details to preserve
+### Ward enchantments (armour)
 
-MC damage is multiplied by 25 ER HP; melee reach is 4.25 m. Accepted hits use Ruin Fragment
-BulletParam/AtkParam_Pc 10176000. ER processes guard/poise/reaction; the HP hook substitutes MC
-damage and retains smaller guarded damage. Undelivered bullets fall back to direct HP after
-600 ms. Spears, mace, mace smash and criticals have distinct reaction/poise settings but need tuning.
+`WardRules`, `Wards`, data `enchantment/*_ward.json`, exclusive set `ward` (one ward per piece). Eight
+wards, levels I-VII at 10% each; only the strongest piece of a ward counts.
+- Glintstone, Flame, Storm and Sacred Ward cut their element's share of an ER hit, in
+  `SkyCombat.hurtNativePlayer`, before vanilla armour (logged `[physical ..% ..., wards cut x of y]`).
+- Rot, Bleed, Frost and Venom Ward cut that buildup: Java writes the levels into the vitals every tick
+  and `native_hits` scales the record before the game copies it. Buildup from ground (rot lakes, poison
+  swamps) applies no attack and is not cut.
+- VII exists only as a book from one DLC boss per ward; `AnvilMenuMixin` stops two VIs making a VII. Wards
+  are not in the enchanting table, trades or chests.
 
-Native bridge references for the currently pinned SDK / ER 2.7.1:
+### Player statuses mirrored in Minecraft (6 Oct build)
 
-| Module | Native reference | Purpose |
+`player_status.rs` reads the live local `PlayerIns.player_game_data` on PostPhysicsSafe: seven
+`resistance_gauges`, `resistance_gauge_max`, `proc_status_timers` and `proc_status_timer_max`, in order
+poison, scarlet rot, blood loss, deathblight, frostbite, sleep, madness. Compile-time offset guards:
+0x9cc, 0x9e8, 0xa20, 0xa3c. The installed 2.7.1 function at 0x659e10 fills them from SpEffect categories
+2, 5, 6, death's 116/117, 260, 436, 437. Native inactive timers are negative; deathblight's active
+999/1000 sentinel becomes an untimed active effect, not a 16-minute countdown.
+
+The DLL publishes optional `PlayerStatuses` at 0x980 (136 bytes, independent seqlock, life epoch,
+world and timestamp). Loading/inactive life invalidates it; Java rejects wrong-life, wrong-world,
+future, >1-second-old and invalid snapshots. `PlayerStatusBridge` syncs seven `eldencraft:<status>`
+MobEffects on the integrated-server host, with durations corrected both upwards and downwards.
+Native cures, death, loading and disconnect clear them. Separate custom IDs preserve vanilla potion
+effects. These are display effects: ER already supplies status damage and mitigation; no extra MC
+damage, slowdown or other penalties were added. Additional MC mechanics remain a user decision.
+
+`PlayerStatusHud` shows only buildup/active statuses on the left: icon, translated name, buildup
+percentage/bar or native remaining time/bar. Actual MobEffects also appear in vanilla's HUD and
+inventory. Wards therefore show their reduced attack buildup through the native gauge; ground buildup
+still has the existing ward limitation. Pixel icons are regenerated by `tools/generate_status_icons.py`.
+Native logs say `life: player statuses: ...` (at most once per second except active transitions), Java
+logs active/cleared effects. All seven proc timers, cures, ward buildup and respawn cleanup still need
+play confirmation. Buildup alone never guesses a proc, and an instantaneous native status can be brief.
+
+### Vanilla enchantments against Elden Ring
+
+From reading the code (6 Oct), not from play:
+
+| Works | Partly | Does nothing (never given) |
 | --- | --- | --- |
-| `movement.rs` | ChrCtrl +0x100 | Queues MC destination |
-| `native_hits.rs` | 0x448910 HP hook | Attacker/origin capture and MC damage substitution |
+| Sharpness, Sweeping Edge, Fire Aspect, Power, Flame, Infinity, Multishot, Piercing, Quick Charge, Loyalty, Lunge, Density, Wind Burst, Protection, Unbreaking, Depth Strider and Respiration (ER water is MC water), Efficiency/Fortune/Silk Touch (MC blocks), Projectile Protection, Smite (ER undead, `EnchantmentHelperMixin`), Knockback (stagger), Mending (kills drop orbs) | Feather Falling (MC's own falls; any fall damage ER deals itself arrives as plain damage) | Fire and Blast Protection (ER fire/explosions arrive as attacks), Thorns (post-attack effects only fire from an attacker's own code), Looting (ER kills roll chest-style loot), Bane of Arthropods, Impaling, Punch (arrows `push`), Breach, Soul Speed, Frost Walker, Aqua Affinity |
+
+## Loot and boss rewards
+
+- Fresh characters start empty. Enemy family sets the materials, region/placement the tier: base game
+  T1-T5, Shadow of the Erdtree T6-T7. HP changes only bulk quantity. Equipment-capable enemies have a
+  10% gear chance (9% regional tier, 1% one higher, capped T5 base / T7 DLC; 30-70% durability).
+- Enemies and bosses drop **XP orbs** where they die, held in the air like loot until collision there is
+  known; a boss drops them only on its first reward (`BossRewards.Enqueued`). Mending repairs from them.
+- Each boss gives one named item at full durability, an enchanted book and regional materials, once per
+  world per encounter (not per NG+ cycle). Original ER drops and runes are unchanged.
+- **Armour:** 17 four-piece sets (68 pieces), each spread over four fights and with its own armour trim.
+  Projectile sets get Projectile Protection, the rest Protection.
+- **Ward themes:** 142 of 208 bosses have one (21 marked unsure in the generator). Their armour carries it
+  at level = tier (max VI) and their book is that ward. VII books: Messmer (Flame), Bayle (Storm), Rellana
+  (Glintstone), Promised Consort Radahn (Sacred), Romina (Rot), Divine Beast Dancing Lion of Rauh (Frost),
+  Chief Bloodfiend (Bleed). Venom Ward has no DLC boss and stops at IV. Unthemed bosses give a random
+  book (two in three a vanilla enchantment, otherwise a weapon element or status).
+- **Weapons:** each weapon boss gives the kind it fights with in ER (sword, axe, spear, mace, trident, bow,
+  crossbow; pickaxe for stone and crystal bosses), its theme's element or status (none for physical bosses)
+  and a signature enchantment (Smite for undead, Fire Aspect for fire, otherwise one suited to the weapon).
+  Where two different bosses would still match, the later gets one or two extra enchantments; the
+  generator refuses to build if two different bosses share a weapon reward (repeat fights may).
+
+Data flow: `tools/loot_catalog.json` (public-data snapshot: 446 maps, 372 models, 208 encounters) ->
+`tools/generate_loot.py` (`SETS`, `WARDS`, `WARD_SEVEN`, `WEAPONS`, `FLAIRS`, families) -> `loot_rules.json`,
+105 loot tables, `game/src/loot_catalog.rs`, `docs/loot-boss-rewards.md`. Regenerate only when changing
+mappings, then run `tools/generate_resources.py` and the tests. `LootRules`, `LootEquipment`, `SkyLoot`
+and `BossRewards` implement the MC side. **`rewards.md`** lists every boss's item, enchantments and book,
+written from the reward code by `RewardsSheetTest` (on request only, see Verification); regenerate it after
+reward changes.
+
+Native `loot.rs` watches completion flags after seeing an encounter alive; known boss actors suppress
+ordinary payouts (duo members and phases give one reward; Radagon/Elden Beast share one). `Boss::matches`
+needs a nonzero actor identity or an exact map/NPC fallback: zero must never act as a wildcard
+(`tools/test_loot_identity.rs`). Boss parcels persist in the world's `eldencraft_boss_rewards_v2.json`
+before delivery, with per-player receipts; full inventories and death delay delivery. Those recovery
+paths are built but their play tests were postponed by the user.
+
+## Gathering
+
+No native terrain or structure destruction: deposits are extra MC blocks in free space. Outdoors: log
+piles, loose-stone slabs (bare-handed, drop cobblestone) and stone (rocks: 10% raw copper at T1, raw iron
+at T2+). Eight mapped mine interiors (`tools/generate_resources.py`) show ore by tier (copper/coal, iron,
+gold/diamond, ancient debris at T5+). Nodes replenish after a native grace rest (event flag 9000 ->
+`grace_edges.rs` -> `IN_GRACE_REST`), never over player-built blocks, and keep 7 m from graces the player
+has rested at. Placement: `ResourceNodes`, `ResourceRules.restHeight` (cubes sink up to 0.6 or rise to
+the next block, slabs in half steps), 12-block outdoor / 8-block mine grids, five floor samples, known
+collision and clearance. Some nodes look like they float: placement follows ER's collision floor, which
+can sit above the visible ground (deferred by the user). State lives in `eldencraft_resources_v1.json`;
+`ResourceRemovalMixin` depletes nodes on any block removal. Guest gathering is not implemented.
+
+## Native references (ER app 2.7.1, offsets from the image base)
+
+| Where | Reference | Purpose |
+| --- | --- | --- |
+| `movement.rs` | ChrCtrl +0x100 | Queues the MC destination |
+| `native_hits.rs` | 0x448910 HP apply (hook) | Hit capture, MC damage substitution, status ward scaling |
+| damage record | +0x40 atk id, +0x44 table, +0x158 7 x f32 buildup, +0x228 total, +0x258 guarded | Read/written by the hook |
+| game functions | 0x447810 pre-apply, 0x685820 core damage calc, 0xd247d0 AtkParam lookup (slot = table + 7) | Research only |
 | `native_damage.rs` | 0x3a2cb0 SpawnBullet | Outgoing carrier hits |
+| `depth.rs` | `ID3D12GraphicsCommandList::ResourceBarrier` (vtable, MinHook) | Scene depth copy |
 | `aggro.rs` | 0x2c50d0; ComManipulator 0x3ce9a0 | Direct-hit fallback AI notice |
 | `ai_sound.rs` | hook 0x37a6c0; call 0x5f2c50; global 0x3d66548 | Learned native footsteps |
-| `dinput.rs` | DirectInput vtable patches | Input ownership and Event Action E injection |
+| `dinput.rs` | DirectInput vtable patches | Input ownership, Event Action injection |
 
-Preserve existing startup fingerprints/guards when changing native bridges. Carrier visuals and
-crowded/ranged delivery need further play review. Looting does not yet add reward rolls.
-`KEEP_INVENTORY` and `IMMEDIATE_RESPAWN` are currently true. Incoming life/health edge cases
-and hunger/healing balance remain open. ER HUD is hidden while MC drives, which may hide prompts.
+fromsoftware-rs (pinned in `game/Cargo.toml`) also maps `PlayerGameData::resistance_gauges`,
+`resistance_gauge_max` and `proc_status_timers`: the player's status bars, used by the MC status mirror.
+Preserve startup fingerprints and guards when changing native bridges.
 
-A prior integrated-server stall led to a watchdog: after 10 seconds without a server tick, MC
-logs a thread dump. Recovery without a manual restart is not yet guaranteed. Map/load transitions
-refresh collision epochs and teleport readiness; falling, rebases and recovery still merit testing.
+## Saves
 
-Moving platforms (lifts) are not static collision. The scan is a snapshot, so a lift's old
-position stays baked into its column. Live probes cover it: `scan.rs` `risen_floor` finds a floor
-0.4-1.0 m above the feet (a rising lift outruns the 0.35 m probe start) with 1.6 m of headroom,
-used by the ground patch and the fall-recovery sweep. `SkyCollider` drops scanned walkable floors
-more than 0.3 m above the live patch (a lift that left) and raises the step height to carry the
-player up onto a flat risen patch (<= 1.0 m). A recovery teleport parks Minecraft for ~85 ms, during which a lift
-rises ~0.35 m, so a rising lift must not trigger recovery: `Scanner::carried_rise` makes
-`fallen_floor` leave flat risen floors (<= 1.0 m) to the Java carry. Built and unit-tested
-(`ridesAPlatformThatRoseAboveTheStepHeight`); a first lift test still fell through (the recovery loop
-above); after the `carried_rise` follow-up the user confirmed lifts work (5 Oct 2026). Columns are still not rescanned for moving geometry.
-
-Elemental and status enchantments (`ElementalRules`, `StatusMeters`, `ElementalHit`; data in
-`data/eldencraft/enchantment/*.json`): Glintstone (magic), Flame, Lightning and Sacred (holy) add
-12% of the hit per level, scaled by the enemy family (holy vs undead, fire vs plant, ...); Bloodletting,
-Frostbite, Venom and Scarlet Rot fill an Elden Ring-style meter on the enemy (100, bosses 250, harder
-after each proc, draining when hits stop). Hemorrhage and frostbite proc a burst of the enemy's max HP,
-poison and rot tick for 18 s, frostbite also leaves the enemy taking 20% more for 20 s. These are
-Minecraft-side effects delivered as ordinary damage: the DLL sends `ActorRecord.level` as the enemy's max
-HP / 25 and treats events flagged `HIT_STATUS` as direct HP with no bullet or stagger. They are NOT
-native Elden Ring buildup or elemental damage types (no ER status effects, resistances or visuals). Weapons
-get them from bosses (name-themed, level 1-5 by tier) and from about a third of boss books; they
-are not in the enchanting table. Unconfirmed in play.
-
-Element of incoming hits (research, 6 Oct 2026; for planned elemental armour enchantments): the damage record at
-the HP stage (`native_hits`, 0x448910) names its attack: AtkParam row id at +0x40, table at +0x44 (0 AtkParam_Npc,
-1 AtkParam_Pc). The game itself looks the pair up as param slot table+7 (fn 0x140d247d0, called from 0x140449dfd)
-and reads `throw_type_id` (+0x68) of the row. The row's `atk_phys/atk_mag/atk_fire/atk_thun/atk_dark` give the
-attack's base damage by type. The record does not hold the final per-type damage: the core calculation 0x140685820
-(called from 0x140448325) returns the total, stored at +0x228. Seven per-status buildups scaled by +0x120..+0x138 are
-stored at +0x158..+0x170 (likely poison, rot, bleed, deathblight, frost, sleep, madness, the order of
-`PlayerGameData::resistance_gauges`; unverified). Each captured hit is logged as
-`life: damage call lost ... attack AtkParam_Npc <id> phys .. magic .. fire .. lightning .. holy ..`. Confirmed in play
-6 Oct 2026: 20 hits, all resolved to AtkParam_Npc rows; physical attacks read pure physical (e.g. 4382200 phys 210) and
-fire attacks pure fire (4382140 fire 180, 4500232 fire 360), one enemy (actor 131) using both. Magic, lightning and
-holy not yet seen but come from the same row fields.
-
-Ward enchantments (built 6 Oct 2026, not yet seen in play; `WardRules`, `Wards`, `AnvilMenuMixin`, data
-`enchantment/*_ward.json`): eight armour enchantments, levels I-VII at 10% each. Glintstone/Flame/Storm/Sacred Ward cut
-their element's share of an ER hit; Rot/Bleed/Frost/Venom Ward cut that status's buildup on the player. Only the
-strongest piece of a ward counts (no stacking); one ward per piece (exclusive set `ward`). Not in the enchanting
-table, trades or chests. Element path: the DLL turns each captured hit's AtkParam base values into percentages and
-sends `IN_HURT_ELEMENTS` before `IN_HURT`; `SkyCombat.hurtNativePlayer` cuts the damage before vanilla armour and logs
-`[physical ..% magic ..% ..., wards cut x of y]`. Status path: Java writes the wearer's status ward levels into the
-vitals every tick; `native_hits` scales the record's buildup (+0x158..) for hits on the player before the HP stage
-copies it, and logs `life: status buildup on you: <status> a -> b`. The status order (poison, scarlet rot, blood
-loss, deathblight, frostbite, sleep, madness) is assumed: confirm from a log line after a known status hit. Wards
-do not cut buildup from ground (rot lakes, poison swamps), which applies no attack. Distribution
-(`tools/generate_loot.py` `WARDS`/`WARD_SEVEN`, written to `loot_rules.json` as `ward`/`ward_seven`, listed in
-`docs/loot-boss-rewards.md`): 142 of 208 bosses have a ward theme (21 marked unsure in the generator). Their armour
-carries it at level = tier (max VI), their book is that ward (same level; replaces the random book), and their
-weapon gets the matching weapon enchantment (unthemed bosses keep the name-based one). VII is only the book of one
-DLC boss per ward: Messmer (Flame), Bayle (Storm), Rellana (Glintstone), Promised Consort Radahn (Sacred), Romina
-(Rot), Divine Beast Dancing Lion of Rauh (Frost), Chief Bloodfiend (Bleed); Venom Ward has no DLC boss and stops at IV.
-The anvil cannot make VII from two VIs (`WardRules.anvilLevel`). Existing claimed boss rewards are not changed.
-
-Vanilla enchantments against Elden Ring (6 Oct 2026, built, not yet seen in play). Dead ones are no longer given by
-boss rewards: Fire and Blast Protection (ER fire/explosions arrive as attacks; those sets now get Protection), Aqua
-Affinity. Still dead and never given: Thorns (vanilla post_attack effects only fire from an attacker's own attack
-code; ER hits call `hurtServer` directly), Looting (ER kills roll chest-style loot), Bane of Arthropods, Impaling,
-Punch (arrows `push`, not `knockback`), Breach, Soul Speed, Frost Walker. Made to work:
-- Projectile Protection: the DLL builds the set of AtkParam ids that BulletParam rows use (`Attack::projectile`) and
-  sends such hits as `HURT_PROJECTILE`; Java gives them the `mob_projectile` damage type even without a shooter.
-  Spells, breath and thrown pots are bullets too, so they count as projectiles. Logged as `..., projectile`.
-- Smite: `EnchantmentHelperMixin` adds 2.5 a level in `modifyDamage` when the target stand-in's family is undead
-  (the generator's undead now includes deathbird, revenant, tibia mariner; this also changed those models' drops).
-- Knockback: `native_damage::reaction` takes the hit's strongest MC push (`McEvent.d`; 0.4 plain, 0.5 per Knockback
-  level or sprint): each 0.5 adds half the poise damage, two or more steps one reaction size. Sprint hits stagger more too.
-Boss gear: each set has its own armour trim (`SETS` in the generator, `reward.trim`). Each weapon boss gives the kind
-of weapon it fights with in ER (`WEAPONS` in the generator: sword, axe, spear, mace, trident, bow, crossbow, pickaxe;
-maces get Density, crossbows Piercing, the rest Sharpness/Power) and a signature enchantment (`reward.signature`:
-Smite for undead, Fire Aspect for fire bosses, else Sweeping Edge/Knockback/Lunge/Wind Burst/Loyalty/Infinity/
-Multishot by weapon; level in `LootEquipment.signatureLevel`). Where two different bosses would still give the same
-weapon, the later (by name) gets one or two extra enchantments (`reward.flair`, `FLAIRS`); the generator asserts no two
-different bosses share a weapon reward (repeat fights of one boss do). Physical bosses' weapons get no element. XP: enemies and bosses drop XP orbs at the death spot (held in the air
-like loot until collision there is known); a boss drops them only on its first reward (`BossRewards.Enqueued`).
-The full list is `rewards.md`, written from the reward code by `RewardsSheetTest`, which only runs on request:
-`ELDENCRAFT_REWARDS=1 ./gradlew cleanTest test --tests dev.eldencraft.combat.RewardsSheetTest` (in `fabric`, with the
-usual JAVA_HOME/GRADLE_USER_HOME). Regenerate it after changing rewards.
-
-Graces: nodes keep 7 m from any grace the player has rested at or arrived beside (the DLL sends the
-position with `IN_GRACE_REST`, code 0 for a rest, 1 for the arrival after a load); the world file keeps a
-`graces` list and nodes already there are removed when it is first noted. Known limit: Elden Ring's
-effects (the grace glow, particles) write no depth, so a block farther away than such an effect but not behind
-anything solid is drawn over it. Floating nodes make this
-worse; the Minecraft log prints native ground vs block bottom for the first few nodes of each 30 s.
-
-Occlusion by the game's real depth: WORKS (seen in play 6 Oct 2026). Pillars, ruins and grass hide blocks, and
-geometry the game fades out near the camera (a dithered pillar) lets blocks show through in the same pattern. History and
-the investigation are in `docs/depth-occlusion-handoff.md`. On by default; F3 switches back to the collision occluders
-as a fallback. Files: `depth.rs`, `depth_math.rs`, shader `PSBlock`.
-How it works: a MinHook on `ID3D12GraphicsCommandList::ResourceBarrier` (installed on the first frame) takes the first
-full-size single-sample depth texture the game moves into the depth-write state as the scene depth (it is
-`D32_FLOAT_S8X24_UINT`, format 19, at back-buffer size). It records a `CopyResource` of it into our texture (SRV
-slot 65) inside the game's own command list, so the game's queue orders the copy and the depth's state is known:
-once when the game makes the whole depth readable (state 0xc0), and again at the end of the game's frame (when it
-moves a swap-chain back buffer to PRESENT, using the planes' states tracked from its barriers). The encoding
-(standard / reversed / reversed-infinite) is learned at run time: a row of 64 values from the copy is read back and
-the centre is compared with a native ray's distance straight ahead (first person, 3-100 m, with the camera's
-near/far planes), logged as `depth: the game's depth is encoded as mode N`. It is reversed-Z, near 0.05, far 10000;
-modes 2 and 3 both fit. Once known, the collision occluders are skipped and a block fragment more than 0.1 m (+2%)
-behind the game's depth is discarded; fragments nearer than 1.5 m are never tested (the hidden player model).
-`depth: blocks are now / are not hidden by the game's depth (...)` logs every change of that state. Any failure
-(no barrier seen, unsupported format, no fit after 20 s) logs `depth: ...` and leaves the collision occlusion in
-place; F3 off and on tries again. In the pixel shader the block's distance is `SV_Position.w` itself: D3D gives clip
-w there, not OpenGL's 1/w (taking 1/w was the bug that made it look broken). The targeted-block outline and the
-contact shadows use the same test (`HiddenByGame` in the shader), so a sunk block's outline stops at the ground.
-Translucent effects (the grace glow, particles) write no depth, so blocks are drawn over them. Accepted limit (the
-user's call, 6 Oct 2026): putting the game's VFX over blocks was considered (copy the scene colour before and after
-the game's effects pass, add the difference over blocks) and not pursued.
-
-Block lighting: the renderer copies Elden Ring's finished frame (`gpu.rs` `FrameCopy`, taken before our
-pass, SRV slot 64) and the block vertex shader averages 32 of its pixels around each vertex's screen
-position (`GameLight`), so blocks pick up the game's shadows, fog, weather, colour grading, lamp light and
-indoor brightness. The average is scaled by 0.42 (roughly a sunlit scene), tinted at half strength, shaded
-per face from the clock's sun and multiplied by Minecraft's own sky light; torch light is added. F4
-switches to the clock-only model (`lighting.rs`: sun/moon and ambient from `WorldAreaTime`, dim even
-ambient indoors) which is also the fallback if the copy cannot be made (unsupported back buffer format,
-multisampling, or a creation error, logged as `gpu: cannot copy ...`). Averaging a picture cannot tell
-a shadow from dark ground, so blocks over dark soil read a little dark; tune `look` in `draw_world`
-(reference 0.42, tint 0.5, radius 12% of the picture height). The shader compiled under Wine's d3dcompiler;
-the D3D12 copy path (barriers, root parameter 2, `FRAME_READ`) is unverified in the game. The 2 s
-native log line `lighting:` shows the clock model.
-
-Collision scanning has two tiers (`scan.rs`): full columns (half-block grid, wall fitting) within 3
-regions, and a floor-only ring of 1 m samples out to 10 regions (about 80 m), nearest-first with
-full columns always taking priority. Far columns send triangles and voxel skin but no walls, do
-not feed the half-block floor lookups, and do not register renderer occluders; they are
-rescanned in full when the player approaches, and retried up to 3 times if they came back
-incomplete. F7 (`render::CollisionDraw`) caches deduplicated edges for ~12 m around the player and
-rebuilds only when the scan changes or the player moves 3 m. Built, not yet checked in play; the
-protocol version is unchanged, so only the DLL changed.
+- **Elden Ring:** `.../compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Roaming/EldenRing/76561198056309953/ER0000.sl2`,
+  the same file the online game and Steam Cloud use. On 6 Oct the user asked for one weapon of every ER
+  weapon type; 42 were added to the held inventory of the only character ('sdasd', level 9). Backup beside
+  it: `ER0000.sl2.before-weapons-20261006-092126`. Layout notes from that edit: ClayAmore's ER-Save-Editor
+  layout matches this game version; empty GaItem entries are `(0, 0xFFFFFFFF)`; the acquired-items list is
+  8-byte `(item id, 1)` pairs (the editor's 16-byte write would land in the wrong place); new weapon handles
+  follow the highest existing one; recompute the slot MD5.
+- **Minecraft:** the world was reset once at the user's request; gathering and later changes were installed
+  without another reset.
 
 ## Verification, build and deployment
 
-Latest recorded checks: both builds succeed; 40 Java tests pass, including resource policy/floor
-placement and Minecraft codec parsing for all 106 tables (105 loot + loose stone). Two standalone
-Rust grace-edge tests and three boss-identity tests pass. Loot simulation covers 700,000 kills.
-Custom slab models were checked against MC assets and the removal mixin target against bytecode.
-In-game gathering was later confirmed by the user.
+Latest checks (6 Oct 2026): DLL and JAR build; 71 Java tests pass (`RewardsSheetTest` is skipped unless
+asked); standalone Rust tests pass (3 boss identity, 2 grace edge, 6 lighting, 4 depth, 4 player status); loot simulation of
+700,000 kills passes; all shaders compile.
 
 From the workspace root:
 
 ```bash
 tools/build_dll.sh --offline
+tools/shader_check/check_shaders.sh
 python3 tools/test_loot.py
-rustc --test tools/test_loot_identity.rs -o /tmp/eldencraft-loot-identity-test
-/tmp/eldencraft-loot-identity-test
-rustc --test tools/test_grace_edges.rs -o /tmp/eldencraft-grace-test
-/tmp/eldencraft-grace-test
-rustc --test tools/test_lighting.rs -o /tmp/eldencraft-lighting-test
-/tmp/eldencraft-lighting-test
-rustc --edition 2021 --test tools/test_depth.rs -o /tmp/eldencraft-depth-test
-/tmp/eldencraft-depth-test
+rustc --edition 2021 --test tools/test_loot_identity.rs -o /tmp/eldencraft-loot-identity-test && /tmp/eldencraft-loot-identity-test
+rustc --edition 2021 --test tools/test_grace_edges.rs -o /tmp/eldencraft-grace-test && /tmp/eldencraft-grace-test
+rustc --edition 2021 --test tools/test_lighting.rs -o /tmp/eldencraft-lighting-test && /tmp/eldencraft-lighting-test
+rustc --edition 2021 --test tools/test_depth.rs -o /tmp/eldencraft-depth-test && /tmp/eldencraft-depth-test
+rustc --edition 2021 --test tools/test_player_status.rs -o /tmp/eldencraft-player-status-test && /tmp/eldencraft-player-status-test
 ```
 
-For the Java build:
+Java (from `fabric`; add `ELDENCRAFT_REWARDS=1` and `cleanTest test --tests dev.eldencraft.combat.RewardsSheetTest`
+to rewrite `rewards.md`):
 
 ```bash
-cd fabric
 JAVA_HOME='/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/Skycraft/.install/jdk-25.0.4.1+1' GRADLE_USER_HOME='/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/Skycraft/.install/gradle' ./gradlew test jar --offline --no-daemon --no-configuration-cache
 ```
 
-Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.161.0+26.3, Java 25. The shared Gradle cache
-and installed instance are outside workspace write roots and may require tool escalation.
-Regenerate design data only when changing mappings: `tools/generate_loot.py`, then
-`tools/generate_resources.py`; revalidate after generation.
+Minecraft 26.3 (unobfuscated: Mojang names in mixins), Fabric Loader 0.19.5, Fabric API 0.161.0+26.3,
+Java 25. To check a 26.3 class or method, `javap` the jar under `fabric/.gradle/loom-cache/minecraftMaven/`.
 
-Install `fabric/build/libs/eldencraft-0.0.1.jar` in `<instance>/mods/` only while both games are
-closed. The DLL is already at me3's configured load path. Instance:
+Install `fabric/build/libs/eldencraft-0.0.1.jar` into the instance's `mods/` only while both games are
+closed; the DLL needs no copying. Instance:
 `/run/media/alex/a0da83cf-b021-4cfe-9104-edb6dd726a80/SteamLibrary/steamapps/compatdata/1245620/pfx/drive_c/users/steamuser/AppData/Local/EldenCraft/Prism/instances/EldenCraft/.minecraft`.
+Launch from the workspace root: `~/.local/bin/me3 launch -p me3/eldencraft.me3`.
 
-Launch from the root with `~/.local/bin/me3 launch -p me3/eldencraft.me3`.
-Controls: F8 MC movement, F9 first person, F10 input owner, F5 MC camera, F7 collision view, F4 block light source (game picture / clock), F3 block occlusion (game depth / collision),
-F6 ray probes, F11 render-history delay, R native interaction. R assumes ER Event Action is E.
+Controls: F8 MC movement, F9 first person, F10 input owner, F5 MC camera, F7 collision view, F4 block light
+(game picture / clock), F3 block occlusion (game depth / collision), F6 ray probes, F11 render-history delay,
+R native interaction (assumes ER's Event Action is E).
 
-Capture logs before relaunching:
+Logs (capture before relaunching): native `game/target/x86_64-pc-windows-msvc/release/eldencraft.log`;
+Minecraft `<instance>/logs/latest.log`; me3 `~/.local/share/me3/logs/eldencraft/`.
 
-- Native: `game/target/x86_64-pc-windows-msvc/release/eldencraft.log`.
-- Minecraft: `<instance>/logs/latest.log`.
-- me3: `~/.local/share/me3/logs/eldencraft/`.
+## Open items
 
-## Next work
-
-Gathering and the empty start are confirmed. Next: tune yields and placement from play, and check the crafting route, base/storage persistence and player-built blocks in depleted node positions.
-Follow `roadmap.MD` for current priorities. The user postponed full-inventory, simultaneous-death
-and multi-phase boss testing; keep those open without treating them as the immediate next task.
-Villager traders are a possible next design discussion, not an already-approved implementation.
+1. Play-check the 6 Oct build (list in `roadmap.MD`), including the status buildup order.
+2. Play-check the new player status mirror: all seven effects, native timers, buildup/wards, cures,
+   loading/death/respawn/disconnect cleanup. It is built, not yet seen in play. Any additional MC status
+   penalties still need the user's decision.
+3. Decide how to reconcile `main` with `origin/main` before any push.
+4. Deferred by the user: floating gathering nodes, full-inventory / simultaneous-death / multi-phase boss
+   tests. Not yet scoped: villager traders, seamless co-op.

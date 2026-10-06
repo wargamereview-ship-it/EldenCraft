@@ -15,6 +15,7 @@ public final class EldenCraft implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		dev.eldencraft.combat.PlayerStatusBridge.init();
 		dev.eldencraft.combat.BossRewards.init();
 		SkyCombat.init();
 		dev.eldencraft.world.ResourceNodes.init();

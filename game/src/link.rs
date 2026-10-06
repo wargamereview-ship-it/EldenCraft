@@ -55,6 +55,7 @@ pub struct McView {
 
 impl Link {
 	pub fn publish_life(&self, epoch: u32, world_id: u32, flags: u32) {
+		if flags & proto::LIFE_ACTIVE == 0 { self.publish_statuses(epoch, world_id, None); }
 		unsafe {
 			let p = self.base.add(proto::OFF_NATIVE_LIFE).cast::<proto::NativeLife>();
 			let seq = AtomicU32::from_ptr(addr_of_mut!((*p).seq));
@@ -62,6 +63,22 @@ impl Link {
 			seq.store(start, Ordering::Relaxed); fence(Ordering::Release);
 			(*p).epoch = epoch; (*p).world_id = world_id; (*p).flags = flags;
 			(*p).updated_ms = GetTickCount64();
+			fence(Ordering::Release); seq.store(start.wrapping_add(1), Ordering::Release);
+		}
+	}
+
+	pub fn publish_statuses(&self, epoch: u32, world_id: u32, status: Option<crate::player_status::Statuses>) {
+		unsafe {
+			let p = self.base.add(proto::OFF_PLAYER_STATUSES).cast::<proto::PlayerStatuses>();
+			let seq = AtomicU32::from_ptr(addr_of_mut!((*p).seq));
+			let start = seq.load(Ordering::Relaxed) | 1;
+			seq.store(start, Ordering::Relaxed); fence(Ordering::Release);
+			let data = status.unwrap_or_default();
+			(*p).epoch = epoch; (*p).world_id = world_id;
+			(*p).flags = if status.is_some() { proto::STATUSES_VALID } else { 0 };
+			(*p).updated_ms = GetTickCount64();
+			(*p).buildup = data.buildup; (*p).maximum = data.maximum;
+			(*p).remaining = data.remaining; (*p).duration = data.duration;
 			fence(Ordering::Release); seq.store(start.wrapping_add(1), Ordering::Release);
 		}
 	}

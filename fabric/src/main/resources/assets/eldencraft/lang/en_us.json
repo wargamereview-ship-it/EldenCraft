@@ -19,5 +19,12 @@
   "eldencraft.status.hemorrhage": "Hemorrhage!",
   "eldencraft.status.frostbite": "Frostbite!",
   "eldencraft.status.poison": "Poisoned!",
-  "eldencraft.status.scarlet_rot": "Scarlet Rot!"
+  "eldencraft.status.scarlet_rot": "Scarlet Rot!",
+  "effect.eldencraft.poison": "Poison",
+  "effect.eldencraft.scarlet_rot": "Scarlet Rot",
+  "effect.eldencraft.blood_loss": "Blood Loss",
+  "effect.eldencraft.deathblight": "Deathblight",
+  "effect.eldencraft.frostbite": "Frostbite",
+  "effect.eldencraft.sleep": "Sleep",
+  "effect.eldencraft.madness": "Madness"
 }

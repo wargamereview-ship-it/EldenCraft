@@ -1,6 +1,6 @@
 //! Rust mirror of `protocol/eldencraft_protocol.h` (the subset the game DLL uses so far).
 //! The C header is the source of truth for the byte layout; Java mirrors it in `Proto.java`.
-//! Change all three together and bump `VERSION`.
+//! Change all three together; bump `VERSION` for incompatible changes.
 
 pub const MAGIC: u32 = 0x4344_4C45; // "ELDC"
 pub const VERSION: u32 = 3;
@@ -127,6 +127,21 @@ const _: () = assert!(size_of::<PlayerVitals>() == 40);
 const _: () = assert!(OFF_PLAYER_GROUND + size_of::<PlayerGround>() <= OFF_NATIVE_LIFE);
 const _: () = assert!(OFF_NATIVE_LIFE + size_of::<NativeLife>() <= OFF_PLAYER_VITALS);
 const _: () = assert!(OFF_PLAYER_VITALS + size_of::<PlayerVitals>() <= OFF_INPUT_RING);
+/// Optional version-3 extension; older DLLs leave flags zero.
+pub const OFF_PLAYER_STATUSES: usize = 0x980;
+pub const STATUS_COUNT: usize = 7;
+pub const STATUSES_VALID: u32 = 1;
+#[repr(C)]
+pub struct PlayerStatuses {
+	pub seq: u32, pub epoch: u32, pub world_id: u32, pub flags: u32,
+	pub updated_ms: u64,
+	pub buildup: [u32; STATUS_COUNT], pub maximum: [u32; STATUS_COUNT],
+	/// Seconds remaining; -1 is active without a timer, zero is inactive.
+	pub remaining: [f32; STATUS_COUNT], pub duration: [f32; STATUS_COUNT],
+}
+const _: () = assert!(size_of::<PlayerStatuses>() == 136);
+const _: () = assert!(OFF_PLAYER_VITALS + size_of::<PlayerVitals>() <= OFF_PLAYER_STATUSES);
+const _: () = assert!(OFF_PLAYER_STATUSES + size_of::<PlayerStatuses>() <= OFF_INPUT_RING);
 pub const HIT_REJECTED: u16 = 1 << 15;
 pub const EV_HIT_ACTOR: u32 = 1;
 pub const HIT_CRITICAL: u32 = 1 << 0;

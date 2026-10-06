@@ -67,6 +67,10 @@ public final class Proto {
 	public static final long OFF_NATIVE_LIFE = 0x900, OFF_PLAYER_VITALS = 0x940;
 	public static final int LIFE_ACTIVE = 1, LIFE_RESPAWN = 2;
 	public static final int VITALS_VALID = 1, VITALS_DEAD = 2;
+	/** Optional version-3 native status snapshot, with its own seqlock. */
+	public static final long OFF_PLAYER_STATUSES = 0x980;
+	public static final int STATUS_COUNT = 7, STATUSES_VALID = 1, PLAYER_STATUSES_BYTES = 136;
+	public static final long PS_BUILDUP = 24, PS_MAXIMUM = 52, PS_REMAINING = 80, PS_DURATION = 108;
 	public static final int HURT_MELEE = 0;
 	public static final int HURT_PROJECTILE = 1;
 	public static final int HURT_MAGIC = 2;

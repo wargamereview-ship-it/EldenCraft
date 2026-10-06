@@ -428,6 +428,13 @@ public final class SkyLink {
 		return null;
 	}
 
+	public static NativeStatusSnapshot readPlayerStatuses(NativeLife life) {
+		MemorySegment s = shm;
+		if (s == null || life == null) return null;
+		return NativeStatusSnapshot.read(s.asSlice(OFF_PLAYER_STATUSES, PLAYER_STATUSES_BYTES), tickCount(),
+			life.epoch(), life.worldId(), life.active());
+	}
+
 	/** Server thread only. Health here includes all vanilla armour, shields, absorption and healing. */
 	public static void writePlayerVitals(NativeLife life, net.minecraft.server.level.ServerPlayer player) {
 		MemorySegment s = shm;

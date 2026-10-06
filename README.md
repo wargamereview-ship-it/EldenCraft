@@ -100,6 +100,11 @@ requires its matching DLL/JAR. Placement and grace detection await in-game confi
 
 ### Combat
 
+Elden Ring's seven player statuses also mirror into Minecraft effects with icons and native timers.
+A left-side status HUD shows buildup percentages and active durations. ER continues to apply their
+damage through the HP sensor; the custom effects do not add damage or attribute penalties. Native
+cures, loading, death and disconnect clear the mirror. Built 6 October; not yet seen in play.
+
 - Nearby hostile ER characters become Minecraft weapon targets. Allies, spirit summons and
   friendly/neutral NPCs are excluded. Capsule hitboxes follow the ER physics position each frame.
   A character which actually damages the native player can also become a target when its

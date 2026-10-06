@@ -13,6 +13,7 @@ public final class EldenCraftClient implements ClientModInitializer {
 		DiscordPresence.start();
 		DestructionToggle.register();
 		CombatHud.register();
+		PlayerStatusHud.register();
 		// Multiplayer without editing files: the host opens their world to LAN (O, Open to LAN) and
 		// e4mc gives them a link; friends type /join <link> in chat, and /leave to come back.
 		net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> {

@@ -2,7 +2,7 @@
 //
 // This header is the single source of truth for the byte layout. The Java side mirrors it in
 // fabric/src/main/java/dev/eldencraft/link/Proto.java; if you change anything here, change it
-// there too and bump kVersion.
+// there too. Bump kVersion for incompatible changes; optional reserved-space extensions keep it.
 //
 // All multi-byte values are little-endian. Skyrim creates the mapping; Minecraft opens it.
 // Coordinates in this protocol are always Minecraft space (blocks, Y up, Z south) unless noted.
@@ -273,6 +273,19 @@ namespace eldencraft::proto
 	static_assert(kOffPlayerGround + sizeof(PlayerGround) <= kOffNativeLife);
 	static_assert(kOffNativeLife + sizeof(NativeLife) <= kOffPlayerVitals);
 	static_assert(kOffPlayerVitals + sizeof(PlayerVitals) <= 0x1000);
+
+	// Optional ER status snapshot, independent seqlock; absent in older version-3 DLLs.
+	inline constexpr std::uint64_t kOffPlayerStatuses = 0x980;
+	inline constexpr std::uint32_t kStatusCount = 7, kStatusesValid = 1;
+	// Index order: poison, scarlet rot, blood loss, deathblight, frostbite, sleep, madness.
+	struct PlayerStatuses {
+		std::uint32_t seq, epoch, worldId, flags; std::uint64_t updatedMs;
+		std::uint32_t buildup[kStatusCount], maximum[kStatusCount];
+		float remaining[kStatusCount], duration[kStatusCount]; // seconds; remaining -1 = active without a timer, 0 = inactive
+	};
+	static_assert(sizeof(PlayerStatuses) == 136);
+	static_assert(kOffPlayerVitals + sizeof(PlayerVitals) <= kOffPlayerStatuses);
+	static_assert(kOffPlayerStatuses + sizeof(PlayerStatuses) <= 0x1000);
 
 	// ---- event ring @0x17000 (MC -> Skyrim) ---------------------------------------------------
 	inline constexpr std::uint32_t kEventRingEntries = 512;  // power of two

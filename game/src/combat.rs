@@ -17,6 +17,11 @@ const HP_PER_DAMAGE: f32 = 25.0;
 /// Vanilla melee reach plus tolerance for the two games' tick schedules.
 const MELEE_REACH: f64 = 4.25;
 const _: () = assert!(std::mem::offset_of!(ChrIns, debug_flags) == 0x538);
+// Pinned SDK, corroborated by the installed 2.7.1 PlayerGameData accessors/setters.
+const _: () = assert!(std::mem::offset_of!(eldenring::cs::PlayerGameData, resistance_gauges) == 0x9cc);
+const _: () = assert!(std::mem::offset_of!(eldenring::cs::PlayerGameData, resistance_gauge_max) == 0x9e8);
+const _: () = assert!(std::mem::offset_of!(eldenring::cs::PlayerGameData, proc_status_timers) == 0xa20);
+const _: () = assert!(std::mem::offset_of!(eldenring::cs::PlayerGameData, proc_status_timer_max) == 0xa3c);
 
 // ER 2.7.1: private data-module debug byte, bit 0 prevents native HP death without
 // disabling hit detection. Layout corroborated by the pinned SDK and TarnishedTool:
@@ -79,6 +84,7 @@ pub struct Combat {
 	/// MC hits through ER's own hit application, once an ER hit has supplied a template.
 	native: crate::native_damage::NativeDamage,
 	direct_logged: bool,
+	statuses: crate::player_status::Monitor,
 }
 
 /// Copy this frame's live entries before borrowing the main player. Pointers are used only in
@@ -94,7 +100,8 @@ impl Combat {
 		Self { ids: HashMap::new(), confirmed_attackers: HashSet::new(), next_id: 1, was_active: false, last_count: 0,
 			health_owner: None, restore_pending: false, life_epoch: 1, was_loading: true, death_pending: false,
 			death_saw_loading: false, health_fraction: 1.0, incoming: VecDeque::new(), alive: HashSet::new(), deaths: VecDeque::new(),
-			boss_rewards: crate::loot::BossRewards::new(), native: crate::native_damage::NativeDamage::new(), direct_logged: false }
+			boss_rewards: crate::loot::BossRewards::new(), native: crate::native_damage::NativeDamage::new(), direct_logged: false,
+			statuses: crate::player_status::Monitor::default() }
 	}
 
 	pub fn owns_health(&self) -> bool { self.health_owner.is_some() }
@@ -124,6 +131,7 @@ impl Combat {
 		self.release_health(player);
 		if !self.was_loading { self.life_epoch = self.life_epoch.wrapping_add(1).max(1); }
 		self.was_loading = true;
+		self.statuses = crate::player_status::Monitor::default();
 		if self.death_pending { self.death_saw_loading = true; }
 		link.publish_life(self.life_epoch, 0, 0);
 		self.ids.clear(); // Keep next_id: late hits cannot address a new actor after respawning.
@@ -178,9 +186,18 @@ impl Combat {
 			no_death(player, Some(false));
 			player.chr_ins.modules.data.hp = 0;
 			self.death_pending = true; self.death_saw_loading = false;
+			link.publish_life(self.life_epoch, space.world_id, 0);
 			log::line("life: Minecraft hearts reached zero; allowing Elden Ring death and grace respawn");
 			return;
 		}
+		// Live PlayerIns only, on PostPhysicsSafe; never cache or write the PlayerGameData pointer.
+		let data = unsafe { player.player_game_data.as_ref() };
+		if data.is_main_player {
+			let status = crate::player_status::snapshot(data.resistance_gauges, data.resistance_gauge_max,
+				data.proc_status_timers, data.proc_status_timer_max);
+			link.publish_statuses(self.life_epoch, space.world_id, Some(status));
+			if let Some(line) = self.statuses.observe(&status) { log::line(&line); }
+		} else { link.publish_statuses(self.life_epoch, space.world_id, None); }
 		if self.health_owner.as_ref().is_some_and(|o| o.body != body(player)) {
 			self.health_owner = None; self.incoming.clear();
 		}

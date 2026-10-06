@@ -26,6 +26,7 @@ mod log;
 mod movement;
 mod native_damage;
 mod native_hits;
+mod player_status;
 #[allow(dead_code)] // mirrors the whole protocol, not only what is used yet
 mod proto;
 mod scene;

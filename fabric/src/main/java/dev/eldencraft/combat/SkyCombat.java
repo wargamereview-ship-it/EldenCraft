@@ -87,11 +87,12 @@ public final class SkyCombat {
 		lastServerTickMs = System.currentTimeMillis();
 		SkyLoot.tick();
 		List<ServerPlayer> players = server.getPlayerList().getPlayers();
+		SkyLink.NativeLife life = SkyLink.readNativeLife();
+		PlayerStatusBridge.tick(server, life);
 		if (!SkyLink.active() || players.isEmpty()) {
 			removeAll();
 			return;
 		}
-		SkyLink.NativeLife life = SkyLink.readNativeLife();
 		if (life != null) {
 			for (ServerPlayer player : players) {
 				if (dev.eldencraft.net.SkyNet.isHost(player)) {
