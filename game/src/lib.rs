@@ -217,6 +217,8 @@ struct Frame {
 	/// ER's cursor counts as a menu only once it has been seen hidden in this life: after a spawn it can
 	/// stay visible (Proton) for a long time with no menu open, which left Minecraft without controls.
 	cursor_armed: bool,
+	/// Throttle for explaining why Minecraft is being held in a loading state.
+	next_hold_log: Option<Instant>,
 	/// Minecraft moves the player (off: Elden Ring does, and Minecraft mirrors it).
 	drive: bool,
 	teleport_seq: u32,
@@ -290,6 +292,7 @@ impl Frame {
 			saved_hud: None,
 			menu_was: false,
 			cursor_armed: false,
+			next_hold_log: None,
 			drive: true, // Minecraft drives; it is never handed back to Elden Ring except while dead
 			teleport_seq: 0,
 			sent: None,
@@ -430,6 +433,13 @@ impl Frame {
 		}
 	}
 
+	/// Logs, at most every two seconds, why Minecraft is held in a loading state.
+	fn explain_hold(&mut self, why: &str) {
+		if self.next_hold_log.is_some_and(|t| Instant::now() < t) { return; }
+		self.next_hold_log = Some(Instant::now() + Duration::from_secs(2));
+		log::line(&format!("movement: holding Minecraft: {why}"));
+	}
+
 	fn teleport_minecraft(&mut self, to: [f64; 3]) {
 		self.teleport_seq = self.teleport_seq.wrapping_add(1);
 		self.sent = Some(to);
@@ -507,6 +517,7 @@ impl Frame {
 			return self.publish_loading(Some(player));
 		}
 		let Some(fresh) = Space::of(player) else {
+			self.explain_hold("the player's map position is unreadable");
 			self.player_id = (0, 0, 0);
 			self.publish_loading(Some(player));
 			self.space = None;
@@ -522,6 +533,8 @@ impl Frame {
 				movement::cancel(player, &old, self.written);
 			}
 			// Not steady yet (a load, a map change): Minecraft holds still until it is.
+			self.explain_hold(&format!("the mapping is not steady (map {:08x}, havok {:.1} {:.1} {:.1})",
+				fresh.world_id, fresh.havok[0], fresh.havok[1], fresh.havok[2]));
 			return self.publish_loading(Some(player));
 		};
 		if self.loading_was {
