@@ -24,6 +24,8 @@ use crate::world::{Space, V3};
 
 const REGION: i32 = 8;
 const STEP: f64 = 0.5;
+/// A native floor this far above MC's feet still counts as a slope step, not a crossed floor.
+const FLOOR_TOLERANCE: f64 = 0.3;
 const SAMPLES: usize = (REGION as f64 / STEP) as usize + 1; // 17: both edges of the column
 /// Columns scanned in full (walls, half-block grid) around the player (radius, in regions).
 const RADIUS: i32 = 3;
@@ -360,7 +362,7 @@ impl Scanner {
 		for [dx, dz] in [[0.0, 0.0], [-0.15, 0.0], [0.15, 0.0], [0.0, -0.15], [0.0, 0.15]] {
 			let (x, z) = (to[0] + dx, to[2] + dz);
 			if let Some(risen) = rays.risen_floor(x, z, to[1]) {
-				if risen > to[1] + 0.12 {
+				if risen > to[1] + FLOOR_TOLERANCE {
 					floor = Some(floor.map_or(risen, |f| f.max(risen)));
 				}
 				continue;
@@ -377,7 +379,7 @@ impl Scanner {
 					continue;
 				}
 				// Allow the centimetre-scale differences of interpolated feet and sampled slopes.
-				if hit[1] > to[1] + 0.12 {
+				if hit[1] > to[1] + FLOOR_TOLERANCE {
 					floor = Some(floor.map_or(hit[1], |f| f.max(hit[1])));
 				}
 				break;

@@ -29,7 +29,9 @@ pub enum Request {
 }
 
 /// Called after physics. The game consumes this request in its next character update.
-pub fn request(player: &mut PlayerIns, space: &Space, pos: V3) -> Request {
+/// `ours` is the destination we queued earlier: if it is still unconsumed it is replaced rather
+/// than left to block every later request (which froze the player until control was handed back).
+pub fn request(player: &mut PlayerIns, space: &Space, pos: V3, ours: Option<V3>) -> Request {
 	let h = space.mc_to_havok(pos);
 	if !pos.iter().all(|v| v.is_finite()) || !h.iter().all(|v| v.is_finite()) {
 		return Request::Invalid;
@@ -39,8 +41,17 @@ pub fn request(player: &mut PlayerIns, space: &Space, pos: V3) -> Request {
 	let target = HavokPosition(h[0], h[1], h[2], player.chr_ins.modules.physics.position.3);
 	let ctrl = player.chr_ins.chr_ctrl.as_mut();
 	if ctrl.chr_proxy_flags.position_sync_requested() {
-		// Preserve any outstanding request, including one queued by grace travel or a script.
-		return Request::Pending;
+		// Preserve any outstanding request queued by grace travel or a script, but not our own.
+		let ours_pending = ours.is_some_and(|o| {
+			let h = space.mc_to_havok(o);
+			let queued = unsafe {
+				addr_of_mut!(ctrl.chr_proxy_flags).byte_add(size_of::<ChrCtrlChrProxyFlags>()).cast::<HavokPosition>().read_unaligned()
+			};
+			[queued.0 - h[0], queued.1 - h[1], queued.2 - h[2]].iter().all(|v| v.abs() < 0.001)
+		});
+		if !ours_pending {
+			return Request::Pending;
+		}
 	}
 	unsafe {
 		addr_of_mut!(ctrl.chr_proxy_flags)
