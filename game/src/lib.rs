@@ -878,7 +878,9 @@ impl Frame {
 				}
 			}
 		}
-		self.set_model_hidden(player, first_person);
+		// Elden Ring plays its own death with the camera handed back: keep the body out of that view too.
+		let dying = player.chr_ins.modules.data.hp <= 0 || player.chr_ins.chr_flags1c5.death_flag();
+		self.set_model_hidden(player, first_person || dying);
 		// The moved body has no locomotion animation of its own while Minecraft drives it.
 		let living = player.chr_ins.modules.data.hp > 0 && !player.chr_ins.chr_flags1c5.death_flag();
 		self.hearing.frame(player, [p.0, p.1, p.2], er, driving && moving && mc_ready && living, mc.as_ref());
