@@ -59,3 +59,13 @@ static MERCHANTS: &[i32] = &[
 pub fn is_merchant(npc_param_id: i32) -> bool {
 	MERCHANTS.binary_search(&npc_param_id).is_ok()
 }
+
+/// Hewg's NpcParam rows: the smith whose upgrade tab R replaces with Minecraft's anvil.
+static SMITHS: &[i32] = &[
+	34510100,
+	34510179,
+];
+
+pub fn is_smith(npc_param_id: i32) -> bool {
+	SMITHS.binary_search(&npc_param_id).is_ok()
+}

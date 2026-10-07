@@ -102,6 +102,8 @@ pub const IN_GRACE_REST: u16 = 16;
 /// Atomically precedes IN_HURT, code 1 when the hit's attack is known: a = magic, fire, lightning,
 /// holy percent (a byte each, low first), b = physical percent.
 pub const IN_HURT_ELEMENTS: u16 = 17;
+/// Open Minecraft's anvil: R beside Hewg replaces his upgrade tab with it.
+pub const IN_OPEN_ANVIL: u16 = 18;
 pub const ENEMY_BOSS: u16 = 1;
 pub const OFF_NATIVE_LIFE: usize = 0x900;
 pub const OFF_PLAYER_VITALS: usize = 0x940;

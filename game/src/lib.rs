@@ -782,7 +782,14 @@ impl Frame {
 		}
 		// R taps ER's Event Action: doors, levers, pickups, graces and popup confirmation.
 		if self.keys.pressed(keys::VK_R) && mc_owns_input {
-			self.interact.begin(player);
+			// Beside Hewg, R opens Minecraft's anvil in place of his upgrade tab; Shift+R talks to him natively
+			// (his dialogue and quests).
+			let shift = unsafe { windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(0x10) } as u16 & 0x8000 != 0;
+			if self.combat.smith_distance.is_some() && !shift && !mc.as_ref().is_some_and(|m| m.screen_open) {
+				self.link.send_input(proto::IN_OPEN_ANVIL, 0, 0);
+			} else {
+				self.interact.begin(player);
+			}
 		}
 		dinput::set_block(mc_owns_input);
 		let mouse = dinput::take();

@@ -94,6 +94,13 @@ public final class InputBridge {
             }
 			case Proto.IN_HIT_FEEDBACK -> CombatHud.hit(b, a, c, code);
 			case Proto.IN_PLAYER_HEALTH -> CombatHud.playerHealth(a, b);
+			case Proto.IN_OPEN_ANVIL -> {
+				var server = minecraft.getSingleplayerServer();
+				if (server != null && minecraft.player != null && minecraft.gui.screen() == null) {
+					releaseAll();
+					dev.eldencraft.combat.HewgAnvil.open(server, minecraft.player.getUUID());
+				}
+			}
 			case Proto.IN_OPEN_MENU -> {
 				if (minecraft.gui.screen() == null && minecraft.player != null) {
 					releaseAll();
