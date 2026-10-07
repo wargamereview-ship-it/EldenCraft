@@ -215,8 +215,8 @@ pub struct Scanner {
 
 /// Columns kept at most (the full scan around the player is 441); past this the oldest far ones are freed, down to
 /// TARGET. Without it the scan, here and in Minecraft, grew for as long as the game ran.
-const COLUMN_CAP: usize = 1200;
-const COLUMN_TARGET: usize = 800;
+const COLUMN_CAP: usize = 2400;
+const COLUMN_TARGET: usize = 1600;
 /// Columns this close to the player (in regions) are never freed.
 const KEEP_RADIUS: i32 = FAR_RADIUS + 2;
 
