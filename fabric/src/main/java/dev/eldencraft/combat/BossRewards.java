@@ -108,6 +108,32 @@ public final class BossRewards {
 		player.sendSystemMessage(Component.literal("Boss reward earned: "+name+". Items wait for you if your inventory is full."));
 		return Enqueued.ADDED;
 	}
+	/**
+	 * Plain stackable materials in a reward: nothing marks them as special, so in the inventory they must not carry
+	 * the reward tag either, or they could never stack with the same thing from an ordinary drop.
+	 */
+	static boolean plain(ItemStack stack) {
+		return stack.getMaxStackSize() > 1 && !stack.isEnchanted() && !stack.has(DataComponents.STORED_ENCHANTMENTS)
+			&& !stack.has(DataComponents.TRIM) && !stack.has(DataComponents.CUSTOM_NAME) && !stack.has(DataComponents.LORE);
+	}
+	static ItemStack untagged(ItemStack stack) {
+		var tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+		tag.remove("eldencraft_reward");
+		if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA); else stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+		return stack;
+	}
+	/** Rewards given before this fix: take the tag off plain materials of claimed rewards so they stack again. */
+	private static void untagOld(ServerPlayer player) {
+		var rewards = ledger.getAsJsonObject("rewards");
+		for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+			ItemStack item = player.getInventory().getItem(slot);
+			String token = item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getStringOr("eldencraft_reward", "");
+			if (token.isEmpty() || !plain(item)) continue;
+			var entry = rewards.get(token.substring(0, Math.max(0, token.lastIndexOf(':'))));
+			if (entry != null && entry.getAsJsonObject().get("claimed").getAsBoolean()) untagged(item);
+		}
+	}
+	private static int sweep;
 	private static boolean received(ServerPlayer player, String token) {
 		return player.getAttachedOrCreate(RECEIPTS).contains(token);
 	}
@@ -126,6 +152,7 @@ public final class BossRewards {
 	}
 	public static void tick() {
 		if (!healthy || server==null) return;
+		if (++sweep % 5 == 0) for (var player : server.getPlayerList().getPlayers()) untagOld(player);
 		for(var pair: ledger.getAsJsonObject("rewards").entrySet()) {
 			var entry=pair.getValue().getAsJsonObject();
 			if(entry.get("claimed").getAsBoolean()) continue;
@@ -141,7 +168,9 @@ public final class BossRewards {
 				int remaining=Math.max(0,item.getCount()-delivered);
 				if(remaining>0) {
 					item.setCount(remaining);
-					player.getInventory().add(item);
+					ItemStack give = plain(item) ? untagged(item.copy()) : item;
+					player.getInventory().add(give);
+					if (give != item) item.setCount(give.getCount());
 					int added=remaining-item.getCount();
 					if(added>0) { receipt(player,token+"#"+(delivered+added)); changed=true; }
 				}

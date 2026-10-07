@@ -7,12 +7,18 @@ use fromsoftware_shared::FromStatic;
 use crate::{loot_catalog::BOSSES, log, proto, world::Space};
 
 pub type Reward = [proto::InputEvent; 4];
+/// The runes Elden Ring pays for killing an enemy (its NpcParam row's `get_soul`), or 0 if the row is not loaded.
+pub fn npc_runes(npc: i32) -> u32 {
+    use eldenring::cs::{NpcParam, SoloParamRepository};
+    let Ok(repo) = (unsafe { SoloParamRepository::instance_mut() }) else { return 0 };
+    u32::try_from(npc).ok().and_then(|id| repo.get::<NpcParam>(id)).map_or(0, |row| row.get_soul())
+}
 pub fn batch(pos: [f64; 3], entity: u32, world: u32, npc: i32, map: u32, region: u32,
-             hp: i32, model: u32, boss: bool, completion: u32) -> Reward {
+             hp: i32, model: u32, boss: bool, completion: u32, runes: u32) -> Reward {
     let bits = pos.map(|v| (v as f32).to_bits() as i32);
     [proto::InputEvent { kind: proto::IN_LOOT_POS, code: 0, a: bits[0], b: bits[1], c: bits[2] },
      proto::InputEvent { kind: proto::IN_LOOT_ID, code: 0, a: entity as i32, b: world as i32, c: npc },
-     proto::InputEvent { kind: proto::IN_LOOT_REGION, code: 0, a: map as i32, b: region as i32, c: 0 },
+     proto::InputEvent { kind: proto::IN_LOOT_REGION, code: 0, a: map as i32, b: region as i32, c: runes.min(i32::MAX as u32) as i32 },
      proto::InputEvent { kind: proto::IN_ENEMY_DIED, code: if boss { proto::ENEMY_BOSS } else { 0 }, a: hp, b: model as i32, c: completion as i32 }]
 }
 pub fn known_boss(chr: &ChrIns) -> bool {
@@ -55,7 +61,7 @@ impl BossRewards {
             if !seen.pos.iter().all(|v|v.is_finite()) { continue; }
             self.completed.insert(boss.flag);
             log::line(&format!("loot: boss completion flag {} observed; one encounter reward",boss.flag));
-            rewards.push(batch(seen.pos,boss.flag,seen.world,boss.npc,seen.map,seen.region,0,boss.model,true,boss.flag));
+            rewards.push(batch(seen.pos,boss.flag,seen.world,boss.npc,seen.map,seen.region,0,boss.model,true,boss.flag,0));
         }
         rewards
     }

@@ -53,6 +53,14 @@ pub struct McView {
 	pub flags: u32,
 }
 
+/// Which Elden Ring character is playing: save slot (low 4 bits, slot + 1) and a 20-bit hash of its name above them.
+/// Published in the high 24 bits of the life flags so Minecraft can keep a separate world for each character.
+static PROFILE: AtomicU32 = AtomicU32::new(0);
+
+pub fn set_profile(profile: u32) {
+	PROFILE.store(profile & 0x00FF_FFFF, Ordering::Relaxed);
+}
+
 impl Link {
 	pub fn publish_life(&self, epoch: u32, world_id: u32, flags: u32) {
 		if flags & proto::LIFE_ACTIVE == 0 { self.publish_statuses(epoch, world_id, None); }
@@ -61,7 +69,7 @@ impl Link {
 			let seq = AtomicU32::from_ptr(addr_of_mut!((*p).seq));
 			let start = seq.load(Ordering::Relaxed) | 1;
 			seq.store(start, Ordering::Relaxed); fence(Ordering::Release);
-			(*p).epoch = epoch; (*p).world_id = world_id; (*p).flags = flags;
+			(*p).epoch = epoch; (*p).world_id = world_id; (*p).flags = (flags & 0xFF) | PROFILE.load(Ordering::Relaxed) << 8;
 			(*p).updated_ms = GetTickCount64();
 			fence(Ordering::Release); seq.store(start.wrapping_add(1), Ordering::Release);
 		}

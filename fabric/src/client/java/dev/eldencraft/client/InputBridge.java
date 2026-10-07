@@ -78,11 +78,11 @@ public final class InputBridge {
 			}
 			case Proto.IN_LOOT_POS -> lootPos = new net.minecraft.world.phys.Vec3(Float.intBitsToFloat(a), Float.intBitsToFloat(b), Float.intBitsToFloat(c));
 			case Proto.IN_LOOT_ID -> lootId = new int[] { a, b, c };
-			case Proto.IN_LOOT_REGION -> lootRegion = new int[] { a, b };
+			case Proto.IN_LOOT_REGION -> lootRegion = new int[] { a, b, c };
 			case Proto.IN_ENEMY_DIED -> {
 				if (lootPos != null && lootId != null && lootRegion != null) {
 					enemyDied(minecraft, new dev.eldencraft.combat.SkyLoot.Death(lootPos, lootId[0], lootId[1], lootId[2], a, b,
-						(code & Proto.ENEMY_BOSS) != 0, lootRegion[0], lootRegion[1], c));
+						(code & Proto.ENEMY_BOSS) != 0, lootRegion[0], lootRegion[1], c, lootRegion[2]));
 				}
 				lootPos = null;
 				lootId = null;

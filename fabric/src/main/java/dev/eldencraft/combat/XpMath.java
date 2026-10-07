@@ -5,6 +5,17 @@ public final class XpMath {
 	private XpMath() {
 	}
 
+	/**
+	 * The experience for a kill, from the runes Elden Ring pays for it (zero if unknown, then {@code fallback}). Runes
+	 * climb steeply with the enemy, so the square root keeps early kills worth having and late ones from flooding.
+	 */
+	public static int fromRunes(int runes, int fallback) {
+		if (runes <= 0) {
+			return fallback;
+		}
+		return Math.clamp(Math.round(0.8 * Math.sqrt(runes)), 1, 150);
+	}
+
 	/** Points needed to go from {@code level} to the next one. */
 	public static int needed(int level) {
 		return level >= 30 ? 112 + (level - 30) * 9 : level >= 15 ? 37 + (level - 15) * 5 : 7 + level * 2;

@@ -24,7 +24,7 @@ public abstract class WorldOpenFlowsMixin {
 	private void eldencraft$skipBackupPrompt(
 		WorldOpenFlows self, LevelStorageSource.LevelStorageAccess access, boolean oldCustomized, Runnable proceed, Runnable cancel, Operation<Void> original
 	) {
-		if (EldenCraft.WORLD_NAME.equals(access.getLevelId())) {
+		if (EldenCraft.isMirrorWorld(access.getLevelId())) {
 			proceed.run();
 		} else {
 			original.call(self, access, oldCustomized, proceed, cancel);

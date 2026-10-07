@@ -57,7 +57,7 @@ Ordinary enemies drop materials by family and region (five tiers in the base gam
 - **Boss-themed weapons**: swords, axes, spears, maces, tridents, bows and crossbows that match the boss’s weapon style, element or status.
 - Rewards wait for you through death or a full inventory.
 
-See [every boss’s item, enchantments and book](rewards.md). Kills also drop XP orbs, which repair Mending gear.
+See [every boss’s item, enchantments and book](rewards.md). Kills grant experience straight to you, based on the runes Elden Ring pays for them, and repair Mending gear first exactly as orbs would.
 
 ### Elden Ring enchantments and wards
 
@@ -75,6 +75,10 @@ Only your strongest piece for a ward counts. Each of the 17 boss armour sets als
 ### See your statuses
 
 Poison, scarlet rot, blood loss, deathblight, frostbite, sleep and madness on your character show as Minecraft effects with their own icons. A status HUD lists only statuses that are building or active, with the buildup percentage or the remaining time.
+
+### One world per character
+
+Each Elden Ring character gets its own Minecraft world: its own inventory, rewards and experience pile. Loading another save slot, or starting a new game, switches to that character's world (a new one starts fresh). Your existing world becomes the first character's.
 
 ### Keep Elden Ring’s interactions
 

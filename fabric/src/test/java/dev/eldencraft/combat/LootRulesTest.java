@@ -31,14 +31,14 @@ class LootRulesTest {
 		assertEquals(5,LootRules.tierAt(0x0d000000,Vec3.ZERO)); // Farum Azula
 	}
 	@Test void wolfCannotRollEquipmentButSoldierCan() {
-		var wolf=new SkyLoot.Death(Vec3.ZERO,0,60<<24,40700010,100,4070,false,0,0,0);
-		var soldier=new SkyLoot.Death(Vec3.ZERO,0,60<<24,43110010,100,4311,false,0,0,0);
+		var wolf=new SkyLoot.Death(Vec3.ZERO,0,60<<24,40700010,100,4070,false,0,0,0,0);
+		var soldier=new SkyLoot.Death(Vec3.ZERO,0,60<<24,43110010,100,4311,false,0,0,0,0);
 		assertEquals("beast",LootRules.family(wolf));assertNull(LootRules.role(wolf,"beast"));
 		assertEquals("soldier",LootRules.family(soldier));assertEquals("fighter",LootRules.role(soldier,"soldier"));
 	}
 	@Test void highHpDoesNotPromoteAnEarlyEnemy() {
-		var weak=new SkyLoot.Death(Vec3.ZERO,0,0,43110010,100,4311,false,0,0,0);
-		var strong=new SkyLoot.Death(Vec3.ZERO,0,0,43110010,999999,4311,false,0,0,0);
+		var weak=new SkyLoot.Death(Vec3.ZERO,0,0,43110010,100,4311,false,0,0,0,0);
+		var strong=new SkyLoot.Death(Vec3.ZERO,0,0,43110010,999999,4311,false,0,0,0,0);
 		assertEquals(1,LootRules.tier(weak));assertEquals(LootRules.tier(weak),LootRules.tier(strong));
 	}
 	@Test void namedBossPiecesAndFinalPhaseAreDistinct() {

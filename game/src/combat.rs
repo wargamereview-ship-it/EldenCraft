@@ -5,7 +5,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ptr::NonNull;
 
-use eldenring::cs::{CSChrDataModule, ChrIns, ChrInsExt, ChrType, FieldInsHandle, PlayerIns, WorldChrMan};
+use eldenring::cs::{CSChrDataModule, ChrIns, ChrInsExt, ChrType, FieldInsHandle, GameMan, PlayerIns, WorldChrMan};
+use fromsoftware_shared::FromStatic;
 
 use crate::link::{Link, McView};
 use crate::{log, proto, world};
@@ -154,6 +155,7 @@ impl Combat {
 	pub fn player_frame(&mut self, link: &Link, player: &mut PlayerIns, space: &Space,
 		near: &[NonNull<ChrIns>], connected: bool) {
 		self.was_loading = false;
+		crate::link::set_profile(profile_id(player));
 		if connected {
 			self.deaths.extend(self.boss_rewards.frame(player, space, near));
 			while let Some(batch) = self.deaths.front() {
@@ -482,7 +484,8 @@ impl Combat {
 			return;
 		}
 		self.deaths.push_back(crate::loot::batch(pos, chr.event_entity_id, space.world_id, chr.npc_param_id,
-			i32::from(chr.block_id()) as u32, player.play_region_id, chr.modules.data.max_hp, chr.character_id as u32, boss, 0));
+			i32::from(chr.block_id()) as u32, player.play_region_id, chr.modules.data.max_hp, chr.character_id as u32, boss, 0,
+			crate::loot::npc_runes(chr.npc_param_id)));
 	}
 }
 
@@ -501,6 +504,19 @@ fn exclusion(chr: &ChrIns, space: &Space, observed_attacker: bool) -> Option<&'s
 	let Some(world_id) = world::collision_world(chr.block_id()) else { return Some("no map block"); };
 	if world_id != space.world_id { return Some("different map"); }
 	None
+}
+
+/// The character playing: its save slot and a hash of its name, so a new game (even in the same slot) is a new profile.
+/// Zero while the slot is unknown.
+fn profile_id(player: &PlayerIns) -> u32 {
+	let slot = unsafe { GameMan::instance() }.ok().map_or(-1, |g| g.save_slot);
+	if !(0..=14).contains(&slot) { return 0; }
+	let data = unsafe { player.player_game_data.as_ref() };
+	let mut hash: u32 = 0x811c_9dc5;
+	for c in data.character_name.iter().take_while(|c| **c != 0) {
+		hash = (hash ^ u32::from(*c)).wrapping_mul(16_777_619);
+	}
+	(slot as u32 + 1) | (hash & 0x000F_FFFF) << 4
 }
 
 fn hostile_team(team: u8) -> bool {

@@ -23,6 +23,11 @@ public final class MirrorWorld {
 	private static @org.jspecify.annotations.Nullable String sessionJoin;
 	// Shown in chat once the player is in a world again (why they're back in their own, ...).
 	private static @org.jspecify.annotations.Nullable String pendingNote;
+	// The Elden Ring character whose world we are in (0: not tied to one). Each character has a world of its own.
+	private static int ownProfile;
+	private static long waitingSince;
+	/** How long to wait for Elden Ring to report a character before opening the plain world (no Elden Ring around). */
+	private static final long PROFILE_WAIT_MS = 45_000;
 
 	private MirrorWorld() {
 	}
@@ -96,9 +101,39 @@ public final class MirrorWorld {
 
 	/** Every client tick: a note for the player once they're in a world again. */
 	public static void tick(Minecraft minecraft) {
+		// A different Elden Ring character (another save slot, or a new game) has loaded: its own world, not this one.
+		if (sessionJoin == null && minecraft.level != null && minecraft.isLocalServer() && dev.eldencraft.link.SkyLink.active()) {
+			int profile = dev.eldencraft.link.SkyLink.profileId();
+			if (profile != 0 && profile != ownProfile) {
+				EldenCraft.LOG.info("EldenCraft: Elden Ring character {} loaded (this world is for {}); switching worlds",
+					Integer.toHexString(profile), Integer.toHexString(ownProfile));
+				leaveWorld(minecraft);
+			}
+		}
 		if (pendingNote != null && minecraft.player != null) {
 			minecraft.gui.hud.getChat().addClientSystemMessage(net.minecraft.network.chat.Component.literal(pendingNote));
 			pendingNote = null;
+		}
+	}
+
+	/**
+	 * The world made before characters had worlds of their own becomes the first character's, so existing progress is
+	 * kept. Only while no character world exists yet.
+	 */
+	private static void adoptOldWorld(Minecraft minecraft, String name) {
+		var levels = minecraft.getLevelSource();
+		if (levels.levelExists(name) || !levels.levelExists(EldenCraft.WORLD_NAME)) {
+			return;
+		}
+		java.nio.file.Path base = levels.getBaseDir();
+		try (var folders = java.nio.file.Files.list(base)) {
+			if (folders.anyMatch(f -> f.getFileName().toString().startsWith(EldenCraft.WORLD_NAME + "-"))) {
+				return;
+			}
+			java.nio.file.Files.move(base.resolve(EldenCraft.WORLD_NAME), base.resolve(name));
+			EldenCraft.LOG.info("EldenCraft: the existing world now belongs to this character ({})", name);
+		} catch (java.io.IOException e) {
+			EldenCraft.LOG.warn("EldenCraft: could not hand the existing world to this character", e);
 		}
 	}
 
@@ -133,9 +168,21 @@ public final class MirrorWorld {
 			return;
 		}
 		TitleScreen title = (TitleScreen) minecraft.gui.screen();
-		attempted = true;
 		// Multiplayer: join a friend's world (their e4mc link, or any server address) instead.
 		String join = sessionJoin != null ? sessionJoin : joinAddress(minecraft);
+		// Our own world belongs to the Elden Ring character playing, so wait until one has loaded. Without Elden Ring
+		// (or if none ever reports) the plain world opens after a while.
+		int profile = dev.eldencraft.link.SkyLink.active() ? dev.eldencraft.link.SkyLink.profileId() : 0;
+		if (join == null && profile == 0) {
+			if (waitingSince == 0) {
+				waitingSince = System.currentTimeMillis();
+			}
+			if (System.currentTimeMillis() - waitingSince < PROFILE_WAIT_MS) {
+				return;
+			}
+		}
+		waitingSince = 0;
+		attempted = true;
 		if (join != null) {
 			EldenCraft.LOG.info("EldenCraft: joining {}", join);
 			pendingNote = "Joined " + join + ". Type /leave to go back to your own world.";
@@ -143,21 +190,26 @@ public final class MirrorWorld {
 				new net.minecraft.client.multiplayer.ServerData("EldenCraft", join, net.minecraft.client.multiplayer.ServerData.Type.OTHER), false, null);
 			return;
 		}
-		if (minecraft.getLevelSource().levelExists(EldenCraft.WORLD_NAME)) {
-			EldenCraft.LOG.info("EldenCraft: opening mirror world");
-			minecraft.createWorldOpenFlows().openWorld(EldenCraft.WORLD_NAME, () -> minecraft.gui.setScreen(title));
+		ownProfile = profile;
+		String name = EldenCraft.worldName(profile);
+		if (profile != 0) {
+			adoptOldWorld(minecraft, name);
+		}
+		if (minecraft.getLevelSource().levelExists(name)) {
+			EldenCraft.LOG.info("EldenCraft: opening mirror world {}", name);
+			minecraft.createWorldOpenFlows().openWorld(name, () -> minecraft.gui.setScreen(title));
 			return;
 		}
-		EldenCraft.LOG.info("EldenCraft: creating mirror world");
+		EldenCraft.LOG.info("EldenCraft: creating mirror world {} (a new character starts fresh)", name);
 		LevelSettings settings = new LevelSettings(
-			EldenCraft.WORLD_NAME,
+			name,
 			GameType.SURVIVAL,
 			new LevelSettings.DifficultySettings(Difficulty.NORMAL, false, false),
 			true,
 			WorldDataConfiguration.DEFAULT
 		);
 		minecraft.createWorldOpenFlows().createFreshLevel(
-			EldenCraft.WORLD_NAME,
+			name,
 			settings,
 			new WorldOptions(0L, false, false),
 			registries -> registries.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(PRESET).value().createWorldDimensions(),

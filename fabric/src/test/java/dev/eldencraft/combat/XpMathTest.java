@@ -27,6 +27,15 @@ class XpMathTest {
 	}
 
 	@Test
+	void killExperienceComesFromRunesAndFallsBackToTheTier() {
+		assertEquals(7, XpMath.fromRunes(0, 7));
+		assertTrue(XpMath.fromRunes(50, 7) >= 1);
+		assertTrue(XpMath.fromRunes(1000, 7) > XpMath.fromRunes(50, 7));
+		assertTrue(XpMath.fromRunes(5000, 7) > XpMath.fromRunes(1000, 7));
+		assertEquals(150, XpMath.fromRunes(2_000_000, 7), "capped so a late boss cannot flood");
+	}
+
+	@Test
 	void aPileIsCollectedWithinReachOnly() {
 		assertTrue(XpPile.reaches(1.0, 0.5, 1.0));
 		assertFalse(XpPile.reaches(3.0, 0.0, 0.0));

@@ -23,8 +23,8 @@ These cover tested examples, not every enemy, region or encounter.
 ## In the game now
 
 - **Loot:** seven regional tiers (base game T1-T5, Shadow of the Erdtree T6-T7). Every ordinary kill
-  drops materials by enemy family; 10% of kills with worn equipment also drop gear. Enemies and bosses
-  drop **XP orbs** where they die.
+  drops materials by enemy family; 10% of kills with worn equipment also drop gear. Kills grant
+  **experience directly** from the runes Elden Ring pays (Mending repairs first, as with orbs).
 - **Boss rewards** (full list: `rewards.md`): every boss gives a named item, an enchanted book and
   materials, and no two different bosses give the same item.
   - 17 four-piece armour sets, each with its own armour trim.

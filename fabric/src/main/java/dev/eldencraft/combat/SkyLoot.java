@@ -11,7 +11,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -24,7 +26,7 @@ import net.minecraft.world.phys.Vec3;
 /** Family supplies, regional gear and durable one-time boss collections. Server thread only. */
 public final class SkyLoot {
 	private static final int[] ENEMY_XP = {2,4,8,16,30,45,60}, BOSS_XP = {60,120,220,350,500,700,1000};
-	public record Death(Vec3 pos,int entityId,int worldId,int npcParamId,int maxHp,int characterId,boolean boss,int mapId,int playRegion,int bossFlag) {}
+	public record Death(Vec3 pos,int entityId,int worldId,int npcParamId,int maxHp,int characterId,boolean boss,int mapId,int playRegion,int bossFlag,int runes) {}
 	private record Deferred(UUID owner,Death death) {}
 	/** Drops and XP orbs held in the air where the ground is not scanned yet. */
 	private static final List<net.minecraft.world.entity.Entity> FLOATING=new ArrayList<>();
@@ -76,7 +78,7 @@ public final class SkyLoot {
 			// Items wait in the durable ledger; XP drops as orbs where the boss died, on the first reward only.
 			switch(BossRewards.enqueue(player,key,boss.get("name").getAsString(),drops,0)) {
 				case FAILED -> DEFERRED.add(new Deferred(player.getUUID(),death));
-				case ADDED -> dropXp(level,death.pos(),BOSS_XP[tier-1]);
+				case ADDED -> grantXp(player,BOSS_XP[tier-1]);
 				case ALREADY -> {}
 			}
 			return;
@@ -109,8 +111,8 @@ public final class SkyLoot {
 			}
 		}
 		spawn(level,death.pos(),drops);
-		int xp=ENEMY_XP[tier-1];
-		dropXp(level,death.pos(),xp);
+		int xp=XpMath.fromRunes(death.runes(),ENEMY_XP[tier-1]);
+		grantXp(player,xp);
 		EldenCraft.LOG.info("EldenCraft: loot c{} npc {} entity {} map {}: {} tier {}, {} xp, {}",
 			death.characterId(),death.npcParamId(),death.entityId(),Integer.toUnsignedString(death.mapId(),16),family,tier,xp,drops);
 	}
@@ -126,16 +128,27 @@ public final class SkyLoot {
 			level.addFreshEntity(item);
 		}
 	}
-	/** XP as orbs where the enemy died, split as vanilla splits it; held in the air until the ground is known. */
-	private static void dropXp(ServerLevel level,Vec3 at,int xp) {
-		boolean grounded=collisionKnown(at);
-		while(xp>0) {
-			int value=ExperienceOrb.getExperienceValue(xp);
-			xp-=value;
-			var orb=new ExperienceOrb(level,at.x,at.y+0.5,at.z,value);
-			if(!grounded) { orb.setNoGravity(true);FLOATING.add(orb); }
-			level.addFreshEntity(orb);
-		}
+	/**
+	 * Experience for a kill goes straight to the player, as if they had picked up its orbs: Mending gear is repaired
+	 * first, as an orb would, and the rest becomes levels. A line above the hotbar says how much.
+	 */
+	static void grantXp(ServerPlayer player,int xp) {
+		if(xp<=0) return;
+		int left=repairWithXp(player,xp);
+		if(left>0) player.giveExperiencePoints(left);
+		player.sendOverlayMessage(Component.literal("+"+xp+" XP"));
+	}
+	/** Mending, as an experience orb does it: a damaged Mending item takes the experience (2 durability for each point). */
+	private static int repairWithXp(ServerPlayer player,int amount) {
+		var found=EnchantmentHelper.getRandomItemWith(EnchantmentEffectComponents.REPAIR_WITH_XP,player,ItemStack::isDamaged);
+		if(found.isEmpty()) return amount;
+		ItemStack item=found.get().itemStack();
+		int repair=EnchantmentHelper.modifyDurabilityToRepairFromXp(player.level(),item,amount*2);
+		int done=Math.min(repair,item.getDamageValue());
+		item.setDamageValue(item.getDamageValue()-done);
+		if(done<=0) return amount;
+		int rest=amount-done*amount/Math.max(1,repair);
+		return rest>0 ? repairWithXp(player,rest) : 0;
 	}
 	private static boolean collisionKnown(Vec3 at) { return SkyCollision.isKnown((int)Math.floor(at.x),(int)Math.floor(at.y)-1,(int)Math.floor(at.z)); }
 	public static void tick() {

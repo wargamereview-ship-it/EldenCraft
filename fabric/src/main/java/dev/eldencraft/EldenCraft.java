@@ -11,6 +11,15 @@ import org.slf4j.LoggerFactory;
 public final class EldenCraft implements ModInitializer {
 	public static final String MOD_ID = "eldencraft";
 	public static final String WORLD_NAME = "EldenCraft";
+
+	/** The mirror world of one Elden Ring character (its save slot and name): each character plays in a world of its own. */
+	public static String worldName(int profile) {
+		return profile == 0 ? WORLD_NAME : WORLD_NAME + "-" + Integer.toHexString(profile);
+	}
+
+	public static boolean isMirrorWorld(String levelId) {
+		return WORLD_NAME.equals(levelId) || levelId.startsWith(WORLD_NAME + "-");
+	}
 	public static final Logger LOG = LoggerFactory.getLogger(MOD_ID);
 
 	@Override

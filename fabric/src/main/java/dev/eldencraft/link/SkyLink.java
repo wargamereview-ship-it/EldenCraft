@@ -409,6 +409,14 @@ public final class SkyLink {
 	public record NativeLife(int epoch, int worldId, int flags) {
 		public boolean active() { return (flags & LIFE_ACTIVE) != 0; }
 		public boolean respawn() { return (flags & LIFE_RESPAWN) != 0; }
+		/** Which Elden Ring character is playing (its save slot and a hash of its name), or 0 while unknown. */
+		public int profile() { return flags >>> 8; }
+	}
+
+	/** The playing character's profile id, or 0 when Elden Ring has not loaded one. */
+	public static int profileId() {
+		NativeLife life = readNativeLife();
+		return life == null ? 0 : life.profile();
 	}
 
 	public static NativeLife readNativeLife() {
