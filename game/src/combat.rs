@@ -531,7 +531,7 @@ fn record(chr: &ChrIns, space: &Space, id: u32) -> proto::ActorRecord {
 	} else { 1.8 };
 	// Model number, then the NpcParam row: the Minecraft side turns the row into the enemy's real name.
 	let merchant = crate::merchants::is_merchant(chr.npc_param_id);
-	let label = format!("{} c{:04} n{}", if merchant { "Merchant" } else if chr.team_type == 7 { "Boss" } else { "Enemy" }, chr.character_id, chr.npc_param_id.max(0));
+	let label = format!("{} c{:04} n{}", if merchant { "Trader" } else if chr.team_type == 7 { "Boss" } else { "Enemy" }, chr.character_id, chr.npc_param_id.max(0));
 	let mut name = [0; 24];
 	let n = label.len().min(23);
 	name[..n].copy_from_slice(&label.as_bytes()[..n]);
