@@ -112,6 +112,10 @@ public final class SkyCombat {
 		for (SkyrimActorEntity proxy : PROXIES.values()) {
 			float[] hit = proxy.takeHit();
 			if (hit != null && (hit[0] > 0.0F || hit[3] > 0.0F)) {
+				// Damage lands as a share set by the region's tier; the bridge converts what is left to Elden Ring HP.
+				if (life != null) {
+					hit[0] *= CombatBalance.damageFactor(LootRules.tierAt(life.worldId(), proxy.position()));
+				}
 				SkyLink.pushEvent(
 					Proto.EV_HIT_ACTOR, proxy.formId(), hit[0], hit[1], hit[2], hit[3], Float.floatToRawIntBits(hit[4]), Float.floatToRawIntBits(hit[5])
 				);

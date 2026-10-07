@@ -110,15 +110,18 @@ pub fn substitute_damage(module: *mut u8, hit: *mut u8) {
 fn reaction(weapon: u32, critical: bool, knockback: f32) -> (u8, f32) {
 	use crate::proto::*;
 	let (level, poise) = match weapon {
-		WEAPON_BLADE => (1, 15.0),
-		WEAPON_AXE => (2, 25.0),
-		WEAPON_BLUNT => (1, 20.0),
-		WEAPON_PIERCE => (1, 15.0), // trident
-		WEAPON_SPEAR => (1, 18.0),
-		WEAPON_MACE => (2, 30.0),
-		WEAPON_MACE_SMASH => (3, 60.0),
-		WEAPON_ARROW => (1, 8.0),
-		_ => (1, 8.0),              // unarmed
+		// Poise damage is what has to beat an enemy's own poise before it staggers. Plain swings are
+		// light so ordinary hits no longer stagger everything; crits, sprint hits, Knockback and the
+		// mace's smash are what break poise.
+		WEAPON_BLADE => (1, 8.0),
+		WEAPON_AXE => (2, 16.0),
+		WEAPON_BLUNT => (1, 12.0),
+		WEAPON_PIERCE => (1, 8.0), // trident
+		WEAPON_SPEAR => (1, 10.0),
+		WEAPON_MACE => (2, 20.0),
+		WEAPON_MACE_SMASH => (3, 45.0),
+		WEAPON_ARROW => (1, 4.0),
+		_ => (1, 4.0),              // unarmed
 	};
 	let (level, poise) = if critical { ((level + 1).min(3), poise * 1.5) } else { (level, poise) };
 	let steps = if knockback.is_finite() { (knockback / 0.5).floor().clamp(0.0, 3.0) } else { 0.0 };
