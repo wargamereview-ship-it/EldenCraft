@@ -90,6 +90,7 @@ public final class SkyCombat {
 		SkyLink.NativeLife life = SkyLink.readNativeLife();
 		PlayerStatusBridge.tick(server, life);
 		XpPile.tick(server, life);
+		SetPassives.tick(server);
 		if (!SkyLink.active() || players.isEmpty()) {
 			removeAll();
 			return;

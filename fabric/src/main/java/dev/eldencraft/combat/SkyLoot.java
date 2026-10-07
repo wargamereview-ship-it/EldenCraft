@@ -54,6 +54,7 @@ public final class SkyLoot {
 	}
 	public static void enemyDied(ServerPlayer player,Death death) {
 		if(death.pos()==null || !Double.isFinite(death.pos().x) || !Double.isFinite(death.pos().y) || !Double.isFinite(death.pos().z)) return;
+		SetPassives.onKill(player,death.pos(),LootRules.tier(death));
 		var level=player.level(); var current=level.getServer();
 		var params=new LootParams.Builder(level).withParameter(LootContextParams.ORIGIN,death.pos())
 			.withOptionalParameter(LootContextParams.THIS_ENTITY,player).withLuck(player.getLuck()).create(LootContextParamSets.CHEST);

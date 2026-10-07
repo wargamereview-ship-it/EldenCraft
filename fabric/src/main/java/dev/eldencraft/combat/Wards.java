@@ -40,6 +40,10 @@ public final class Wards {
 			int[] piece = levels(entity.getItemBySlot(slot));
 			for (int i = 0; i < levels.length; i++) levels[i] = Math.max(levels[i], piece[i]);
 		}
+		// Wearing a full boss set raises every ward you already have by one level (VII is the ceiling).
+		if (SetPassives.fullSet(entity)) {
+			for (int i = 0; i < levels.length; i++) if (levels[i] > 0) levels[i] = Math.min(7, levels[i] + 1);
+		}
 		return levels;
 	}
 

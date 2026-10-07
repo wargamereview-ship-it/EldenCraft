@@ -83,7 +83,14 @@ public final class LootEquipment {
 		var ward = ward(boss);
 		if (item.endsWith("helmet") || item.endsWith("chestplate") || item.endsWith("leggings") || item.endsWith("boots")) {
 			if (ward != null) enchant(registries, stack, ward.id, WardRules.gearLevel(tier));
-			if (reward.has("trim")) trim(registries, stack, reward.getAsJsonObject("trim"));
+			if (reward.has("trim")) {
+				trim(registries, stack, reward.getAsJsonObject("trim"));
+				ArmourSet set = ArmourSet.byPattern(reward.getAsJsonObject("trim").get("pattern").getAsString());
+				if (set != null) {
+					stack.set(DataComponents.LORE, new net.minecraft.world.item.component.ItemLore(
+						java.util.List.of(net.minecraft.network.chat.Component.literal(set.lore()))));
+				}
+			}
 		} else if (!item.endsWith("pickaxe") && !item.endsWith("shovel")) {
 			if (ward != null) enchant(registries, stack, ward.weaponEnchantment, ElementalRules.levelForTier(tier));
 			if (reward.has("signature")) {
