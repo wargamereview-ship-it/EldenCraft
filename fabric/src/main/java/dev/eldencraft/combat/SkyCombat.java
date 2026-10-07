@@ -93,6 +93,7 @@ public final class SkyCombat {
 		SetPassives.tick(server);
 		if (!SkyLink.active() || players.isEmpty()) {
 			removeAll();
+			Merchants.clear();
 			return;
 		}
 		if (life != null) {
@@ -109,6 +110,7 @@ public final class SkyCombat {
 		}
 		if (SkyLink.readActors(ACTORS)) {
 			sync(level);
+			Merchants.sync(level, ACTORS, life);
 		}
 		// Hits land during the tick (melee, sweeps, arrows, fire); send one combined hit per actor.
 		for (SkyrimActorEntity proxy : PROXIES.values()) {

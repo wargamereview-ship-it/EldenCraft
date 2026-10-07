@@ -9,6 +9,7 @@ mod ai_sound;
 mod camera;
 mod combat;
 mod loot;
+mod merchants;
 mod loot_catalog;
 mod resources;
 mod grace_edges;

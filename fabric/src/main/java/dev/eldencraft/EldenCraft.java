@@ -18,6 +18,7 @@ public final class EldenCraft implements ModInitializer {
 		dev.eldencraft.combat.PlayerStatusBridge.init();
 		dev.eldencraft.combat.BossRewards.init();
 		dev.eldencraft.combat.XpPile.init();
+		dev.eldencraft.combat.Merchants.init();
 		SkyCombat.init();
 		dev.eldencraft.world.ResourceNodes.init();
 		dev.eldencraft.net.SkyNet.init();

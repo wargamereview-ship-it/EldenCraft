@@ -163,6 +163,8 @@ pub const HIT_STATUS: u32 = 1 << 4;
 pub const ACTOR_HOSTILE: u32 = 1;
 pub const ACTOR_DEAD: u32 = 1 << 1;
 pub const ACTOR_ESSENTIAL: u32 = 1 << 2;
+/// An open-world merchant or smith: Minecraft stands a villager in its place (never hostile).
+pub const ACTOR_MERCHANT: u32 = 1 << 4;
 
 /// The legacy formId field carries a session-local ER actor ID, never a native pointer.
 #[repr(C)]

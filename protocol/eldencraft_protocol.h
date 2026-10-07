@@ -221,6 +221,7 @@ namespace eldencraft::proto
 		kActorDead = 1u << 1,
 		kActorEssential = 1u << 2,
 		kActorInCombat = 1u << 3,
+		kActorMerchant = 1u << 4,   // an open-world merchant or smith: Minecraft stands a villager in its place
 	};
 
 	struct ActorRecord

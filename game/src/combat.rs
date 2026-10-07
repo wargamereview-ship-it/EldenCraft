@@ -308,6 +308,24 @@ impl Combat {
 			if (chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag()) && self.alive.remove(&identity) {
 				self.enemy_died(chr, player, space);
 			}
+			// A merchant is replaced by a villager on the Minecraft side: publish it (never as a target) and hide its own model.
+			if crate::merchants::is_merchant(chr.npc_param_id) && chr.modules.data.hp > 0 && !chr.chr_flags1c5.death_flag() {
+				let h = chr.modules.physics.position;
+				let distance = (h.0 - player_pos.0).hypot(h.2 - player_pos.2);
+				if distance.is_finite() && distance <= RANGE && h.1.is_finite() && seen.insert(identity) {
+					let id = *self.ids.entry(identity).or_insert_with(|| {
+						let id = self.next_id;
+						self.next_id = self.next_id.checked_add(1).expect("combat actor IDs exhausted");
+						id
+					});
+					if mc.is_some_and(|m| m.in_world) {
+						unsafe { (*ptr.as_ptr()).base_transparency = 0.0; }
+					}
+					live.push((ptr, record(chr, space, id)));
+					if live.len() == proto::MAX_ACTORS { break; }
+				}
+				continue;
+			}
 			let observed_attacker = self.confirmed_attackers.contains(&identity);
 			if exclusion(chr, space, observed_attacker).is_some() { continue; }
 			let h = chr.modules.physics.position;
@@ -512,13 +530,14 @@ fn record(chr: &ChrIns, space: &Space, id: u32) -> proto::ActorRecord {
 		physics.chr_hit_height.clamp(0.4, 20.0)
 	} else { 1.8 };
 	// Model number, then the NpcParam row: the Minecraft side turns the row into the enemy's real name.
-	let label = format!("{} c{:04} n{}", if chr.team_type == 7 { "Boss" } else { "Enemy" }, chr.character_id, chr.npc_param_id.max(0));
+	let merchant = crate::merchants::is_merchant(chr.npc_param_id);
+	let label = format!("{} c{:04} n{}", if merchant { "Merchant" } else if chr.team_type == 7 { "Boss" } else { "Enemy" }, chr.character_id, chr.npc_param_id.max(0));
 	let mut name = [0; 24];
 	let n = label.len().min(23);
 	name[..n].copy_from_slice(&label.as_bytes()[..n]);
 	let dead = chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag();
 	proto::ActorRecord {
-		id, flags: proto::ACTOR_HOSTILE | if dead { proto::ACTOR_DEAD } else { 0 }
+		id, flags: if merchant { proto::ACTOR_MERCHANT } else { proto::ACTOR_HOSTILE } | if dead { proto::ACTOR_DEAD } else { 0 }
 			| if protected(chr) { proto::ACTOR_ESSENTIAL } else { 0 },
 		pos: space.havok_to_mc([h.0, h.1, h.2]).map(|p| p as f32), yaw,
 		width, height, health_frac: (chr.modules.data.hp as f32 / chr.modules.data.max_hp.max(1) as f32).clamp(0.0, 1.0),

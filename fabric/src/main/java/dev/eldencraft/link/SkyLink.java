@@ -506,6 +506,10 @@ public final class SkyLink {
 		public boolean hostile() {
 			return (this.flags & ACTOR_HOSTILE) != 0;
 		}
+
+		public boolean merchant() {
+			return (this.flags & ACTOR_MERCHANT) != 0;
+		}
 	}
 
 	/** Seqlock read of the actor table. Returns false (leaving {@code out} empty) on a torn read. */
