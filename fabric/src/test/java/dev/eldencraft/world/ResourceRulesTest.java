@@ -13,10 +13,17 @@ class ResourceRulesTest {
             int bonuses=0;
             for(int roll=0;roll<100;roll++) {
                 String item=ResourceRules.rockBonus(tier,roll);
-                if(item!=null) { bonuses++;assertEquals(tier==1?"raw_copper":"raw_iron",item); }
+                if(item!=null) { bonuses++;assertTrue(tier==1?Set.of("raw_copper","raw_iron").contains(item):item.equals("raw_iron")); }
             }
             assertEquals(10,bonuses);
         }
+    }
+    @Test void theFirstRegionsMinesGiveEnoughIronForAStarterKit() {
+        int iron=0,copper=0,coal=0;
+        for(int roll=0;roll<100;roll++) switch(ResourceRules.ore(1,roll)) {
+            case "iron_ore"->iron++; case "copper_ore"->copper++; case "coal_ore"->coal++; default->fail("unexpected ore in tier 1");
+        }
+        assertTrue(iron>=35 && copper>=25 && coal>=20, iron+" iron, "+copper+" copper, "+coal+" coal");
     }
     @Test void minesAreExplicitInteriorsNotEntranceTiles() throws Exception {
         var rules=JsonParser.parseString(Files.readString(Path.of("src/main/resources/data/eldencraft/resource_rules.json"))).getAsJsonObject();

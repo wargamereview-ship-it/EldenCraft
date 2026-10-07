@@ -9,13 +9,17 @@ public final class ResourceRules {
         return rules.getAsJsonObject("mines").has(Integer.toUnsignedString(world));
     }
     public static String rockBonus(int tier, int roll) {
-        return roll < 10 ? tier >= 2 ? "raw_iron" : "raw_copper" : null;
+        // The first region gives copper and iron in equal shares, so an iron kit is reachable without leaving Limgrave.
+        if (tier == 1) return roll < 5 ? "raw_copper" : roll < 10 ? "raw_iron" : null;
+        return roll < 10 ? "raw_iron" : null;
     }
     public static String ore(int tier, int roll) {
         if (tier >= 5 && roll < 5) return "ancient_debris";
         if (tier >= 4 && roll < 18 || tier == 3 && roll < 5) return "diamond_ore";
         if (tier >= 3 && roll < 35) return "gold_ore";
         if (tier >= 2 && roll < 70) return "iron_ore";
+        // Tier 1 mines (Limgrave, Morne): iron is the commonest ore so the starter iron kit can be mined there.
+        if (tier == 1) return roll < 40 ? "iron_ore" : roll < 75 ? "copper_ore" : "coal_ore";
         return roll < 85 ? "copper_ore" : "coal_ore";
     }
     public static long hash(long seed, int world, int x, int z) {
