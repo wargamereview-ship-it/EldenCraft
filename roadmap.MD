@@ -58,7 +58,7 @@ Built but not yet seen in play. The logs record each check.
    buildup is which (the order is still an assumption).
 3. Projectile Protection against an arrow or spell; Smite against a skeleton or Death Rite Bird; Knockback
    making enemies stagger more.
-4. Kill an enemy and a boss: XP orbs where they die, Mending repairing from them.
+4. Kill an enemy and a boss: the "+N XP" line appears, levels rise, and a damaged Mending item is repaired first.
 5. A boss reward: the right trim on a set piece, the right weapon type and enchantments (`rewards.md`).
 6. Two ward VI books on the anvil must not make a VII.
 7. The new player status mirror: take known status hits and check buildup, matching effect/icon and

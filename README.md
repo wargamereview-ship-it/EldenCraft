@@ -127,7 +127,7 @@ Escape opens Elden Ring’s own menu. The R bridge assumes Elden Ring’s Event 
 
 The full plan is in [roadmap.MD](roadmap.MD). In short:
 
-1. **Play-check the newer systems:** wards, weapon elements and statuses, XP orbs and Mending, boss reward details, and the status mirror.
+1. **Play-check the newer systems:** wards, weapon elements and statuses, direct kill XP and Mending, boss reward details, and the status mirror.
 2. **Finish the survival loop from an empty start:** gather, craft a first real upgrade, build a base, leave and return.
 3. **Crafting and building progression:** balance tool, armour, repair and enchanting costs against drops and deposits.
 4. **Survival and combat balance:** hunger and healing against Elden Ring’s damage, weapon feel and stagger.
