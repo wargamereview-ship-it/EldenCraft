@@ -76,6 +76,10 @@ Only your strongest piece for a ward counts. Each of the 17 boss armour sets als
 
 Poison, scarlet rot, blood loss, deathblight, frostbite, sleep and madness on your character show as Minecraft effects with their own icons. A status HUD lists only statuses that are building or active, with the buildup percentage or the remaining time.
 
+### A field guide
+
+Every character gets a written field guide the first time they spawn, covering the controls, merchants, dying, experience and armour sets. Type `/guide` for another copy. Beside Hewg or Roderika a line on screen reminds you what R and Shift+R do.
+
 ### One world per character
 
 Each Elden Ring character gets its own Minecraft world: its own inventory, rewards and experience pile. Loading another save slot, or starting a new game, switches to that character's world (a new one starts fresh). Your existing world becomes the first character's.

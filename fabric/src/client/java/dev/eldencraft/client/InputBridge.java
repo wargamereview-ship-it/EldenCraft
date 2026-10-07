@@ -101,6 +101,13 @@ public final class InputBridge {
 					dev.eldencraft.combat.HewgAnvil.open(server, minecraft.player.getUUID());
 				}
 			}
+			case Proto.IN_SHOP_HINT -> {
+				if (minecraft.gui.screen() == null) {
+					String who = code == 1 ? "Hewg" : "Roderika";
+					String what = code == 1 ? "his anvil" : "her shop";
+					minecraft.gui.hud.setOverlayMessage(net.minecraft.network.chat.Component.literal("R: " + what + "     Shift+R: talk to " + who), false);
+				}
+			}
 			case Proto.IN_OPEN_SHOP -> {
 				var server = minecraft.getSingleplayerServer();
 				if (server != null && minecraft.player != null && minecraft.gui.screen() == null) {

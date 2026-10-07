@@ -106,6 +106,8 @@ pub const IN_HURT_ELEMENTS: u16 = 17;
 pub const IN_OPEN_ANVIL: u16 = 18;
 /// Open a Minecraft shop in place of a native NPC's tab: code 2 is Roderika's spawn eggs.
 pub const IN_OPEN_SHOP: u16 = 19;
+/// Show the key hint for the shop NPC the player stands beside (code is the shop).
+pub const IN_SHOP_HINT: u16 = 20;
 pub const ENEMY_BOSS: u16 = 1;
 pub const OFF_NATIVE_LIFE: usize = 0x900;
 pub const OFF_PLAYER_VITALS: usize = 0x940;

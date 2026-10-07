@@ -218,6 +218,8 @@ struct Frame {
 	/// ER's cursor counts as a menu only once it has been seen hidden in this life: after a spawn it can
 	/// stay visible (Proton) for a long time with no menu open, which left Minecraft without controls.
 	cursor_armed: bool,
+	/// When the shop key hint was last sent (it is repeated while the player stands beside Hewg or Roderika).
+	shop_hint_at: Option<Instant>,
 	/// Throttle for explaining why Minecraft is being held in a loading state.
 	next_hold_log: Option<Instant>,
 	/// Minecraft moves the player (off: Elden Ring does, and Minecraft mirrors it).
@@ -296,6 +298,7 @@ impl Frame {
 			saved_hud: None,
 			menu_was: false,
 			cursor_armed: false,
+			shop_hint_at: None,
 			next_hold_log: None,
 			drive: true, // Minecraft drives; it is never handed back to Elden Ring except while dead
 			teleport_seq: 0,
@@ -790,6 +793,16 @@ impl Frame {
 				Some((kind, _)) if !shift && !mc.as_ref().is_some_and(|m| m.screen_open) => self.link.send_input(proto::IN_OPEN_SHOP, kind as u16, 0),
 				_ => self.interact.begin(player),
 			}
+		}
+		// Elden Ring's interaction prompt is hidden while Minecraft drives: say what R and Shift+R do beside Hewg or Roderika.
+		match self.combat.shop_near {
+			Some((kind, _)) if mc_owns_input && !mc.as_ref().is_some_and(|m| m.screen_open) => {
+				if self.shop_hint_at.is_none_or(|t| t.elapsed() >= Duration::from_millis(1500)) {
+					self.shop_hint_at = Some(Instant::now());
+					self.link.send_input(proto::IN_SHOP_HINT, kind as u16, 0);
+				}
+			}
+			_ => self.shop_hint_at = None,
 		}
 		dinput::set_block(mc_owns_input);
 		let mouse = dinput::take();
