@@ -13,6 +13,10 @@ confirmed only once it has been seen in play.
 - Regular enemy drops and boss drops (before the 6 October reward redesign).
 - Starting with an empty inventory.
 - Gathering: log piles, loose stone, rocks and mine ores, depleting and coming back after a grace rest.
+- Minecraft movement from spawn with a level starting view, without falling back to Elden Ring's controls;
+  getting out of rubble and pits; crossing cave mouths without long stalls.
+- Minecraft's pause menu on F8 (options, GUI scale); enemies shown by name; the Elden Ring character
+  hidden through its death sequence.
 
 These cover tested examples, not every enemy, region or encounter.
 
