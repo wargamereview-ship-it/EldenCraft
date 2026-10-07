@@ -262,6 +262,7 @@ public final class Proto {
 	public static final int COL_CLEAR = 1;
 	public static final int COL_REGION = 2;
 	public static final int COL_TRIS = 3;
+	public static final int COL_DROP = 4;
 	public static final int COL_TRI_BYTES = 40;
 	public static final int TRI_STAIR_HELPER = 1;
 	public static final int TRI_DIGGABLE = 2;

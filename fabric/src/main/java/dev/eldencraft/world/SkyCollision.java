@@ -256,6 +256,7 @@ public final class SkyCollision {
 				case COL_CLEAR -> clear(s.get(JAVA_INT, payload));
 				case COL_REGION -> readRegion(s, payload);
 				case COL_TRIS -> readTris(s, payload);
+				case COL_DROP -> dropColumns(s, payload);
 				default -> EldenCraft.LOG.warn("EldenCraft: unknown collision message {}", type);
 			}
 			tail += align8(8 + payloadBytes);
@@ -286,6 +287,55 @@ public final class SkyCollision {
 		KNOWN_REGIONS.clear();
 		epoch = newEpoch;
 		EldenCraft.LOG.info("EldenCraft: collision cleared (epoch {})", newEpoch);
+	}
+
+	/** Key of a column of regions (every region with this x and z). */
+	static long columnKey(int rx, int rz) {
+		return ((long) rx << 32) | (rz & 0xFFFFFFFFL);
+	}
+
+	/** The regions, out of {@code regions}, that stand in one of the {@code columns}. */
+	static java.util.List<Long> regionsInColumns(java.util.Collection<Long> regions, java.util.Set<Long> columns) {
+		java.util.List<Long> out = new java.util.ArrayList<>();
+		for (long region : regions) {
+			BlockPos at = BlockPos.of(region);
+			if (columns.contains(columnKey(at.getX(), at.getZ()))) {
+				out.add(region);
+			}
+		}
+		return out;
+	}
+
+	/** Skyrim freed whole columns that were scanned long ago: forget them, so nothing here grows for the whole session. */
+	private static void dropColumns(MemorySegment s, long p) {
+		int msgEpoch = s.get(JAVA_INT, p);
+		int count = s.get(JAVA_INT, p + 4);
+		if (msgEpoch != epoch || count <= 0) {
+			return;
+		}
+		java.util.Set<Long> columns = new java.util.HashSet<>();
+		for (int i = 0; i < count; i++) {
+			columns.add(columnKey(s.get(JAVA_INT, p + 8 + i * 8L), s.get(JAVA_INT, p + 12 + i * 8L)));
+		}
+		int regions = 0;
+		for (long region : regionsInColumns(new java.util.ArrayList<>(KNOWN_REGIONS), columns)) {
+			BlockPos min = BlockPos.of(region);
+			for (int x = 0; x < REGION_SIZE; x++) {
+				for (int y = 0; y < REGION_SIZE; y++) {
+					for (int z = 0; z < REGION_SIZE; z++) {
+						long key = BlockPos.asLong(min.getX() * REGION_SIZE + x, min.getY() * REGION_SIZE + y, min.getZ() * REGION_SIZE + z);
+						SHAPES.remove(key);
+						FILL.remove(key);
+					}
+				}
+			}
+			TRIS.remove(region);
+			GHOSTS.remove(region);
+			TRI_HASH.remove(region);
+			KNOWN_REGIONS.remove(region);
+			regions++;
+		}
+		EldenCraft.LOG.info("EldenCraft: freed {} regions of {} old columns", regions, count);
 	}
 
 	private static void readRegion(MemorySegment s, long p) {

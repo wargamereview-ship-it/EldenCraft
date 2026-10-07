@@ -208,7 +208,17 @@ pub struct Scanner {
 	ray_time: Duration,
 	next_report: Instant,
 	hurry_until: Instant,
+	next_evict: Instant,
+	/// Columns freed here that Minecraft has not been told about yet (its ring was full).
+	pending_drops: Vec<(i32, i32)>,
 }
+
+/// Columns kept at most (the full scan around the player is 441); past this the oldest far ones are freed, down to
+/// TARGET. Without it the scan, here and in Minecraft, grew for as long as the game ran.
+const COLUMN_CAP: usize = 1200;
+const COLUMN_TARGET: usize = 800;
+/// Columns this close to the player (in regions) are never freed.
+const KEEP_RADIUS: i32 = FAR_RADIUS + 2;
 
 impl Scanner {
 	pub fn new() -> Self {
@@ -229,6 +239,8 @@ impl Scanner {
 			ray_time: Duration::ZERO,
 			next_report: Instant::now(),
 			hurry_until: Instant::now(),
+			next_evict: Instant::now(),
+			pending_drops: Vec::new(),
 		}
 	}
 
@@ -451,6 +463,7 @@ impl Scanner {
 			self.world_id = space.world_id;
 			self.epoch = self.epoch.wrapping_add(1);
 			self.done.clear();
+			self.pending_drops.clear();
 			self.tris.clear();
 			self.generation += 1;
 			self.samples.clear();
@@ -500,6 +513,7 @@ impl Scanner {
 		}
 		self.rays += rays.count;
 		self.ray_time += started.elapsed();
+		self.evict(link, feet);
 
 		let now = Instant::now();
 		if now >= self.next_report && self.rays > 0 {
@@ -511,6 +525,44 @@ impl Scanner {
 				self.ray_time.as_secs_f64() * 1e6 / self.rays as f64,
 				self.confirmed_bands, self.rejected_bands
 			));
+		}
+	}
+
+	/// Frees the oldest scanned columns far from the player once there are too many, and tells Minecraft to do the same.
+	fn evict(&mut self, link: &Link, feet: V3) {
+		let now = Instant::now();
+		if now < self.next_evict { return; }
+		self.next_evict = now + Duration::from_secs(5);
+		if self.done.len() > COLUMN_CAP {
+			let prx = (feet[0].floor() as i32).div_euclid(REGION);
+			let prz = (feet[2].floor() as i32).div_euclid(REGION);
+			let mut far: Vec<((i32, i32), Instant)> = self.done.iter()
+				.filter(|(c, _)| (c.0 - prx).abs().max((c.1 - prz).abs()) > KEEP_RADIUS)
+				.map(|(c, d)| (*c, d.at)).collect();
+			far.sort_by_key(|(_, at)| *at);
+			let count = self.done.len().saturating_sub(COLUMN_TARGET).min(far.len());
+			for (column, _) in far.into_iter().take(count) {
+				self.done.remove(&column);
+				self.tris.remove(&column);
+				self.samples.remove(&column);
+				self.pending_drops.push(column);
+			}
+			if count > 0 {
+				self.generation += 1;
+				log::line(&format!("collision: freed {count} old columns; {} kept", self.done.len()));
+			}
+		}
+		while !self.pending_drops.is_empty() {
+			let n = self.pending_drops.len().min(500);
+			let mut bytes = Vec::with_capacity(8 + n * 8);
+			bytes.extend_from_slice(&(self.epoch as i32).to_le_bytes());
+			bytes.extend_from_slice(&(n as i32).to_le_bytes());
+			for (rx, rz) in &self.pending_drops[..n] {
+				bytes.extend_from_slice(&rx.to_le_bytes());
+				bytes.extend_from_slice(&rz.to_le_bytes());
+			}
+			if !link.write_collision(proto::COL_DROP, &[&bytes]) { break; }
+			self.pending_drops.drain(..n);
 		}
 	}
 

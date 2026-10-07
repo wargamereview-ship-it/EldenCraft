@@ -207,6 +207,8 @@ pub const COL_PAD: u32 = 0;
 pub const COL_CLEAR: u32 = 1;
 pub const COL_REGION: u32 = 2;
 pub const COL_TRIS: u32 = 3;
+/// Free the regions of whole columns: epoch (i32), count (i32), then count pairs of (region x, region z) as i32.
+pub const COL_DROP: u32 = 4;
 
 pub const REN_PAD: u32 = 0;
 pub const REN_ATLAS: u32 = 1;
