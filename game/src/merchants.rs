@@ -60,12 +60,15 @@ pub fn is_merchant(npc_param_id: i32) -> bool {
 	MERCHANTS.binary_search(&npc_param_id).is_ok()
 }
 
-/// Hewg's NpcParam rows: the smith whose upgrade tab R replaces with Minecraft's anvil.
-static SMITHS: &[i32] = &[
-	34510100,
-	34510179,
+/// NpcParam rows (sorted) with a Minecraft shop on R: 1 Hewg's anvil, 2 Roderika's spawn eggs.
+static SHOPS: &[(i32, u8)] = &[
+	(34510100, 1),
+	(34510179, 1),
+	(523200079, 2),
+	(523200179, 2),
+	(523200279, 2),
 ];
 
-pub fn is_smith(npc_param_id: i32) -> bool {
-	SMITHS.binary_search(&npc_param_id).is_ok()
+pub fn shop_at(npc_param_id: i32) -> u8 {
+	SHOPS.binary_search_by_key(&npc_param_id, |s| s.0).map_or(0, |i| SHOPS[i].1)
 }

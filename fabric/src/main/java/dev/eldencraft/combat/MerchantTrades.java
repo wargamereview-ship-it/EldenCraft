@@ -27,6 +27,11 @@ public final class MerchantTrades {
 		List.of(t("netherite_scrap", 2, 80, 1), t("netherite_ingot", 1, 120, 1), t("enchanted_golden_apple", 1, 60, 1), t("diamond", 8, 60, 2),
 			t("golden_apple", 6, 36, 2), t("diamond_leggings", 1, 40, 1), t("arrow", 64, 6, 6), t("cooked_beef", 16, 5, 8)));
 
+	/** Roderika's spawn eggs: animals and helpers you can tame or ride, paid in levels. */
+	public static final List<Trade> RODERIKA = List.of(t("wolf_spawn_egg", 1, 6, 4), t("fox_spawn_egg", 1, 4, 4), t("cat_spawn_egg", 1, 4, 4),
+		t("parrot_spawn_egg", 1, 4, 4), t("donkey_spawn_egg", 1, 6, 2), t("horse_spawn_egg", 1, 10, 2), t("llama_spawn_egg", 1, 8, 2),
+		t("allay_spawn_egg", 1, 14, 2));
+
 	private MerchantTrades() {
 	}
 

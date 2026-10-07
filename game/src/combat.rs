@@ -14,8 +14,8 @@ use crate::world::Space;
 const RANGE: f32 = 64.0;
 /// One Minecraft damage point (half a heart) removes this many ER health points.
 const HP_PER_DAMAGE: f32 = 25.0;
-/// Close enough to Hewg for R to mean his anvil (blocks).
-const SMITH_REACH: f64 = 3.5;
+/// Close enough to Hewg or Roderika for R to mean their Minecraft shop (blocks).
+const SHOP_REACH: f64 = 3.5;
 /// Vanilla melee reach plus tolerance for the two games' tick schedules.
 const MELEE_REACH: f64 = 4.25;
 const _: () = assert!(std::mem::offset_of!(ChrIns, debug_flags) == 0x538);
@@ -70,8 +70,8 @@ pub struct Combat {
 	next_id: u32,
 	was_active: bool,
 	last_count: usize,
-	/// How far Hewg is from the player this frame, if he is close enough to talk to.
-	pub smith_distance: Option<f64>,
+	/// The nearest NPC within reach whose tab R replaces with a Minecraft shop this frame: (shop, distance).
+	pub shop_near: Option<(u8, f64)>,
 	health_owner: Option<HealthOwner>,
 	restore_pending: bool,
 	life_epoch: u32,
@@ -101,7 +101,7 @@ pub fn nearby(world: &WorldChrMan) -> Vec<NonNull<ChrIns>> {
 
 impl Combat {
 	pub fn new() -> Self {
-		Self { ids: HashMap::new(), confirmed_attackers: HashSet::new(), next_id: 1, was_active: false, last_count: 0, smith_distance: None,
+		Self { ids: HashMap::new(), confirmed_attackers: HashSet::new(), next_id: 1, was_active: false, last_count: 0, shop_near: None,
 			health_owner: None, restore_pending: false, life_epoch: 1, was_loading: true, death_pending: false,
 			death_saw_loading: false, health_fraction: 1.0, incoming: VecDeque::new(), alive: HashSet::new(), deaths: VecDeque::new(),
 			boss_rewards: crate::loot::BossRewards::new(), native: crate::native_damage::NativeDamage::new(), direct_logged: false,
@@ -294,7 +294,7 @@ impl Combat {
 		near: &[NonNull<ChrIns>], mc: Option<&McView>, active: bool) {
 		self.native.frame(active || self.was_active);
 		let mut seen = HashSet::new();
-		self.smith_distance = None;
+		self.shop_near = None;
 		let mut live = Vec::new();
 		let mut alive_now = HashSet::new();
 		let present: HashSet<Identity> = near.iter().map(|p| {
@@ -313,11 +313,13 @@ impl Combat {
 			if (chr.modules.data.hp <= 0 || chr.chr_flags1c5.death_flag()) && self.alive.remove(&identity) {
 				self.enemy_died(chr, player, space);
 			}
-			if crate::merchants::is_smith(chr.npc_param_id) {
+			let shop = crate::merchants::shop_at(chr.npc_param_id);
+			if shop != 0 {
 				let h = chr.modules.physics.position;
 				let distance = f64::from((h.0 - player_pos.0).hypot(h.2 - player_pos.2));
-				if distance.is_finite() && distance <= SMITH_REACH && (h.1 - player_pos.1).abs() < 3.0_f32 {
-					self.smith_distance = Some(self.smith_distance.map_or(distance, |d| d.min(distance)));
+				if distance.is_finite() && distance <= SHOP_REACH && (h.1 - player_pos.1).abs() < 3.0_f32
+					&& self.shop_near.is_none_or(|(_, d)| distance < d) {
+					self.shop_near = Some((shop, distance));
 				}
 			}
 			// A merchant is replaced by a villager on the Minecraft side: publish it (never as a target) and hide its own model.

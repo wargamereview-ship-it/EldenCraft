@@ -110,6 +110,19 @@ public final class Merchants {
 		}
 	}
 
+	/** A native NPC's tab replaced by a shop: 2 is Roderika's spawn eggs. */
+	public static void openSpecial(net.minecraft.server.MinecraftServer server, java.util.UUID player, int shop) {
+		server.execute(() -> {
+			ServerPlayer p = server.getPlayerList().getPlayer(player);
+			if (p == null || !p.isAlive() || shop != 2) {
+				return;
+			}
+			List<MerchantTrades.Trade> trades = MerchantTrades.RODERIKA;
+			int[] uses = USES.computeIfAbsent(-shop, k -> trades.stream().mapToInt(MerchantTrades.Trade::uses).toArray());
+			p.openMenu(new SimpleMenuProvider((id, inventory, ignored) -> new TradeMenu(id, inventory, trades, uses), Component.literal("Roderika - Spirit Tuner")));
+		});
+	}
+
 	/** Removes every stand-in (the link went away). */
 	public static void clear() {
 		STAND_INS.values().forEach(Villager::discard);

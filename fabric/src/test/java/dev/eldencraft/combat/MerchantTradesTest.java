@@ -28,6 +28,14 @@ class MerchantTradesTest {
 	}
 
 	@Test
+	void roderikaSellsAScreenfulOfEggs() {
+		assertTrue(MerchantTrades.RODERIKA.size() >= 6 && MerchantTrades.RODERIKA.size() <= 9);
+		for (var trade : MerchantTrades.RODERIKA) {
+			assertTrue(trade.item().endsWith("_spawn_egg") && trade.levels() >= 1, trade.toString());
+		}
+	}
+
+	@Test
 	void unknownTiersAreClamped() {
 		assertEquals(MerchantTrades.forTier(1), MerchantTrades.forTier(0));
 		assertEquals(MerchantTrades.forTier(7), MerchantTrades.forTier(40));

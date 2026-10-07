@@ -112,7 +112,7 @@ No system Python, Java, Rust or Gradle is needed. Existing saves, accounts and u
 | F9 | Toggle the Minecraft camera |
 | F5 | Cycle Minecraft’s camera modes |
 | F10 | Hand mouse and keyboard to Elden Ring or back |
-| R | Elden Ring interaction (doors, levers, pickups, graces, talking). Beside Hewg it opens Minecraft's anvil instead; **Shift+R** talks to him |
+| R | Elden Ring interaction (doors, levers, pickups, graces, talking). Beside Hewg it opens Minecraft's anvil and beside Roderika a spawn-egg shop; **Shift+R** talks to them natively |
 | F3 | Block occlusion: game depth or scanned collision |
 | F4 | Block lighting: game picture or clock model |
 | F7 | Show nearby collision edges (debugging) |
