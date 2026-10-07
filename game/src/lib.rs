@@ -68,6 +68,8 @@ const HANDOFF_TIMEOUT: Duration = Duration::from_secs(8);
 /// Repeated failure at the same recovery point hands control back instead of teleporting forever.
 const RECOVERY_RETRY_WINDOW: Duration = Duration::from_secs(10);
 const GROUND_CLEARANCE: f64 = 0.1;
+/// Frames of agreement before the aim code trusts a change in the camera's forward sign.
+const AIM_SIGN_VOTES: i32 = 40;
 /// Repeated small slope corrections are not evidence that the player fell out of the world.
 const DEEP_RECOVERY_METERS: f64 = 0.75;
 /// The tile-local position the mapping is learned from is exact once settled but can lag or be
@@ -254,6 +256,8 @@ struct Frame {
 	recovery: Option<([f64; 3], Instant)>,
 	/// Which way the camera matrix's forward row points (+1 or -1), learned in third person.
 	cam_sign: f64,
+	/// Leaky vote for the camera's forward sign: it flips only after the opposite sign wins this many frames in a row.
+	cam_votes: i32,
 	world_id: u32,
 	/// Settled native region and a candidate, paired with the current collision world.
 	stream_region: Option<(u32, u32)>,
@@ -317,6 +321,7 @@ impl Frame {
 			prev_fresh: None,
 			connected_since: None,
 			cam_sign: 1.0,
+			cam_votes: 0,
 			world_id: 0,
 			stream_region: None,
 			stream_candidate: None,
@@ -956,7 +961,8 @@ impl Frame {
 			s.camera_planes = planes;
 			s.view = first_person.then(|| scene::View { eye: cam_eye, yaw: cam_yaw, pitch: cam_pitch, fov_deg });
 			s.avatar_at = first_person.then(|| if follow_body { Some(er) } else { mc.as_ref().map(|m| m.pos) }).flatten();
-			let shown = mc_visible || self.combat.owns_health();
+			// Minecraft's blocks, hands and HUD stay out of Elden Ring's own menus (map, settings, inventory).
+			let shown = (mc_visible || self.combat.owns_health()) && !menu;
 			let m = mc.as_ref();
 			s.hud = scene::Hud {
 				shown,
@@ -1120,8 +1126,12 @@ impl Frame {
 		// forward row points. In first person the camera is in the eye, so keep what was learned.
 		let to_eye = [eye[0] - from[0], eye[1] - from[1], eye[2] - from[2]];
 		let dist = (to_eye[0] * to_eye[0] + to_eye[1] * to_eye[1] + to_eye[2] * to_eye[2]).sqrt();
-		if dist > 1.0 && self.model_state.is_none() {
-			let sign = if dir[0] * to_eye[0] + dir[1] * to_eye[1] + dir[2] * to_eye[2] < 0.0 { -1.0 } else { 1.0 };
+		// Learned from the orbiting game camera only, by vote: re-deciding every frame made the sign flip in and
+		// out around respawns (the view then jittered left and right).
+		if dist > 2.0 && self.model_state.is_none() {
+			let vote = if dir[0] * to_eye[0] + dir[1] * to_eye[1] + dir[2] * to_eye[2] < 0.0 { -1 } else { 1 };
+			self.cam_votes = (self.cam_votes + vote).clamp(-AIM_SIGN_VOTES, AIM_SIGN_VOTES);
+			let sign = if self.cam_votes > 0 { 1.0 } else if self.cam_votes < 0 { -1.0 } else { self.cam_sign };
 			if sign != self.cam_sign {
 				self.cam_sign = sign;
 				log::line(&format!("camera forward row sign {sign}"));

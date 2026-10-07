@@ -1645,10 +1645,16 @@ fn arrow(out: &mut Vec<RenVertex>, at: [f32; 3], t: &WorldEntity) {
 	let d = [-yaw.sin() * pitch.cos(), -pitch.sin(), yaw.cos() * pitch.cos()];
 	let side = [yaw.cos(), 0.0, yaw.sin()];
 	let up = [d[1] * side[2] - d[2] * side[1], d[2] * side[0] - d[0] * side[2], d[0] * side[1] - d[1] * side[0]];
-	let half = 0.35 * t.scale;
+	// The icon's diagonal runs from its bottom-left (tail) to its top-right (tip), so the quad is turned 45 degrees to
+	// put that diagonal along the flight. The icon fills its corners: half a side of 0.22 makes an arrow about 0.6 long.
+	let half = 0.22 * t.scale;
+	let r = std::f32::consts::FRAC_1_SQRT_2;
 	for n in [side, up] {
-		// The icon's diagonal runs from its bottom-left (tail) to its top-right (tip).
-		let p = [add(add(at, d, -half), n, half), add(add(at, d, half), n, half), add(add(at, d, half), n, -half), add(add(at, d, -half), n, -half)];
+		// u + v points along the flight; the winding stays what the quad had before.
+		let u = [(d[0] + n[0]) * r, (d[1] + n[1]) * r, (d[2] + n[2]) * r];
+		let v = [(d[0] - n[0]) * r, (d[1] - n[1]) * r, (d[2] - n[2]) * r];
+		let tail = add(add(at, u, -half), v, -half);
+		let p = [tail, add(tail, u, 2.0 * half), add(add(tail, u, 2.0 * half), v, 2.0 * half), add(tail, v, 2.0 * half)];
 		let uv = t.uv[0];
 		out.extend([(p[0], uv[0], uv[1]), (p[1], uv[2], uv[1]), (p[2], uv[2], uv[3]), (p[0], uv[0], uv[1]), (p[2], uv[2], uv[3]), (p[3], uv[0], uv[3])].map(|(p, u, v)| vert(p, u, v, WHITE, CUTOUT)));
 	}
