@@ -41,6 +41,14 @@ Minecraft calculates your damage, cooldowns, criticals and enchantments. The bri
 - Your **Minecraft hearts** are your health. Incoming hits pass through Minecraft armour, absorption and shield blocking. At zero hearts, Elden Ring’s normal death and grace respawn run, and you keep your inventory.
 - The combat HUD shows the target’s health, accepted hits, criticals and shield blocks. Arrows stay stuck in enemies.
 
+### Trade with merchants
+
+Elden Ring's open-world merchants are replaced by villagers standing where they stood. Right-click one for a trade screen with goods matched to the region, paid in **experience levels**. Each offer has a limited number of uses that refill when you rest at a grace.
+
+### Losing experience, not your kit
+
+Dying costs your experience levels, not your inventory. They spill as a pile where you fell; walk back to collect them. Dying again first loses the pile.
+
 ### Collect boss rewards
 
 Ordinary enemies drop materials by family and region (five tiers in the base game, two more in Shadow of the Erdtree), and enemies carrying gear sometimes drop it. Each of the **208 boss encounters** gives a named item at full durability, an enchanted book and regional materials, once per encounter per world.
@@ -62,7 +70,7 @@ Eight armour wards protect you, 10% a level up to 70% at VII:
 | Glintstone, Flame, Storm, Sacred | Reduces that element’s share of an incoming hit |
 | Rot, Bleed, Frost, Venom | Reduces that status’s buildup from attacks |
 
-Only your strongest piece for a ward counts. Themed bosses give warded armour and books; the rare VII books come from selected Shadow of the Erdtree bosses.
+Only your strongest piece for a ward counts. Each of the 17 boss armour sets also has its own passive with two pieces, and wearing all four raises every ward you have by one level. Themed bosses give warded armour and books; the rare VII books come from selected Shadow of the Erdtree bosses.
 
 ### See your statuses
 
