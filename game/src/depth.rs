@@ -40,8 +40,38 @@ pub static ACTIVE: AtomicBool = AtomicBool::new(false);
 static SCENE: AtomicUsize = AtomicUsize::new(0);
 static SCENE_FORMAT: AtomicU32 = AtomicU32::new(0);
 static SCENE_SIZE: AtomicU32 = AtomicU32::new(0);
-/// Our copy of it (kept alive by the renderer).
-static COPY: AtomicUsize = AtomicUsize::new(0);
+/// Owning reference, locked throughout command recording. Clearing it waits for hooks already
+/// recording a copy; a concurrent renderer reset cannot invalidate a borrowed COM pointer.
+static COPY: std::sync::Mutex<Option<ID3D12Resource>> = std::sync::Mutex::new(None);
+
+/// Written beside the log when a graphics frame failed while the capture was running. Native Windows
+/// drivers crashed in this path (issue #3): the capture is on everywhere, but a machine where it failed
+/// once starts without it from then on, instead of crashing at every launch. Delete the file to retry.
+fn marker() -> std::path::PathBuf {
+	crate::log::beside_dll("eldencraft_depth_off.txt")
+}
+
+pub fn supported() -> bool {
+	static SUPPORTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+	*SUPPORTED.get_or_init(|| !marker().exists())
+}
+
+/// Remembers a failure for later launches (see `marker`).
+pub fn switch_off_for_later_launches() {
+	let _ = std::fs::write(marker(), "A graphics frame failed while EldenCraft was copying the game's depth, so this is off from now on.\r\nDelete this file to try again (F3 toggles it in game).\r\n");
+}
+
+/// Where the marker lives, for messages.
+pub fn marker_path() -> String {
+	marker().display().to_string()
+}
+
+/// Stop recording before retiring a renderer. Submitted game lists may still reference its
+/// resources, so the caller must retain the renderer rather than immediately free it.
+pub fn stop() {
+	ACTIVE.store(false, Relaxed);
+	set_copy(None);
+}
 /// Copies recorded so far.
 pub static COPIES: AtomicU32 = AtomicU32::new(0);
 static NOTED: AtomicU32 = AtomicU32::new(0);
@@ -92,7 +122,7 @@ pub fn note_back_buffer(buffer: &ID3D12Resource) {
 
 /// Tells the hook where to copy to (null stops copying).
 pub fn set_copy(resource: Option<&ID3D12Resource>) {
-	COPY.store(resource.map_or(0, |r| r.as_raw() as usize), Relaxed);
+	*COPY.lock().unwrap_or_else(|e| e.into_inner()) = resource.cloned();
 }
 
 pub fn copies() -> u32 {
@@ -102,6 +132,9 @@ pub fn copies() -> u32 {
 /// Hooks `ID3D12GraphicsCommandList::ResourceBarrier`. A command list of the device gives the
 /// address of the function every list uses.
 pub unsafe fn install(device: &ID3D12Device) -> bool {
+	if !supported() {
+		return false;
+	}
 	if INSTALLED.load(Relaxed) {
 		return ORIGINAL.load(Relaxed) != 0;
 	}
@@ -216,15 +249,12 @@ unsafe fn consider(resource: *mut c_void) {
 /// Records, into the game's own list right after it made the depth texture readable, a copy of it
 /// into ours and back to the state the game put it in.
 unsafe fn copy_scene_depth(list: *mut c_void, depth: *mut c_void, after: D3D12_RESOURCE_STATES) {
-	let target = COPY.load(Relaxed) as *mut c_void;
-	if target.is_null() {
-		return;
-	}
+	let target = COPY.lock().unwrap_or_else(|e| e.into_inner());
+	let Some(copy) = target.as_ref() else { return };
 	unsafe {
-		let (Some(commands), Some(source), Some(copy)) = (
+		let (Some(commands), Some(source)) = (
 			ID3D12GraphicsCommandList::from_raw_borrowed(&list),
 			ID3D12Resource::from_raw_borrowed(&depth),
-			ID3D12Resource::from_raw_borrowed(&target),
 		) else { return };
 		let original: BarrierFn = transmute(ORIGINAL.load(Relaxed));
 		let before = [
@@ -251,16 +281,16 @@ unsafe fn copy_scene_depth(list: *mut c_void, depth: *mut c_void, after: D3D12_R
 
 /// Copies the scene depth into ours from wherever the game's barriers last left each plane.
 unsafe fn copy_at_frame_end(list: *mut c_void, depth: *mut c_void) {
-	let target = COPY.load(Relaxed) as *mut c_void;
-	if target.is_null() || !PLANES_SEEN.load(Relaxed) {
+	let target = COPY.lock().unwrap_or_else(|e| e.into_inner());
+	let Some(copy) = target.as_ref() else { return };
+	if !PLANES_SEEN.load(Relaxed) {
 		return;
 	}
 	let (state0, state1) = (PLANE_STATE[0].load(Relaxed), PLANE_STATE[1].load(Relaxed));
 	unsafe {
-		let (Some(_), Some(source), Some(copy)) = (
+		let (Some(_), Some(source)) = (
 			ID3D12GraphicsCommandList::from_raw_borrowed(&list),
 			ID3D12Resource::from_raw_borrowed(&depth),
-			ID3D12Resource::from_raw_borrowed(&target),
 		) else { return };
 		let commands = ID3D12GraphicsCommandList::from_raw_borrowed(&list).unwrap();
 		let original: BarrierFn = transmute(ORIGINAL.load(Relaxed));

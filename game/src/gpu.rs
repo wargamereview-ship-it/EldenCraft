@@ -33,6 +33,17 @@ const OCCLUDE_DISTANCE: f64 = 64.0;
 
 static LINK: OnceLock<Link> = OnceLock::new();
 static RENDERER: Mutex<Option<Renderer>> = Mutex::new(None);
+/// A failed frame may already have submitted work, including copies in game-owned lists.
+/// Our fence cannot prove all those lists have finished. Keep retired resources for the
+/// session instead of freeing them under the driver. Frame retries are bounded below.
+static RETIRED_RENDERERS: Mutex<Vec<Renderer>> = Mutex::new(Vec::new());
+
+fn retire_renderer(renderer: &mut Option<Renderer>) {
+	crate::depth::stop();
+	if let Some(old) = renderer.take() {
+		RETIRED_RENDERERS.lock().unwrap_or_else(|e| e.into_inner()).push(old);
+	}
+}
 /// Renderer failures so far; after a few it stays off rather than failing every frame.
 static FAILURES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 /// Set by the first failed frame: the restarted renderer then leaves out what reaches into the game's own GPU work
@@ -60,7 +71,7 @@ pub fn install(link: Link) {
 		}
 		let mut guard = RENDERER.lock().unwrap_or_else(|e| e.into_inner());
 		if guard.as_ref().is_some_and(|r| r.format != format) {
-			*guard = None;
+			retire_renderer(&mut guard);
 		}
 		if guard.is_none() {
 			match unsafe { Renderer::new(device, format) } {
@@ -83,7 +94,11 @@ pub fn install(link: Link) {
 				if !SAFE_MODE.swap(true, Relaxed) {
 					log::line("gpu: safe mode: no game-depth occlusion or picture lighting from here on");
 				}
-				*guard = None;
+				if crate::depth::copies() > 0 {
+					crate::depth::switch_off_for_later_launches();
+					log::line(&format!("depth: capture switched off for later launches ({})", crate::depth::marker_path()));
+				}
+				retire_renderer(&mut guard);
 				if FAILURES.fetch_add(1, Relaxed) + 1 >= MAX_FAILURES {
 					log::line("gpu: giving up; no Minecraft blocks or HUD this session");
 				}
@@ -306,6 +321,8 @@ fn depth_readback(format: DXGI_FORMAT) -> Option<(DXGI_FORMAT, bool)> {
 struct SceneDepth {
 	resource: ID3D12Resource,
 	readback: ID3D12Resource,
+	/// How the driver lays out the whole depth plane in the readback buffer (D3D12 copies depth formats whole).
+	layout: D3D12_PLACED_SUBRESOURCE_FOOTPRINT,
 	width: u32,
 	height: u32,
 	format: DXGI_FORMAT,
@@ -916,13 +933,20 @@ impl Renderer {
 					v,
 				)
 			})?;
+			// Ask the driver how the plane is laid out in a buffer, rather than guessing a format and pitch.
+			let mut layout = D3D12_PLACED_SUBRESOURCE_FOOTPRINT::default();
+			let mut total = 0u64;
+			self.device.GetCopyableFootprints(&resource.GetDesc(), 0, 1, 0, Some(&mut layout), None, None, Some(&mut total));
+			if total == 0 || layout.Footprint.RowPitch == 0 {
+				return Ok(false);
+			}
 			let readback: ID3D12Resource = util::try_out_ptr(|v| {
 				self.device.CreateCommittedResource(
 					&D3D12_HEAP_PROPERTIES { Type: D3D12_HEAP_TYPE_READBACK, ..Default::default() },
 					D3D12_HEAP_FLAG_NONE,
 					&D3D12_RESOURCE_DESC {
 						Dimension: D3D12_RESOURCE_DIMENSION_BUFFER,
-						Width: 256,
+						Width: total,
 						Height: 1,
 						DepthOrArraySize: 1,
 						MipLevels: 1,
@@ -949,7 +973,7 @@ impl Renderer {
 			);
 			// The game's command lists may still refer to an older copy for a while: keep it for a good few frames.
 			crate::depth::set_copy(Some(&resource));
-			if let Some(old) = self.scene_depth.replace(SceneDepth { resource, readback, width, height, format }) {
+			if let Some(old) = self.scene_depth.replace(SceneDepth { resource, readback, layout, width, height, format }) {
 				self.garbage.push(old.resource);
 				self.garbage.push(old.readback);
 			}
@@ -968,10 +992,12 @@ impl Renderer {
 		let mut values = [0.0f32; 64];
 		unsafe {
 			let mut ptr = std::ptr::null_mut();
-			if depth.readback.Map(0, Some(&D3D12_RANGE { Begin: 0, End: 256 }), Some(&mut ptr)).is_err() || ptr.is_null() {
+			// The middle row of the picture, 64 values, out of the whole-plane copy.
+			let offset = (depth.height / 2) as usize * depth.layout.Footprint.RowPitch as usize + ((depth.width / 2).saturating_sub(32) as usize) * 4;
+			if depth.readback.Map(0, Some(&D3D12_RANGE { Begin: offset, End: offset + 256 }), Some(&mut ptr)).is_err() || ptr.is_null() {
 				return;
 			}
-			std::ptr::copy_nonoverlapping(ptr as *const f32, values.as_mut_ptr(), 64);
+			std::ptr::copy_nonoverlapping((ptr as *const u8).add(offset) as *const f32, values.as_mut_ptr(), 64);
 			depth.readback.Unmap(0, Some(&D3D12_RANGE { Begin: 0, End: 0 }));
 		}
 		if depth_readback(depth.format).is_some_and(|(_, float)| !float) {
@@ -1004,19 +1030,15 @@ impl Renderer {
 	/// Copies a row of 64 depth values through the middle of the picture into the readback buffer.
 	unsafe fn record_depth_probe(&mut self, truth: f32, near: f32, far: f32) {
 		let Some(depth) = self.scene_depth.as_ref() else { return };
-		let Some((footprint, _)) = depth_readback(depth.format) else { return };
-		let (resource, readback) = (depth.resource.clone(), depth.readback.clone());
-		let (left, row) = ((depth.width / 2).saturating_sub(32), depth.height / 2);
+		if depth_readback(depth.format).is_none() { return }
+		let (resource, readback, layout) = (depth.resource.clone(), depth.readback.clone(), depth.layout);
 		unsafe {
 			self.barrier(&resource, crate::depth::COPY_READ, D3D12_RESOURCE_STATE_COPY_SOURCE);
 			let dst = D3D12_TEXTURE_COPY_LOCATION {
 				pResource: ManuallyDrop::new(Some(readback)),
 				Type: D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
 				Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 {
-					PlacedFootprint: D3D12_PLACED_SUBRESOURCE_FOOTPRINT {
-						Offset: 0,
-						Footprint: D3D12_SUBRESOURCE_FOOTPRINT { Format: footprint, Width: 64, Height: 1, Depth: 1, RowPitch: 256 },
-					},
+					PlacedFootprint: layout,
 				},
 			};
 			let src = D3D12_TEXTURE_COPY_LOCATION {
@@ -1024,8 +1046,7 @@ impl Renderer {
 				Type: D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
 				Anonymous: D3D12_TEXTURE_COPY_LOCATION_0 { SubresourceIndex: 0 },
 			};
-			let region = D3D12_BOX { left, top: row, front: 0, right: left + 64, bottom: row + 1, back: 1 };
-			self.list.CopyTextureRegion(&dst, 0, 0, 0, &src, Some(&region));
+			self.list.CopyTextureRegion(&dst, 0, 0, 0, &src, None);
 			let _ = ManuallyDrop::into_inner(dst.pResource);
 			let _ = ManuallyDrop::into_inner(src.pResource);
 			self.barrier(&resource, D3D12_RESOURCE_STATE_COPY_SOURCE, crate::depth::COPY_READ);
@@ -1138,7 +1159,7 @@ impl Renderer {
 					s.depth_occlusion, s.depth_probe, s.camera_planes))
 			})?;
 			// Blocks hidden by the game's real scene depth, when asked for and when it can be found and understood.
-			let depth_on = depth_on && !SAFE_MODE.load(std::sync::atomic::Ordering::Relaxed);
+			let depth_on = depth_on && crate::depth::supported() && !SAFE_MODE.load(std::sync::atomic::Ordering::Relaxed);
 			crate::depth::ACTIVE.store(depth_on, std::sync::atomic::Ordering::Relaxed);
 			crate::depth::note_back_buffer(back_buffer);
 			if !depth_on && self.depth_mode == 9 {

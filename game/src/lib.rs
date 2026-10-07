@@ -269,6 +269,9 @@ fn dist(a: [f64; 3], b: [f64; 3]) -> f64 {
 
 impl Frame {
 	fn new(link: Link) -> Self {
+		if !depth::supported() {
+			log::line(&format!("depth: game-depth capture is off because a frame failed with it before; using scanned-collision occlusion (delete {} to try again)", depth::marker_path()));
+		}
 		Self {
 			link,
 			scanner: Scanner::new(),
@@ -283,7 +286,7 @@ impl Frame {
 			collision_draw: render::CollisionDraw::default(),
 			light: lighting::Light::default(),
 			game_light: true,
-			depth_occlusion: true,
+			depth_occlusion: depth::supported(),
 			first_person: true,
 			model_state: None,
 			look: None,
@@ -598,8 +601,12 @@ impl Frame {
 			log::line(&format!("blocks drawn with the camera from {} frame(s) back (F11)", camera::cycle_delay()));
 		}
 		if self.keys.pressed(keys::VK_F3) {
-			self.depth_occlusion = !self.depth_occlusion;
-			log::line(if self.depth_occlusion { "block occlusion: from the game's scene depth (F3)" } else { "block occlusion: from the scanned collision (F3)" });
+			if depth::supported() {
+				self.depth_occlusion = !self.depth_occlusion;
+				log::line(if self.depth_occlusion { "block occlusion: from the game's scene depth (F3)" } else { "block occlusion: from the scanned collision (F3)" });
+			} else {
+				log::line(&format!("block occlusion: scanned collision; game-depth capture is off after an earlier failed frame (delete {} to try again)", depth::marker_path()));
+			}
 		}
 		if self.keys.pressed(keys::VK_F4) {
 			self.game_light = !self.game_light;
