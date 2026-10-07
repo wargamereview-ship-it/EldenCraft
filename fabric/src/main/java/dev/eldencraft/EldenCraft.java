@@ -17,6 +17,7 @@ public final class EldenCraft implements ModInitializer {
 	public void onInitialize() {
 		dev.eldencraft.combat.PlayerStatusBridge.init();
 		dev.eldencraft.combat.BossRewards.init();
+		dev.eldencraft.combat.XpPile.init();
 		SkyCombat.init();
 		dev.eldencraft.world.ResourceNodes.init();
 		dev.eldencraft.net.SkyNet.init();
@@ -43,6 +44,7 @@ public final class EldenCraft implements ModInitializer {
 		LOG.info("EldenCraft: mirror world configured");
 		dev.eldencraft.combat.SkyLoot.verify(server);
 		dev.eldencraft.world.ResourceNodes.load(server);
+		dev.eldencraft.combat.XpPile.load(server);
 	}
 
 }
