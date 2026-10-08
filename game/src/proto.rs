@@ -108,6 +108,11 @@ pub const IN_OPEN_ANVIL: u16 = 18;
 pub const IN_OPEN_SHOP: u16 = 19;
 /// Show the key hint for the shop NPC the player stands beside (code is the shop).
 pub const IN_SHOP_HINT: u16 = 20;
+/// The Elden Ring character received an item: code = item category (0 weapon, 1 armour, 2 talisman, 4 goods,
+/// 8 Ash of War), a = param row (weapons include upgrade level and infusion), b = how many.
+pub const IN_ER_ITEM: u16 = 21;
+/// The Elden Ring character's starting class: a = CharaInitParam row (3000 Vagabond ... 3009 Wretch).
+pub const IN_ER_CLASS: u16 = 22;
 pub const ENEMY_BOSS: u16 = 1;
 pub const OFF_NATIVE_LIFE: usize = 0x900;
 pub const OFF_PLAYER_VITALS: usize = 0x940;

@@ -115,11 +115,13 @@ public final class SkyCombat {
 		// Hits land during the tick (melee, sweeps, arrows, fire); send one combined hit per actor.
 		for (SkyrimActorEntity proxy : PROXIES.values()) {
 			float[] hit = proxy.takeHit();
-			if (hit != null && (hit[0] > 0.0F || hit[3] > 0.0F)) {
+			if (hit != null && (hit[0] > 0.0F || hit[3] > 0.0F || hit[6] > 0.0F)) {
 				// Damage lands as a share set by the region's tier; the bridge converts what is left to Elden Ring HP.
+				// Elden Ring weapons and spells already deal Elden Ring's own damage and keep all of it.
 				if (life != null) {
 					hit[0] *= CombatBalance.damageFactor(LootRules.tierAt(life.worldId(), proxy.position()));
 				}
+				hit[0] += hit[6];
 				SkyLink.pushEvent(
 					Proto.EV_HIT_ACTOR, proxy.formId(), hit[0], hit[1], hit[2], hit[3], Float.floatToRawIntBits(hit[4]), Float.floatToRawIntBits(hit[5])
 				);
@@ -266,6 +268,8 @@ public final class SkyCombat {
 		NativeDamageSource nativeSource = new NativeDamageSource(type, source.getDirectEntity(), source.getEntity(), origin);
 		source = nativeSource;
 		// Element wards cut their element's share of the hit, before Minecraft's own armour.
+		// Elden Ring armour, talismans and buffs negate per element as the game does.
+		damage *= (float) dev.eldencraft.items.ErArmour.passThrough(player, dev.eldencraft.items.ErEffects.of(player), shares);
 		float unwarded = damage;
 		damage = Wards.reduce(player, damage, shares);
 		player.setYHeadRot(player.getYRot());
@@ -274,6 +278,11 @@ public final class SkyCombat {
 		var shieldHand = player.getUsedItemHand();
 		boolean hurt = player.hurtServer(level, source, damage);
 		SkyLink.writePlayerVitals(life, player);
+		if (nativeSource.blocked() > 0.0F && shieldHand != null) {
+			// Blocking costs Elden Ring stamina; an emptied pool breaks the guard.
+			dev.eldencraft.items.ErStamina.blocked(player, player.getItemInHand(shieldHand),
+				nativeSource.blocked() * dev.eldencraft.items.ErStats.HP_PER_HEALTH);
+		}
 		double angle = direction(player, source.getSourcePosition());
 		EldenCraft.LOG.info("EldenCraft: ER hit {} MC damage from actor {}: hearts HP {} -> {} (shield raised {}, blocked {}, angle {}, source {}, origin {}, accepted {}){}",
 			damage, attackerId, before, player.getHealth(), blocking, nativeSource.blocked(), angle,

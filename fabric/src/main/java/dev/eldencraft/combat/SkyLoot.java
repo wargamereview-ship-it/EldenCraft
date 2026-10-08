@@ -14,13 +14,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 
 /** Family supplies, regional gear and durable one-time boss collections. Server thread only. */
@@ -57,9 +52,6 @@ public final class SkyLoot {
 	public static void enemyDied(ServerPlayer player,Death death) {
 		if(death.pos()==null || !Double.isFinite(death.pos().x) || !Double.isFinite(death.pos().y) || !Double.isFinite(death.pos().z)) return;
 		SetPassives.onKill(player,death.pos(),LootRules.tier(death));
-		var level=player.level(); var current=level.getServer();
-		var params=new LootParams.Builder(level).withParameter(LootContextParams.ORIGIN,death.pos())
-			.withOptionalParameter(LootContextParams.THIS_ENTITY,player).withLuck(player.getLuck()).create(LootContextParamSets.CHEST);
 		if(death.boss()) {
 			var boss=LootRules.boss(death.bossFlag());
 			if(boss==null) {
@@ -68,10 +60,9 @@ public final class SkyLoot {
 				var reward=new com.google.gson.JsonObject();reward.addProperty("slot","sword");reward.addProperty("name","Uncharted Champion's Blade");reward.addProperty("theme","general");boss.add("reward",reward);
 			}
 			int tier=boss.get("tier").getAsInt();
-			List<ItemStack> drops=new ArrayList<>();
-			drops.add(LootEquipment.bossGear(current,boss));
-			drops.add(LootEquipment.bossBook(current,boss,level.getRandom()));
-			drops.addAll(table(current,"boss/tier_"+tier).getRandomItems(params));
+			// Boss items are Elden Ring's own now: they arrive through the inventory mirror. The ledger keeps the
+			// experience to the first kill of each encounter.
+			List<ItemStack> drops=List.of();
 			String key=death.bossFlag()!=0 ? "boss:"+Integer.toUnsignedString(death.bossFlag())
 				: "placed:"+Integer.toUnsignedString(death.mapId())+":"+(death.entityId()!=0 ? Integer.toUnsignedString(death.entityId())
 					: death.npcParamId()+":"+(int)Math.floor(death.pos().x/16)+":"+(int)Math.floor(death.pos().z/16));
@@ -85,48 +76,13 @@ public final class SkyLoot {
 		}
 		if(!player.isAlive()) { DEFERRED.add(new Deferred(player.getUUID(),death)); return; }
 		int tier=LootRules.tier(death);
-		String family=LootRules.family(death),role=LootRules.role(death,family);
-		List<ItemStack> drops=new ArrayList<>(table(current,"enemy/"+family+"/tier_"+tier).getRandomItems(params));
-		if(drops.stream().allMatch(ItemStack::isEmpty)) {
-			EldenCraft.LOG.error("EldenCraft: empty guaranteed pool for {} tier {}; preserving minimum reward",family,tier);
-			drops.add(new ItemStack(Items.COBBLESTONE));
-		}
-		// HP affects the bulk-material quantity only; it never changes regional quality.
-		int[] upper = {2,3,4,5,6,7,8}, tough = {600,1500,4000,10000,20000,25000,35000};
-		if(death.maxHp() >= tough[tier-1] && !drops.isEmpty()) {
-			var material=drops.getFirst();
-			material.setCount(Math.min(upper[tier-1],material.getCount()+1));
-		}
-		int gearTier=tier;
-		if(role!=null) {
-			int roll=level.getRandom().nextInt(100);
-			if(LootRules.equipmentTier(tier,roll)>0) {
-				gearTier=LootRules.equipmentTier(tier,roll);
-				var gear=table(current,"gear/"+role+"/tier_"+gearTier).getRandomItems(params);
-				for(var stack:gear) {
-					LootEquipment.apply(current,stack,gearTier,false,"general");
-					if(roll==0 && gearTier==tier) LootEquipment.apply(current,stack,gearTier,true,"general");
-				}
-				drops.addAll(gear);
-			}
-		}
-		spawn(level,death.pos(),drops);
+		// Drops are Elden Ring's own now (picked up in Elden Ring, mirrored into the inventory); kills still pay experience.
+		String family=LootRules.family(death);
+		List<ItemStack> drops=List.of();
 		int xp=XpMath.fromRunes(death.runes(),ENEMY_XP[tier-1]);
 		grantXp(player,xp);
 		EldenCraft.LOG.info("EldenCraft: loot c{} npc {} entity {} map {}: {} tier {}, {} xp, {}",
 			death.characterId(),death.npcParamId(),death.entityId(),Integer.toUnsignedString(death.mapId(),16),family,tier,xp,drops);
-	}
-	private static void spawn(ServerLevel level,Vec3 at,List<ItemStack> drops) {
-		boolean grounded=collisionKnown(at);
-		for(var stack:drops) {
-			if(stack.isEmpty()) continue;
-			var random=level.getRandom();
-			ItemEntity item=grounded ? new ItemEntity(level,at.x,at.y+0.5,at.z,stack,random.nextGaussian()*0.05,0.2,random.nextGaussian()*0.05)
-				: new ItemEntity(level,at.x,at.y+0.3,at.z,stack,0,0,0);
-			item.setDefaultPickUpDelay();
-			if(!grounded) { item.setNoGravity(true);FLOATING.add(item); }
-			level.addFreshEntity(item);
-		}
 	}
 	/**
 	 * Experience for a kill goes straight to the player, as if they had picked up its orbs: Mending gear is repaired

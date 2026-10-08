@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "eldencraft:item/er/armour/helm_light_tint",
+    "layer1": "eldencraft:item/er/armour/helm_light"
+  }
+}

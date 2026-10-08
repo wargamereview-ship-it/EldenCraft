@@ -26,7 +26,8 @@
     "WindowMixin",
     "WorldOpenFlowsMixin",
     "FirstPersonHandsMixin",
-    "HudCrosshairMixin"
+    "HudCrosshairMixin",
+    "LocalPlayerSprintMixin"
   ],
   "injectors": {
     "defaultRequire": 1

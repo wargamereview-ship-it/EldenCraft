@@ -115,6 +115,21 @@ public final class InputBridge {
 					dev.eldencraft.combat.Merchants.openSpecial(server, minecraft.player.getUUID(), code);
 				}
 			}
+			case Proto.IN_ER_ITEM, Proto.IN_ER_CLASS -> {
+				var server = minecraft.getSingleplayerServer();
+				if (server != null && minecraft.player != null) {
+					var uuid = minecraft.player.getUUID();
+					int kind = type;
+					server.execute(() -> {
+						if (kind == Proto.IN_ER_CLASS) {
+							dev.eldencraft.items.ErServer.nativeClass(a);
+							return;
+						}
+						ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+						if (player != null) dev.eldencraft.items.ErMirror.receive(player, code, a, b);
+					});
+				}
+			}
 			case Proto.IN_OPEN_MENU -> {
 				if (minecraft.gui.screen() == null && minecraft.player != null) {
 					releaseAll();

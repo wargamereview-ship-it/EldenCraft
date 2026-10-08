@@ -508,7 +508,7 @@ fn exclusion(chr: &ChrIns, space: &Space, observed_attacker: bool) -> Option<&'s
 
 /// The character playing: its save slot and a hash of its name, so a new game (even in the same slot) is a new profile.
 /// Zero while the slot is unknown.
-fn profile_id(player: &PlayerIns) -> u32 {
+pub(crate) fn profile_id(player: &PlayerIns) -> u32 {
 	let slot = unsafe { GameMan::instance() }.ok().map_or(-1, |g| g.save_slot);
 	if !(0..=14).contains(&slot) { return 0; }
 	let data = unsafe { player.player_game_data.as_ref() };

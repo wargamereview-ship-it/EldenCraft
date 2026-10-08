@@ -20,6 +20,7 @@ mod dinput;
 mod hud;
 mod input;
 mod interact;
+mod inventory;
 mod keys;
 mod launcher;
 mod link;
@@ -189,6 +190,7 @@ struct Frame {
 	scanner: Scanner,
 	blocks: Blocks,
 	combat: combat::Combat,
+	inventory: inventory::Inventory,
 	/// Learned ER player sounds, replayed as native AI footsteps while Minecraft drives.
 	hearing: ai_sound::Hearing,
 	/// ER Event Action (R) and the native animation window it can start.
@@ -284,6 +286,7 @@ impl Frame {
 			scanner: Scanner::new(),
 			blocks: Blocks::new(),
 			combat: combat::Combat::new(),
+			inventory: inventory::Inventory::default(),
 			hearing: ai_sound::Hearing::new(),
 			interact: interact::Interact::new(),
 			resources: resources::Resources::default(),
@@ -556,6 +559,7 @@ impl Frame {
 			return;
 		};
 		camera::set_ready(alive);
+		self.inventory.frame(&self.link, player, combat::profile_id(player));
 		if self.loading_was {
 			self.loading_was = false;
 			self.scanner.reset_after_load();

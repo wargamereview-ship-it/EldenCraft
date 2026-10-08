@@ -66,6 +66,10 @@ public final class Proto {
 	public static final int IN_OPEN_ANVIL = 18;
 	public static final int IN_OPEN_SHOP = 19;
 	public static final int IN_SHOP_HINT = 20;
+	/** The ER character received an item: code = category, a = param row, b = count. */
+	public static final int IN_ER_ITEM = 21;
+	/** The ER character's starting class: a = CharaInitParam row. */
+	public static final int IN_ER_CLASS = 22;
 	public static final int ENEMY_BOSS = 1;
 	public static final long OFF_NATIVE_LIFE = 0x900, OFF_PLAYER_VITALS = 0x940;
 	public static final int LIFE_ACTIVE = 1, LIFE_RESPAWN = 2;

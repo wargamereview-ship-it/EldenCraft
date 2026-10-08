@@ -33,6 +33,8 @@ public class SkyrimActorEntity extends LivingEntity {
 	// This tick's hit, flushed to Skyrim by SkyCombat after all attacks for the tick have landed
 	// (Player.attack adds its sprint/enchantment knockback after hurtServer returns).
 	private float pendingDamage;
+	// Damage from Elden Ring weapons and spells: already Elden Ring's own numbers, so the tier factor is not applied.
+	private float pendingExact;
 	private int pendingFlags;
 	private int pendingWeapon;
 	private double pushX, pushZ;
@@ -97,6 +99,15 @@ public class SkyrimActorEntity extends LivingEntity {
 		if (this.isInvulnerableTo(level, source) || dmg <= 0.0F) {
 			return;
 		}
+		if (ErHits.onHurt(level, this, source, dmg * meters.amplify(level.getGameTime()))) {
+			this.pendingWeapon = ErHits.weaponClass(source);
+			if (source.getDirectEntity() instanceof Projectile) {
+				this.pendingFlags |= Proto.HIT_PROJECTILE;
+			}
+			this.hitThisTick = true;
+			this.getCombatTracker().recordDamage(source, dmg);
+			return;
+		}
 		// Frostbite leaves an enemy open; the weapon's elements add to the hit, its statuses fill meters.
 		float damage = dmg * meters.amplify(level.getGameTime());
 		damage += ElementalHit.apply(level, this, source, ElementalHit.weapon(source), damage);
@@ -146,6 +157,11 @@ public class SkyrimActorEntity extends LivingEntity {
 		this.maxHp = maxHp > 0.0F ? maxHp : 20.0F;
 		this.boss = boss;
 		this.family = family;
+	}
+
+	/** Damage from an Elden Ring weapon or spell, sent as it is (no tier factor). */
+	public void addExactDamage(float damage) {
+		if (damage > 0.0F && Float.isFinite(damage)) this.pendingExact += damage;
 	}
 
 	/** Status damage (a burst, or poison and rot ticking) waiting to go to Elden Ring. */
@@ -200,14 +216,15 @@ public class SkyrimActorEntity extends LivingEntity {
 		return Proto.WEAPON_BLUNT;
 	}
 
-	/** Returns this tick's hit (damage, flags, push, weapon) and clears it; null if nothing hit us. */
+	/** Returns this tick's hit (damage, flags, push, weapon, exact damage) and clears it; null if nothing hit us. */
 	public float[] takeHit() {
 		if (!this.hitThisTick) {
 			return null;
 		}
 		float[] hit = { this.pendingDamage, (float) this.pushX, (float) this.pushZ, this.pushStrength, Float.intBitsToFloat(this.pendingFlags),
-			Float.intBitsToFloat(this.pendingWeapon) };
+			Float.intBitsToFloat(this.pendingWeapon), this.pendingExact };
 		this.pendingDamage = 0.0F;
+		this.pendingExact = 0.0F;
 		this.pendingFlags = 0;
 		this.pushX = this.pushZ = 0.0;
 		this.pushStrength = 0.0F;

@@ -138,7 +138,7 @@ public final class ResourceNodes {
      */
     public static void graceNoticed(MinecraftServer current,boolean rested,int x,int y,int z) {
         if(current!=server || !healthy) return;
-        if(rested) { cycle++;dirty=true;dev.eldencraft.combat.Merchants.restock(); }
+        if(rested) { cycle++;dirty=true;dev.eldencraft.combat.Merchants.restock();dev.eldencraft.items.ErServer.graceRest(current); }
         if(!ResourceRules.nearGrace(graces,x+0.5,y+0.5,z+0.5)) {
             graces.add(new int[]{x,y,z});dirty=true;
             var near=new ArrayList<Node>();

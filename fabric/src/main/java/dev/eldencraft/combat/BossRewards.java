@@ -105,7 +105,8 @@ public final class BossRewards {
 		entry.add("items",encoded);
 		rewards.add(key,entry);
 		if (!persist()) { rewards.remove(key); return Enqueued.FAILED; }
-		player.sendSystemMessage(Component.literal("Boss reward earned: "+name+". Items wait for you if your inventory is full."));
+		player.sendSystemMessage(Component.literal(encoded.isEmpty() ? "Boss defeated: "+name+"."
+			: "Boss reward earned: "+name+". Items wait for you if your inventory is full."));
 		return Enqueued.ADDED;
 	}
 	/**

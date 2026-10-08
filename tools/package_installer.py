@@ -32,7 +32,7 @@ def package(output: Path, dll: Path, jar: Path, release_version: str | None = No
                 "files": {"eldencraft.dll": hashlib.sha256(dll.read_bytes()).hexdigest(),
                           "eldencraft.jar": hashlib.sha256(jar.read_bytes()).hexdigest()}}
     if release_version:
-        if not re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,2}(?:-[A-Za-z0-9.-]+)?", release_version):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*", release_version):
             raise ValueError("Invalid release version.")
         manifest["release_version"] = release_version
     script = (ROOT / "installer/Install.sh").read_text()

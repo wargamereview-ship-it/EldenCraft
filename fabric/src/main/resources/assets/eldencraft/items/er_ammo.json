@@ -1,0 +1,16 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "eldencraft:item/er/weapon/arrow",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -6710887
+      },
+      {
+        "type": "minecraft:constant",
+        "value": -1
+      }
+    ]
+  }
+}

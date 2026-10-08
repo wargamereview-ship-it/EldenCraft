@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "eldencraft:item/er/weapon/seal_tint",
+    "layer1": "eldencraft:item/er/weapon/seal"
+  }
+}

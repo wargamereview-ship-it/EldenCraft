@@ -194,6 +194,9 @@ namespace eldencraft::proto
 		kInGraceRest = 16, // Native grace rest; replenish gathering nodes.
 		kInHurtElements = 17, // precedes kInHurt in one batch, code 1 when its attack is known: a = magic, fire,
 		                      // lightning, holy percent (a byte each, low first), b = physical percent
+		kInErItem = 21,      // the ER character received an item: code = category (0 weapon, 1 armour, 2 talisman,
+		                     // 4 goods, 8 Ash of War), a = param row (weapons: + infusion * 100 + level), b = count
+		kInErClass = 22,     // the ER character's starting class: a = CharaInitParam row (3000-3009)
 		kInEnemyDied = 14,   // code = EnemyDiedFlags, a = native max HP, b = character (model) ID, c = boss completion flag (0: ordinary/fallback)
 	};
 

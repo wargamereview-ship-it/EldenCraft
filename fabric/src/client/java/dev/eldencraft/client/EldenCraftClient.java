@@ -57,6 +57,9 @@ public final class EldenCraftClient implements ClientModInitializer {
 		});
 		// Skyrim draws the real NPC; its Minecraft stand-in is only a hitbox.
 		EntityRendererRegistry.register(SkyCombat.SKYRIM_ACTOR, NoopRenderer::new);
+		EntityRendererRegistry.register(dev.eldencraft.items.ErSpellProjectile.TYPE, net.minecraft.client.renderer.entity.ThrownItemRenderer::new);
+		ErTooltips.init();
+		ErHud.init();
 		// Players (client-side movement AND the integrated server's re-check of it) use the smooth
 		// triangle collider, never Skyrim's voxels; otherwise the server sees the smooth position
 		// dip into a voxel and teleports the player back every few ticks.

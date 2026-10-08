@@ -43,6 +43,9 @@ public final class Merchants {
 	private static final Map<Integer, int[]> USES = new HashMap<>();
 	private static final Map<Integer, Integer> TIERS = new HashMap<>();
 	private static final Map<Integer, String> NAMES = new HashMap<>();
+	/** Each merchant's NpcParam row (from the bridge's label), which says which Elden Ring shop it is. */
+	private static final Map<Integer, Integer> ROWS = new HashMap<>();
+	private static final java.util.regex.Pattern ROW = java.util.regex.Pattern.compile(" n(\\d+)\\b");
 
 	private Merchants() {
 	}
@@ -100,6 +103,8 @@ public final class Merchants {
 				}
 				STAND_INS.put(a.formId(), villager);
 				NAMES.put(a.formId(), name);
+				var row = ROW.matcher(a.name());
+				ROWS.put(a.formId(), row.find() ? Integer.parseInt(row.group(1)) : 0);
 				TIERS.put(a.formId(), life == null ? 1 : LootRules.tierAt(life.worldId(), new Vec3(a.x(), a.y(), a.z())));
 				EldenCraft.LOG.info("EldenCraft: merchant {} stands in as a villager (tier {})", name, TIERS.get(a.formId()));
 			} else {
@@ -130,6 +135,11 @@ public final class Merchants {
 	}
 
 	private static void open(ServerPlayer player, int merchant) {
+		// The merchant's own Elden Ring stock, at Elden Ring's prices.
+		int lineup = dev.eldencraft.items.ErShops.lineupFor(ROWS.getOrDefault(merchant, 0));
+		if (lineup != 0 && dev.eldencraft.items.ErShops.open(player, lineup, NAMES.getOrDefault(merchant, "Merchant"))) {
+			return;
+		}
 		int tier = TIERS.getOrDefault(merchant, 1);
 		List<MerchantTrades.Trade> trades = MerchantTrades.forTier(tier);
 		int[] uses = USES.computeIfAbsent(merchant, k -> trades.stream().mapToInt(MerchantTrades.Trade::uses).toArray());
