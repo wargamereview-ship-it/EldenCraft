@@ -1,0 +1,870 @@
+{
+ "4000": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4001": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4010": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4020": {
+  "style": "COMET",
+  "color": 4157400
+ },
+ "4021": {
+  "style": "COMET",
+  "color": 4157400
+ },
+ "4030": {
+  "style": "SPIRAL",
+  "color": 4157400
+ },
+ "4040": {
+  "style": "STAR",
+  "color": 4157400
+ },
+ "4050": {
+  "style": "STAR",
+  "color": 4157400
+ },
+ "4060": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4070": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4080": {
+  "style": "ORB",
+  "color": 4157400
+ },
+ "4090": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4100": {
+  "style": "ROCK",
+  "color": 4157400
+ },
+ "4110": {
+  "style": "ROCK",
+  "color": 4157400
+ },
+ "4120": {
+  "style": "ROCK",
+  "color": 4157400
+ },
+ "4130": {
+  "style": "COMET",
+  "color": 4157400
+ },
+ "4140": {
+  "style": "AURA",
+  "color": 4157400
+ },
+ "4200": {
+  "style": "COMET",
+  "color": 4157400
+ },
+ "4210": {
+  "style": "RAIN",
+  "color": 4157400
+ },
+ "4220": {
+  "style": "STAR",
+  "color": 4157400
+ },
+ "4300": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4301": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4302": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4360": {
+  "style": "ORB",
+  "color": 4157400
+ },
+ "4361": {
+  "style": "DARK",
+  "color": 7028640
+ },
+ "4370": {
+  "style": "RAIN",
+  "color": 4157400
+ },
+ "4380": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4381": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4390": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4400": {
+  "style": "FROST",
+  "color": 4157400
+ },
+ "4410": {
+  "style": "FROST",
+  "color": 4157400
+ },
+ "4420": {
+  "style": "FROST",
+  "color": 4157400
+ },
+ "4430": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4431": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4440": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4450": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4460": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4470": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "4480": {
+  "style": "BUFF",
+  "color": 4157400
+ },
+ "4490": {
+  "style": "BLADE",
+  "color": 10479871
+ },
+ "4500": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4510": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4520": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4600": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "4610": {
+  "style": "SHARD",
+  "color": 7028640
+ },
+ "4620": {
+  "style": "COMET",
+  "color": 7028640
+ },
+ "4630": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "4640": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "4641": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "4642": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "4650": {
+  "style": "DARK",
+  "color": 4157400
+ },
+ "4660": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "4670": {
+  "style": "AURA",
+  "color": 4157400
+ },
+ "4700": {
+  "style": "COMET",
+  "color": 4157400
+ },
+ "4701": {
+  "style": "COMET",
+  "color": 4157400
+ },
+ "4710": {
+  "style": "ROCK",
+  "color": 4157400
+ },
+ "4720": {
+  "style": "DARK",
+  "color": 7028640
+ },
+ "4721": {
+  "style": "STAR",
+  "color": 4157400
+ },
+ "4800": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "4810": {
+  "style": "FLAME",
+  "color": 4157400
+ },
+ "4820": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "4830": {
+  "style": "BLOOD",
+  "color": 11538474
+ },
+ "4900": {
+  "style": "ROT",
+  "color": 4157400
+ },
+ "4910": {
+  "style": "ROT",
+  "color": 4157400
+ },
+ "5000": {
+  "style": "BLOOD",
+  "color": 11538474
+ },
+ "5001": {
+  "style": "BLOOD",
+  "color": 11538474
+ },
+ "5010": {
+  "style": "FLAME",
+  "color": 4157400
+ },
+ "5020": {
+  "style": "BUFF",
+  "color": 4157400
+ },
+ "5030": {
+  "style": "SUMMON",
+  "color": 4157400
+ },
+ "5040": {
+  "style": "BOLT",
+  "color": 4157400
+ },
+ "5100": {
+  "style": "ORB",
+  "color": 4157400
+ },
+ "5110": {
+  "style": "ORB",
+  "color": 4157400
+ },
+ "6000": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6001": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6010": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6020": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6030": {
+  "style": "SPIRAL",
+  "color": 12071215
+ },
+ "6040": {
+  "style": "HEAL",
+  "color": 12071215
+ },
+ "6050": {
+  "style": "BUFF",
+  "color": 12071215
+ },
+ "6060": {
+  "style": "BARRIER",
+  "color": 12071215
+ },
+ "6100": {
+  "style": "FLAME",
+  "color": 14922561
+ },
+ "6110": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6120": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6210": {
+  "style": "FLAME",
+  "color": 2756410
+ },
+ "6220": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6230": {
+  "style": "FLAME",
+  "color": 2756410
+ },
+ "6240": {
+  "style": "FLAME",
+  "color": 2756410
+ },
+ "6250": {
+  "style": "BLADE",
+  "color": 2756410
+ },
+ "6260": {
+  "style": "BARRIER",
+  "color": 2756410
+ },
+ "6270": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "6300": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6310": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "6320": {
+  "style": "BLADE",
+  "color": 12071215
+ },
+ "6330": {
+  "style": "BARRIER",
+  "color": 14922561
+ },
+ "6340": {
+  "style": "BARRIER",
+  "color": 14922561
+ },
+ "6400": {
+  "style": "BARRIER",
+  "color": 14922561
+ },
+ "6410": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "6420": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6421": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6422": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6423": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6424": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6430": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6431": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "6440": {
+  "style": "HEAL",
+  "color": 9346607
+ },
+ "6441": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6450": {
+  "style": "BUFF",
+  "color": 12071215
+ },
+ "6460": {
+  "style": "BUFF",
+  "color": 4157400
+ },
+ "6470": {
+  "style": "BUFF",
+  "color": 15259738
+ },
+ "6480": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "6490": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "6500": {
+  "style": "DARK",
+  "color": 3025715
+ },
+ "6510": {
+  "style": "AURA",
+  "color": 14922561
+ },
+ "6520": {
+  "style": "DARK",
+  "color": 3025715
+ },
+ "6530": {
+  "style": "DARK",
+  "color": 3025715
+ },
+ "6600": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "6700": {
+  "style": "RING",
+  "color": 14922561
+ },
+ "6701": {
+  "style": "RING",
+  "color": 14922561
+ },
+ "6710": {
+  "style": "RING",
+  "color": 14922561
+ },
+ "6720": {
+  "style": "STAR",
+  "color": 14922561
+ },
+ "6730": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "6740": {
+  "style": "BARRIER",
+  "color": 14922561
+ },
+ "6750": {
+  "style": "HOLY",
+  "color": 3025715
+ },
+ "6760": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "6770": {
+  "style": "BLADE",
+  "color": 14922561
+ },
+ "6780": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "6800": {
+  "style": "ROCK",
+  "color": 14922561
+ },
+ "6810": {
+  "style": "ROCK",
+  "color": 14922561
+ },
+ "6820": {
+  "style": "BLADE",
+  "color": 10119738
+ },
+ "6830": {
+  "style": "BLADE",
+  "color": 10119738
+ },
+ "6840": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "6850": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "6900": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6910": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6920": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6921": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6930": {
+  "style": "BOLT",
+  "color": 14922561
+ },
+ "6940": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6941": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6950": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "6960": {
+  "style": "BLADE",
+  "color": 14922561
+ },
+ "6970": {
+  "style": "BLADE",
+  "color": 15259738
+ },
+ "6971": {
+  "style": "BUFF",
+  "color": 15259738
+ },
+ "7000": {
+  "style": "FLAME",
+  "color": 15259738
+ },
+ "7001": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "7010": {
+  "style": "BREATH",
+  "color": 12071215
+ },
+ "7011": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "7020": {
+  "style": "FROST",
+  "color": 15259738
+ },
+ "7021": {
+  "style": "FROST",
+  "color": 14922561
+ },
+ "7030": {
+  "style": "BREATH",
+  "color": 9346607
+ },
+ "7031": {
+  "style": "ROT",
+  "color": 14922561
+ },
+ "7040": {
+  "style": "BREATH",
+  "color": 4157400
+ },
+ "7041": {
+  "style": "BREATH",
+  "color": 14922561
+ },
+ "7050": {
+  "style": "FLAME",
+  "color": 14922561
+ },
+ "7060": {
+  "style": "BLADE",
+  "color": 15259738
+ },
+ "7080": {
+  "style": "BLADE",
+  "color": 15259738
+ },
+ "7090": {
+  "style": "RING",
+  "color": 14922561
+ },
+ "7200": {
+  "style": "ROT",
+  "color": 9346607
+ },
+ "7210": {
+  "style": "ROT",
+  "color": 14922561
+ },
+ "7220": {
+  "style": "ROT",
+  "color": 9346607
+ },
+ "7230": {
+  "style": "BLADE",
+  "color": 9346607
+ },
+ "7240": {
+  "style": "FLAME",
+  "color": 11538474
+ },
+ "7300": {
+  "style": "FLAME",
+  "color": 9061813
+ },
+ "7310": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "7311": {
+  "style": "FLAME",
+  "color": 9061813
+ },
+ "7320": {
+  "style": "FLAME",
+  "color": 9061813
+ },
+ "7330": {
+  "style": "RING",
+  "color": 14922561
+ },
+ "7500": {
+  "style": "BLADE",
+  "color": 14922561
+ },
+ "7510": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "7520": {
+  "style": "BREATH",
+  "color": 14922561
+ },
+ "7530": {
+  "style": "BLADE",
+  "color": 2756410
+ },
+ "7900": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "7903": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "8000": {
+  "style": "ROT",
+  "color": 14922561
+ },
+ "8001": {
+  "style": "ROT",
+  "color": 14922561
+ },
+ "2004300": {
+  "style": "AURA",
+  "color": 4157400
+ },
+ "2004310": {
+  "style": "BLADE",
+  "color": 4157400
+ },
+ "2004320": {
+  "style": "ORB",
+  "color": 4157400
+ },
+ "2004500": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "2004510": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "2004700": {
+  "style": "ROCK",
+  "color": 4157400
+ },
+ "2004710": {
+  "style": "DARK",
+  "color": 4157400
+ },
+ "2004900": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "2004910": {
+  "style": "BARRIER",
+  "color": 4157400
+ },
+ "2005000": {
+  "style": "RING",
+  "color": 4157400
+ },
+ "2006200": {
+  "style": "ROT",
+  "color": 4157400
+ },
+ "2006210": {
+  "style": "ROT",
+  "color": 4157400
+ },
+ "2006300": {
+  "style": "BLADE",
+  "color": 14922561
+ },
+ "2006400": {
+  "style": "HEAL",
+  "color": 14922561
+ },
+ "2006650": {
+  "style": "ROT",
+  "color": 14922561
+ },
+ "2006660": {
+  "style": "AURA",
+  "color": 14922561
+ },
+ "2006670": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "2006680": {
+  "style": "DARK",
+  "color": 3025715
+ },
+ "2006690": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "2006700": {
+  "style": "HOLY",
+  "color": 14922561
+ },
+ "2006710": {
+  "style": "RING",
+  "color": 14922561
+ },
+ "2006800": {
+  "style": "BUFF",
+  "color": 14922561
+ },
+ "2006900": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "2006910": {
+  "style": "BOLT",
+  "color": 15259738
+ },
+ "2006920": {
+  "style": "BOLT",
+  "color": 14922561
+ },
+ "2007000": {
+  "style": "FLAME",
+  "color": 14922561
+ },
+ "2007010": {
+  "style": "BOLT",
+  "color": 12071215
+ },
+ "2007020": {
+  "style": "BREATH",
+  "color": 14922561
+ },
+ "2007200": {
+  "style": "ROT",
+  "color": 9346607
+ },
+ "2007210": {
+  "style": "ROT",
+  "color": 9346607
+ },
+ "2007300": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "2007410": {
+  "style": "SHARD",
+  "color": 4157400
+ },
+ "2007420": {
+  "style": "HEAL",
+  "color": 4157400
+ },
+ "2007600": {
+  "style": "SUMMON",
+  "color": 4157400
+ },
+ "2007700": {
+  "style": "HOLY",
+  "color": 4157400
+ },
+ "2007710": {
+  "style": "HOLY",
+  "color": 4157400
+ },
+ "2007720": {
+  "style": "HOLY",
+  "color": 4157400
+ },
+ "2007730": {
+  "style": "SPIRAL",
+  "color": 10119738
+ },
+ "2007740": {
+  "style": "BLADE",
+  "color": 14922561
+ },
+ "2007800": {
+  "style": "FLAME",
+  "color": 12071215
+ },
+ "2007810": {
+  "style": "RAIN",
+  "color": 12071215
+ },
+ "2007820": {
+  "style": "ORB",
+  "color": 14922561
+ }
+}

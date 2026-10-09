@@ -119,7 +119,7 @@ public final class ErGoods {
 		ErEffects.Totals totals = ErEffects.of(player);
 		double total = 0;
 		for (int e = 0; e < 5; e++) total += dmg[e] * totals.attack[e];
-		var shot = new ErSpellProjectile(player.level(), player, stack.copyWithCount(1), (float) (total * ErWeapons.AR_TO_MC), element, 60);
+		var shot = new ErSpellProjectile(player.level(), player, stack.copyWithCount(1), (float) (total * ErWeapons.AR_TO_MC), ErSpellFx.element(element), 60);
 		shot.setNoGravity(false);
 		shot.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, (float) Math.clamp(speed / 20.0, 0.8, 1.8), 1.0F);
 		player.level().addFreshEntity(shot);

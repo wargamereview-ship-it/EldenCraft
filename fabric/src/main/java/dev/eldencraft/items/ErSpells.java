@@ -3,6 +3,7 @@ package dev.eldencraft.items;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -119,15 +120,17 @@ public final class ErSpells {
 		double ss = scaling(catalyst, ref == null ? 0 : ref.level(), attrs) / 100.0;
 		double[] dmg = ErData.arr(spell, "dmg", 5);
 		double total = 0;
-		int element = 1;
 		for (int e = 0; e < 5; e++) {
 			total += dmg[e] * ss * totals.attack[e];
-			if (dmg[e] > dmg[element]) element = e;
 		}
+		ErSpellFx.Look look = ErSpellFx.look(id, ErData.i(spell, "tint"));
 		player.level().playSound(null, player.blockPosition(), incantation ? SoundEvents.EVOKER_CAST_SPELL : SoundEvents.ILLUSIONER_CAST_SPELL,
 			SoundSource.PLAYERS, 0.8F, 1.2F);
 		player.getCooldowns().addCooldown(catalystStack, Math.max(10, ErData.i(spell, "stam") / 2));
 		if (total <= 0) {
+			if (player.level() instanceof ServerLevel level) {
+				ErSpellFx.self(level, look, player.position());
+			}
 			boolean any = false;
 			for (double fx : ErData.arr(spell, "fx", 4)) {
 				if (fx > 0) any |= ErGoods.applyEffect(player, (int) fx);
@@ -138,12 +141,15 @@ public final class ErSpells {
 		double speed = Math.clamp(ErData.d(spell, "speed") / 20.0, 0.4, 2.5);
 		ItemStack icon = ErItems.goods(id, 1);
 		float each = (float) (total * ErWeapons.AR_TO_MC);
+		Vec3 look0 = player.getLookAngle();
+		if (player.level() instanceof ServerLevel level) {
+			ErSpellFx.cast(level, look, player.getEyePosition().add(look0.scale(0.6)), look0);
+		}
 		for (int k = 0; k < count; k++) {
-			var shot = new ErSpellProjectile(player.level(), player, icon, each, element, (int) Math.clamp(40 / speed, 20, 120));
-			Vec3 look = player.getLookAngle();
+			var shot = new ErSpellProjectile(player.level(), player, icon, each, look, (int) Math.clamp(40 / speed, 20, 120));
 			float spread = count == 1 ? 0 : (k - (count - 1) / 2.0F) * 6.0F;
 			shot.shootFromRotation(player, player.getXRot(), player.getYRot() + spread, 0.0F, (float) speed, 0.5F);
-			shot.setPos(player.getX() + look.x * 0.6, player.getEyeY() - 0.2, player.getZ() + look.z * 0.6);
+			shot.setPos(player.getX() + look0.x * 0.6, player.getEyeY() - 0.2, player.getZ() + look0.z * 0.6);
 			player.level().addFreshEntity(shot);
 		}
 		return true;

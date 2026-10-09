@@ -1,8 +1,6 @@
 package dev.eldencraft.items;
 
 import dev.eldencraft.EldenCraft;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -18,7 +16,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
-/** A cast spell in flight: the spell's own icon, a trail of its element, and Elden Ring's damage on whatever it hits. */
+/** A cast spell in flight: the spell's own icon, its own trail and impact in Elden Ring's style, and its damage on whatever it hits. */
 public class ErSpellProjectile extends ThrowableItemProjectile {
 	public static final ResourceKey<EntityType<?>> KEY = ResourceKey.create(Registries.ENTITY_TYPE,
 		Identifier.fromNamespaceAndPath(EldenCraft.MOD_ID, "er_spell"));
@@ -27,17 +25,17 @@ public class ErSpellProjectile extends ThrowableItemProjectile {
 			.clientTrackingRange(8).updateInterval(1).noSave().build(KEY));
 
 	private float damage;
-	private int element;
+	private ErSpellFx.Look look;
 	private int life = 60;
 
 	public ErSpellProjectile(EntityType<? extends ErSpellProjectile> type, Level level) {
 		super(type, level);
 	}
 
-	public ErSpellProjectile(Level level, LivingEntity owner, ItemStack icon, float damage, int element, int life) {
+	public ErSpellProjectile(Level level, LivingEntity owner, ItemStack icon, float damage, ErSpellFx.Look look, int life) {
 		super(TYPE, owner, level, icon);
 		this.damage = damage;
-		this.element = element;
+		this.look = look;
 		this.life = life;
 		this.setNoGravity(true);
 	}
@@ -51,21 +49,11 @@ public class ErSpellProjectile extends ThrowableItemProjectile {
 	public void tick() {
 		super.tick();
 		if (this.level() instanceof ServerLevel level) {
-			level.sendParticles(particle(), this.getX(), this.getY(), this.getZ(), 2, 0.05, 0.05, 0.05, 0.0);
+			ErSpellFx.trail(level, look, this.position(), this.getDeltaMovement(), this.tickCount);
 			if (--this.life <= 0) {
 				this.discard();
 			}
 		}
-	}
-
-	private ParticleOptions particle() {
-		return switch (this.element) {
-			case 2 -> ParticleTypes.FLAME;
-			case 3 -> ParticleTypes.ELECTRIC_SPARK;
-			case 4 -> ParticleTypes.END_ROD;
-			case 0 -> ParticleTypes.CRIT;
-			default -> ParticleTypes.ENCHANT;
-		};
 	}
 
 	@Override
@@ -80,6 +68,9 @@ public class ErSpellProjectile extends ThrowableItemProjectile {
 	@Override
 	protected void onHit(HitResult hit) {
 		super.onHit(hit);
+		if (this.level() instanceof ServerLevel level) {
+			ErSpellFx.impact(level, look, hit.getLocation());
+		}
 		if (!this.level().isClientSide()) {
 			this.discard();
 		}

@@ -19,6 +19,7 @@ import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
@@ -61,11 +62,16 @@ public final class ErShops {
 		return stack.isEmpty() ? null : stack;
 	}
 
-	/** Four rows of offers, then a row with what you hold. Click an offer to buy it. */
+	/** A row of category tabs, three rows of the chosen category's offers, then a row with what you hold. */
 	private static final class ShopMenu extends ChestMenu {
+		private static final int[] KINDS = {ErRef.WEAPON, ErRef.ARMOUR, ErRef.TALISMAN, ErRef.GOODS};
+		private static final int OFFERS = 9, OFFER_LIMIT = 27, PURSE = 44;
+
 		private final SimpleContainer shelf;
 		private final ServerPlayer buyer;
 		private final List<JsonObject> offers = new ArrayList<>();
+		private final List<Integer> tabs = new ArrayList<>();
+		private int tab;
 
 		ShopMenu(int id, Inventory inventory, JsonArray lineup) {
 			this(id, inventory, lineup, new SimpleContainer(45));
@@ -76,9 +82,55 @@ public final class ErShops {
 			this.shelf = shelf;
 			this.buyer = (ServerPlayer) inventory.player;
 			for (var e : lineup) {
-				if (offers.size() < 36 && goods(e.getAsJsonObject()) != null) offers.add(e.getAsJsonObject());
+				if (goods(e.getAsJsonObject()) != null) offers.add(e.getAsJsonObject());
+			}
+			for (int kind : KINDS) {
+				if (count(kind) > 0) tabs.add(kind);
 			}
 			refresh();
+		}
+
+		private int count(int kind) {
+			int n = 0;
+			for (JsonObject offer : offers) {
+				if (ErData.i(offer, "k") == kind) n++;
+			}
+			return n;
+		}
+
+		private List<JsonObject> current() {
+			if (tabs.isEmpty()) return List.of();
+			int kind = tabs.get(tab);
+			return offers.stream().filter(offer -> ErData.i(offer, "k") == kind).limit(OFFER_LIMIT).toList();
+		}
+
+		private static Item tabIcon(int kind) {
+			return switch (kind) {
+				case ErRef.WEAPON -> Items.IRON_SWORD;
+				case ErRef.ARMOUR -> Items.IRON_CHESTPLATE;
+				case ErRef.TALISMAN -> Items.EMERALD;
+				default -> Items.POTION;
+			};
+		}
+
+		private static String tabName(int kind) {
+			return switch (kind) {
+				case ErRef.WEAPON -> "Weapons";
+				case ErRef.ARMOUR -> "Armour";
+				case ErRef.TALISMAN -> "Talismans";
+				default -> "Goods";
+			};
+		}
+
+		private ItemStack tabStack(int t) {
+			int kind = tabs.get(t), n = count(kind);
+			boolean open = t == tab;
+			ItemStack stack = new ItemStack(tabIcon(kind), Math.min(64, n));
+			stack.set(DataComponents.CUSTOM_NAME, Component.literal(tabName(kind)).withStyle(open ? ChatFormatting.GOLD : ChatFormatting.GRAY));
+			stack.set(DataComponents.LORE, new ItemLore(List.of(
+				Component.literal(n + " for sale").withStyle(ChatFormatting.GRAY),
+				Component.literal(open ? "Showing" : "Click to show").withStyle(ChatFormatting.DARK_GRAY))));
+			return stack;
 		}
 
 		private int left(JsonObject offer) {
@@ -89,8 +141,10 @@ public final class ErShops {
 		private void refresh() {
 			int have = XpMath.points(buyer.experienceLevel, buyer.experienceProgress);
 			for (int k = 0; k < 45; k++) shelf.setItem(k, ItemStack.EMPTY);
-			for (int k = 0; k < offers.size(); k++) {
-				JsonObject offer = offers.get(k);
+			for (int t = 0; t < tabs.size(); t++) shelf.setItem(t, tabStack(t));
+			List<JsonObject> shown = current();
+			for (int k = 0; k < shown.size(); k++) {
+				JsonObject offer = shown.get(k);
 				ItemStack stack = goods(offer);
 				int price = price(offer), left = left(offer);
 				List<Component> lore = new ArrayList<>();
@@ -100,12 +154,12 @@ public final class ErShops {
 					.withStyle(left == 0 ? ChatFormatting.RED : ChatFormatting.GRAY));
 				lore.add(Component.literal("Click to buy").withStyle(ChatFormatting.DARK_GRAY));
 				stack.set(DataComponents.LORE, new ItemLore(lore));
-				shelf.setItem(k, stack);
+				shelf.setItem(OFFERS + k, stack);
 			}
 			ItemStack purse = new ItemStack(Items.EXPERIENCE_BOTTLE, Math.clamp(buyer.experienceLevel, 1, 64));
 			purse.set(DataComponents.CUSTOM_NAME, Component.literal("You hold " + have + " experience").withStyle(ChatFormatting.AQUA));
 			purse.set(DataComponents.LORE, new ItemLore(List.of(Component.literal(buyer.experienceLevel + " levels"))));
-			shelf.setItem(44, purse);
+			shelf.setItem(PURSE, purse);
 		}
 
 		@Override
@@ -114,10 +168,20 @@ public final class ErShops {
 				if (slot >= 45 && type != ContainerInput.QUICK_MOVE) super.clicked(slot, button, type, player);
 				return;
 			}
-			if (type != ContainerInput.PICKUP || slot >= offers.size()) {
+			if (type != ContainerInput.PICKUP) {
 				return;
 			}
-			JsonObject offer = offers.get(slot);
+			if (slot < tabs.size()) {
+				tab = slot;
+				refresh();
+				broadcastChanges();
+				return;
+			}
+			List<JsonObject> shown = current();
+			if (slot < OFFERS || slot - OFFERS >= shown.size()) {
+				return;
+			}
+			JsonObject offer = shown.get(slot - OFFERS);
 			if (left(offer) == 0) {
 				buyer.sendSystemMessage(Component.literal("Sold out."));
 				return;

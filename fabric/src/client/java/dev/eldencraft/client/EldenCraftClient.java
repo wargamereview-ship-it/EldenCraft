@@ -11,7 +11,6 @@ public final class EldenCraftClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		dev.eldencraft.link.SkyLink.announceRunning();
 		DiscordPresence.start();
-		DestructionToggle.register();
 		CombatHud.register();
 		PlayerStatusHud.register();
 		// Multiplayer without editing files: the host opens their world to LAN (O, Open to LAN) and

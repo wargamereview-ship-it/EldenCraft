@@ -211,8 +211,7 @@ public final class SkyDig {
 	}
 
 	/**
-	 * Whether Minecraft digs into Skyrim at all: the pause menu's "Skyrim destruction" button, saved
-	 * in config/eldencraft.properties. Off, mining Skyrim's surfaces and explosions leave it alone (and
+	 * Whether Minecraft digs into Skyrim at all. Off, mining Skyrim's surfaces and explosions leave it alone (and
 	 * breaking blocks in old holes digs no further); holes already dug stay. In a friend's world it's
 	 * the host's setting that counts (their server does the digging).
 	 */
